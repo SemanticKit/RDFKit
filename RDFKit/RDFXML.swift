@@ -1,4 +1,5 @@
 import Foundation
+import FoundationXML
 import SemanticKit
 
 // MARK: - RDF/XML import / export
