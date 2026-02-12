@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
 import FoundationXML
+#endif
 import SemanticKit
 
 // MARK: - RDF/XML import / export
