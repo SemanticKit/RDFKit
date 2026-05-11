@@ -1,5 +1,5 @@
 {
-  "originHash" : "d53176ba91fb4de16b4f8087e62e2405e2e166cd8cceff59d9c035f7bd6c7ba3",
+  "originHash" : "7185461345648ee3239522fcac3c6d05c5c1617e942e4ae347d9c7e4de5bdda5",
   "pins" : [
     {
       "identity" : "semantickit",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/SemanticKit/SemanticKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "3a46e7c66a08f507d39be7c19f14ca853219cd72"
+        "revision" : "0494322e0ce47336b8749d7b325a31891cd0cc1e"
       }
     },
     {
