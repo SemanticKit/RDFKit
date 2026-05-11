@@ -1,6 +1,15 @@
 {
-  "originHash" : "ce130b609a60ed90cb5002d97daa1a631fa1c0bd834e7f72ce7c302f5b31a3ca",
+  "originHash" : "d53176ba91fb4de16b4f8087e62e2405e2e166cd8cceff59d9c035f7bd6c7ba3",
   "pins" : [
+    {
+      "identity" : "semantickit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SemanticKit/SemanticKit.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "3a46e7c66a08f507d39be7c19f14ca853219cd72"
+      }
+    },
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
