@@ -5,7 +5,7 @@ public extension OWL {
     static var someValuesFrom: SomeValuesFrom { SomeValuesFrom() }
 
     /// owl:someValuesFrom.
-    struct SomeValuesFrom: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct SomeValuesFrom: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:someValuesFrom.
         public static let domains: [IRI] = [OWL.Restriction.iri]
 

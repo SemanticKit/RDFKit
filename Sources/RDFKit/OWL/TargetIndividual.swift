@@ -5,7 +5,7 @@ public extension OWL {
     static var targetIndividual: TargetIndividual { TargetIndividual() }
 
     /// owl:targetIndividual.
-    struct TargetIndividual: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct TargetIndividual: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:targetIndividual.
         public static let domains: [IRI] = [OWL.NegativePropertyAssertion.iri]
 

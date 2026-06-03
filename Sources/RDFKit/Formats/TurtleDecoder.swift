@@ -314,8 +314,14 @@ struct TurtleDecoder {
 
         var local = ""
         while let ch = lexer.peek() {
-            if ch.isWhitespace || ";,.[]()".contains(ch) {
+            if ch.isWhitespace || ";,[]()".contains(ch) {
                 break
+            }
+            if ch == "." {
+                let next = lexer.peekNext()
+                if next == nil || next?.isWhitespace == true || ";,])".contains(next ?? " ") {
+                    break
+                }
             }
             if ch == "\\" {
                 _ = lexer.advance()

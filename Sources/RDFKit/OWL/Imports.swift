@@ -5,7 +5,7 @@ public extension OWL {
     static var imports: Imports { Imports() }
 
     /// owl:imports.
-    struct Imports: RDFKit.Property, OWLLowerCamelTerm, RDFKit.OntologyProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct Imports: RDFKit.RDFProperty, OWLLowerCamelTerm, RDFKit.OntologyProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:imports.
         public static let domains: [IRI] = [OWL.Ontology.iri]
 

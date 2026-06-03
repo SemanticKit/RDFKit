@@ -5,7 +5,7 @@ public extension RDF {
     static var language: Language { Language() }
 
     /// rdf:language.
-    struct Language: RDFKit.Property, RDFLowerCamelTerm {
+    struct Language: RDFKit.RDFProperty, RDFLowerCamelTerm {
         /// Creates an rdf:language term value.
         public init() {}
     }

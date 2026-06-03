@@ -18,15 +18,3 @@ extension Term {
         hasher.combine(iri)
     }
 }
-
-/// A declared ontology class.
-public protocol Class: Term {}
-
-/// A declared ontology property.
-public protocol Property: Term, RDFPredicate {}
-
-/// A declared ontology datatype.
-public protocol Datatype: Term {}
-
-/// A declared ontology individual.
-public protocol Individual: Term {}

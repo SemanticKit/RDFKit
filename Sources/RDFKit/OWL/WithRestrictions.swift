@@ -5,7 +5,7 @@ public extension OWL {
     static var withRestrictions: WithRestrictions { WithRestrictions() }
 
     /// owl:withRestrictions.
-    struct WithRestrictions: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct WithRestrictions: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:withRestrictions.
         public static let domains: [IRI] = [RDFS.Datatype.iri]
 

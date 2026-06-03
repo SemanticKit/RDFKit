@@ -19,7 +19,16 @@ let package = Package(
         .target(
             name: "RDFKit",
             dependencies: [],
-            resources: [.copy("Turtle")]
+            exclude: [
+                "OWL/AGENTS.md",
+                "RDF/AGENTS.md",
+                "RDFS/AGENTS.md"
+            ],
+            resources: [
+                .copy("RDF/rdf.ttl"),
+                .copy("RDFS/rdfs.ttl"),
+                .copy("Turtle")
+            ]
         ),
         .testTarget(
             name: "RDFKitTests",

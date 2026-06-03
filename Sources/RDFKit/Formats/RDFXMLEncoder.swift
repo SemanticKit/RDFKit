@@ -3,7 +3,7 @@ import Foundation
 /// Encodes RDF graphs into RDF/XML source.
 struct RDFXMLEncoder {
     private let baseIRI: IRI?
-    private let rdfNamespace = RDF.namespace.rawValue
+    private let rdfNamespace = RDF.declaredNamespace.rawValue
     private let itsNamespace = "http://www.w3.org/2005/11/its"
 
     /// Creates an RDF/XML graph encoder.

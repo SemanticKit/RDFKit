@@ -1,7 +1,7 @@
 import Foundation
 
 /// A standard RDF/RDFS/OWL term declaration backed by a standards matrix row.
-public struct StandardTermDeclaration: Term, OntologyContent, GraphContent, RawRepresentable, Comparable, Codable, CustomStringConvertible, CustomDebugStringConvertible {
+public struct StandardTermDeclaration: Term, OntologyContent, GraphContent, Comparable, Codable, CustomStringConvertible, CustomDebugStringConvertible {
     /// The standards matrix row that defines this term.
     public let entry: VocabularyMatrixEntry
 
@@ -18,27 +18,6 @@ public struct StandardTermDeclaration: Term, OntologyContent, GraphContent, RawR
             throw RDFTermError.invalidIRI(iri.rawValue)
         }
         self.entry = entry
-    }
-
-    /// Creates a declaration from its raw IRI string.
-    public init(rawValue: String) {
-        self.entry = VocabularyMatrixEntry(
-            namespace: "",
-            localName: LocalName(rawValue),
-            iri: IRI(rawValue),
-            role: .term,
-            directTypes: [],
-            subclassChain: [],
-            subpropertyChain: [],
-            domain: [],
-            range: [],
-            labels: [],
-            comments: [],
-            seeAlso: [],
-            isDefinedBy: [],
-            dependencyEdges: [],
-            requiredSwiftProtocols: ["Identifiable", "IRIRepresentable", "Term"]
-        )
     }
 
     /// The raw IRI string.

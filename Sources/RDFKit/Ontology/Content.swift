@@ -21,6 +21,33 @@ public protocol IndividualContent: Content {}
 /// Content accepted by annotation declarations.
 public protocol AnnotationContent: Content {}
 
+/// A DSL declaration role resolved inside an ontology namespace.
+enum OntologyDeclarationRole: Equatable, Sendable {
+    case `class`
+    case property
+    case datatype
+    case individual
+}
+
+/// Content whose term identity is scoped by the enclosing ontology namespace.
+protocol NamespaceScopedDeclaration: Content {
+    /// The declaration role.
+    var role: OntologyDeclarationRole { get }
+
+    /// The local name declared inside the enclosing ontology namespace.
+    var localName: LocalName { get }
+
+    /// The declaration body content.
+    var bodyContent: any Content { get }
+}
+
+extension NamespaceScopedDeclaration {
+    /// Returns the declaration IRI inside an ontology environment.
+    func iri(in environment: OntologyEnvironment) -> IRI {
+        QualifiedName(namespace: environment.namespace, localName: localName).iri
+    }
+}
+
 /// Empty DSL content.
 public struct EmptyContent: OntologyContent, ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent {
     /// Creates empty content.

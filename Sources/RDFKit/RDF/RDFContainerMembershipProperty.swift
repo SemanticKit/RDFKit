@@ -6,6 +6,6 @@ public extension RDF {
         guard index > 0 else {
             throw RDFTermError.invalidContainerMembershipIndex
         }
-        return IRI("\(namespace.rawValue)_\(index)")
+        return IRI("\(RDF.declaredNamespace.rawValue)_\(index)")
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Ontology alias content.
-public protocol AliasContent: Sendable {}
+public protocol AliasContent: Content {}
 
 /// An empty alias content value.
 public struct EmptyAliasContent: AliasContent {
@@ -21,6 +21,12 @@ public struct Alias<Target: AliasTarget>: AliasContent {
     public init(_ prefix: String, _ target: Target) {
         self.prefix = prefix
         self.target = target
+    }
+
+    /// Creates a prefix alias bound to a vocabulary type.
+    public init<VocabularyValue: Vocabulary>(_ prefix: String, _ target: VocabularyValue.Type) where Target == VocabularyAliasTarget<VocabularyValue> {
+        self.prefix = prefix
+        self.target = VocabularyAliasTarget(target)
     }
 }
 

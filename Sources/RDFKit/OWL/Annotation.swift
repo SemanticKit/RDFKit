@@ -2,7 +2,7 @@ import Foundation
 
 public extension OWL {
     /// owl:Annotation.
-    struct Annotation: RDFKit.Class, OWLTerm {
+    struct Annotation: RDFKit.RDFClass, OWLTerm {
         /// Creates an owl:Annotation term value.
         public init() {}
     }

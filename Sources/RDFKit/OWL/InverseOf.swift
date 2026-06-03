@@ -5,7 +5,7 @@ public extension OWL {
     static var inverseOf: InverseOf { InverseOf() }
 
     /// owl:inverseOf.
-    struct InverseOf: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct InverseOf: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:inverseOf.
         public static let domains: [IRI] = [OWL.ObjectProperty.iri]
 

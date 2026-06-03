@@ -5,7 +5,7 @@ public extension RDF {
     static var type: TypeTerm { TypeTerm() }
 
     /// rdf:type.
-    struct TypeTerm: RDFKit.Property, RDFTerm, RelationshipProperty {
+    struct TypeTerm: RDFKit.RDFProperty, RDFTerm, RelationshipProperty {
         /// The RDF local name.
         public static let localName = LocalName("type")
 

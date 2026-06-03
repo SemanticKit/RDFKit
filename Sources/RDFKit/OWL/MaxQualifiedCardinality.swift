@@ -5,7 +5,7 @@ public extension OWL {
     static var maxQualifiedCardinality: MaxQualifiedCardinality { MaxQualifiedCardinality() }
 
     /// owl:maxQualifiedCardinality.
-    struct MaxQualifiedCardinality: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty {
+    struct MaxQualifiedCardinality: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty {
         /// The rdfs:domain values declared for owl:maxQualifiedCardinality.
         public static let domains: [IRI] = [OWL.Restriction.iri]
 

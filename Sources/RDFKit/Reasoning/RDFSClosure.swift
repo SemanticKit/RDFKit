@@ -3,9 +3,15 @@ import Foundation
 private enum RDFSClosureAxioms {
     static func graph() throws -> Graph {
         var graph = Graph()
-        try RDF.content.write(to: &graph)
-        try RDFS.content.write(to: &graph)
+        try writeEntries(in: "RDF", to: &graph)
+        try writeEntries(in: "RDFS", to: &graph)
         return graph
+    }
+
+    private static func writeEntries(in vocabulary: String, to graph: inout Graph) throws {
+        for entry in try StandardsMatrix.bundled().entries(in: vocabulary) {
+            try StandardTermDeclaration(entry: entry).write(to: &graph)
+        }
     }
 }
 
@@ -129,7 +135,7 @@ private struct RDFSReasoner {
         var changed = false
         for triple in graph.triples {
             let predicate = triple.predicate.rawValue
-            guard predicate.hasPrefix(RDF.namespace.rawValue + "_") else { continue }
+            guard predicate.hasPrefix(RDF.declaredNamespace.rawValue + "_") else { continue }
             changed = try insert(subject: triple.predicate, predicate: RDF.type, object: RDF.Property.iri) || changed
             changed = try insert(subject: triple.predicate, predicate: RDF.type, object: RDFS.ContainerMembershipProperty.iri) || changed
             changed = try insert(subject: triple.predicate, predicate: RDFS.subPropertyOf, object: RDFS.member.iri) || changed

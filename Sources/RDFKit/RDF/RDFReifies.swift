@@ -5,7 +5,7 @@ public extension RDF {
     static var reifies: Reifies { Reifies() }
 
     /// rdf:reifies.
-    struct Reifies: RDFKit.Property, RDFLowerCamelTerm, RelationshipProperty {
+    struct Reifies: RDFKit.RDFProperty, RDFLowerCamelTerm, RelationshipProperty {
         /// Creates an rdf:reifies term value.
         public init() {}
     }

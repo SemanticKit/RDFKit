@@ -5,7 +5,7 @@ public extension RDF {
     static var predicate: Predicate { Predicate() }
 
     /// rdf:predicate.
-    struct Predicate: RDFKit.Property, RDFLowerCamelTerm {
+    struct Predicate: RDFKit.RDFProperty, RDFLowerCamelTerm {
         /// Creates an rdf:predicate term value.
         public init() {}
     }

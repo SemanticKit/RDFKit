@@ -5,7 +5,7 @@ public extension OWL {
     static var minCardinality: MinCardinality { MinCardinality() }
 
     /// owl:minCardinality.
-    struct MinCardinality: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty {
+    struct MinCardinality: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty {
         /// The rdfs:domain values declared for owl:minCardinality.
         public static let domains: [IRI] = [OWL.Restriction.iri]
 

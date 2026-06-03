@@ -5,7 +5,7 @@ public extension OWL {
     static var hasKey: HasKey { HasKey() }
 
     /// owl:hasKey.
-    struct HasKey: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct HasKey: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:hasKey.
         public static let domains: [IRI] = [OWL.Class.iri]
 

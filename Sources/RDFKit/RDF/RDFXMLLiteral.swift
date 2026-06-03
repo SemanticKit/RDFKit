@@ -2,7 +2,7 @@ import Foundation
 
 public extension RDF {
     /// rdf:XMLLiteral.
-    struct XMLLiteral: RDFKit.Datatype, RDFTerm {
+    struct XMLLiteral: RDFKit.RDFDatatype, RDFTerm {
         /// Creates an rdf:XMLLiteral term value.
         public init() {}
     }

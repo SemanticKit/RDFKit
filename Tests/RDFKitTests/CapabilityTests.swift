@@ -39,7 +39,7 @@ import Testing
         """
         let turtleFormat = Turtle {
             Alias("ex", "https://example.com/")
-            Alias("rdfs", RDFS.namespace)
+            Alias("rdfs", RDFS.self)
         }
         let turtleGraph = try turtleFormat.decodeGraph(turtle)
 

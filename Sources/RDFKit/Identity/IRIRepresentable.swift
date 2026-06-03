@@ -12,30 +12,18 @@ public protocol TypeIRIRepresentable {
     static var iri: IRI { get }
 }
 
-public func == <Right: Term>(lhs: IRI, rhs: Right) -> Bool {
-    lhs == rhs.iri
+public func == <Left: TypeIRIRepresentable, Right: IRIRepresentable>(lhs: Left.Type, rhs: Right) -> Bool {
+    lhs.iri.rawValue == rhs.iri.rawValue
 }
 
-public func == <Left: Term>(lhs: Left, rhs: IRI) -> Bool {
-    lhs.iri == rhs
-}
-
-public func == <Right: TypeIRIRepresentable>(lhs: IRI, rhs: Right.Type) -> Bool {
-    lhs == rhs.iri
-}
-
-public func == <Left: TypeIRIRepresentable>(lhs: Left.Type, rhs: IRI) -> Bool {
-    lhs.iri == rhs
-}
-
-public func == <Left: TypeIRIRepresentable, Right: Term>(lhs: Left.Type, rhs: Right) -> Bool {
-    lhs.iri == rhs.iri
-}
-
-public func == <Left: Term, Right: TypeIRIRepresentable>(lhs: Left, rhs: Right.Type) -> Bool {
-    lhs.iri == rhs.iri
+public func == <Left: IRIRepresentable, Right: TypeIRIRepresentable>(lhs: Left, rhs: Right.Type) -> Bool {
+    lhs.iri.rawValue == rhs.iri.rawValue
 }
 
 public func == <Left: TypeIRIRepresentable, Right: TypeIRIRepresentable>(lhs: Left.Type, rhs: Right.Type) -> Bool {
-    lhs.iri == rhs.iri
+    lhs.iri.rawValue == rhs.iri.rawValue
+}
+
+public func == <Left: IRIRepresentable, Right: IRIRepresentable>(lhs: Left, rhs: Right) -> Bool {
+    lhs.iri.rawValue == rhs.iri.rawValue
 }

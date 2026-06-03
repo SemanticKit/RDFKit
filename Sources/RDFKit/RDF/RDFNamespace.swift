@@ -1,7 +1,12 @@
 import Foundation
 
 /// The RDF vocabulary namespace.
-public enum RDF {
-    /// The RDF namespace IRI.
-    public static let namespace = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+public struct RDF: Equatable, Hashable, Sendable {
+    /// Creates an RDF vocabulary DSL value.
+    public init() {}
+}
+
+extension RDF: StandardsVocabulary {
+    /// The standards matrix label for RDF.
+    static var standardsLabel: String { "RDF" }
 }

@@ -5,7 +5,7 @@ public extension RDFS {
     static var range: Range { Range() }
 
     /// rdfs:range.
-    struct Range: RDFKit.Property, RDFSLowerCamelTerm, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct Range: RDFKit.RDFProperty, RDFSLowerCamelTerm, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for rdfs:range.
         public static let domains: [IRI] = [RDF.Property.iri]
 

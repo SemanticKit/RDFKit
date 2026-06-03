@@ -5,7 +5,7 @@ public extension OWL {
     static var distinctMembers: DistinctMembers { DistinctMembers() }
 
     /// owl:distinctMembers.
-    struct DistinctMembers: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct DistinctMembers: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:distinctMembers.
         public static let domains: [IRI] = [OWL.AllDifferent.iri]
 

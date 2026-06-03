@@ -5,7 +5,7 @@ public extension OWL {
     static var incompatibleWith: IncompatibleWith { IncompatibleWith() }
 
     /// owl:incompatibleWith.
-    struct IncompatibleWith: RDFKit.Property, OWLLowerCamelTerm, RDFKit.AnnotationProperty, RDFKit.OntologyProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct IncompatibleWith: RDFKit.RDFProperty, OWLLowerCamelTerm, RDFKit.AnnotationProperty, RDFKit.OntologyProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:incompatibleWith.
         public static let domains: [IRI] = [OWL.Ontology.iri]
 

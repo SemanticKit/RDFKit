@@ -5,7 +5,7 @@ public extension OWL {
     static var unionOf: UnionOf { UnionOf() }
 
     /// owl:unionOf.
-    struct UnionOf: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct UnionOf: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:unionOf.
         public static let domains: [IRI] = [RDFS.Class.iri]
 

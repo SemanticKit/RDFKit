@@ -5,7 +5,7 @@ public extension RDF {
     static var first: First { First() }
 
     /// rdf:first.
-    struct First: RDFKit.Property, RDFLowerCamelTerm, RelationshipProperty {
+    struct First: RDFKit.RDFProperty, RDFLowerCamelTerm, RelationshipProperty {
         /// Creates an rdf:first term value.
         public init() {}
     }

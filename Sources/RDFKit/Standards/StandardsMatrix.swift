@@ -22,38 +22,38 @@ public struct StandardsMatrix: Equatable, Sendable {
 
     /// Builds the standards matrix from bundled RDF, RDFS, and OWL Turtle resources.
     public static func bundled() throws -> StandardsMatrix {
-        let specs: [(label: String, namespace: Namespace, file: String)] = [
-            ("RDF", RDF.namespace, "rdf"),
-            ("RDFS", RDFS.namespace, "rdfs"),
-            ("OWL", OWL.namespace, "owl")
+        let resources: [BundledVocabularyResource] = [
+            BundledVocabularyResource(label: "RDF", namespace: RDF.declaredNamespace, name: "rdf", subdirectory: nil),
+            BundledVocabularyResource(label: "RDFS", namespace: RDFS.declaredNamespace, name: "rdfs", subdirectory: nil),
+            BundledVocabularyResource(label: "OWL", namespace: OWL.declaredNamespace, name: "owl", subdirectory: "Turtle")
         ]
         var graph = Graph()
-        for spec in specs {
-            let text = try bundledTurtle(named: spec.file)
+        for resource in resources {
+            let text = try bundledTurtle(named: resource.name, subdirectory: resource.subdirectory)
             graph = graph.merging(with: try Turtle().decodeGraph(text))
         }
         var rows: [VocabularyMatrixEntry] = []
-        for spec in specs {
+        for resource in resources {
             let subjects = graph.triples.compactMap { triple -> IRI? in
                 guard let iri = triple.subject.node as? IRI else { return nil }
-                guard iri.rawValue.hasPrefix(spec.namespace.rawValue) else { return nil }
-                guard iri.rawValue.count > spec.namespace.rawValue.count else { return nil }
+                guard iri.rawValue.hasPrefix(resource.namespace.rawValue) else { return nil }
+                guard iri.rawValue.count > resource.namespace.rawValue.count else { return nil }
                 return iri
             }
             for iri in Set(subjects).sorted() {
-                rows.append(row(for: iri, namespaceLabel: spec.label, namespace: spec.namespace, graph: graph))
+                rows.append(row(for: iri, namespaceLabel: resource.label, namespace: resource.namespace, graph: graph))
             }
         }
         return StandardsMatrix(entries: rows)
     }
 
-    private static func bundledTurtle(named name: String) throws -> String {
+    private static func bundledTurtle(named name: String, subdirectory: String?) throws -> String {
         #if SWIFT_PACKAGE
-        guard let url = Bundle.module.url(forResource: name, withExtension: "ttl", subdirectory: "Turtle") else {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "ttl", subdirectory: subdirectory) else {
             throw RDFTermError.invalidIRI(name)
         }
         #else
-        guard let url = Bundle.main.url(forResource: name, withExtension: "ttl", subdirectory: "Turtle") else {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "ttl", subdirectory: subdirectory) else {
             throw RDFTermError.invalidIRI(name)
         }
         #endif

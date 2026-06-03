@@ -5,7 +5,7 @@ public extension OWL {
     static var propertyChainAxiom: PropertyChainAxiom { PropertyChainAxiom() }
 
     /// owl:propertyChainAxiom.
-    struct PropertyChainAxiom: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct PropertyChainAxiom: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:propertyChainAxiom.
         public static let domains: [IRI] = [OWL.ObjectProperty.iri]
 

@@ -5,7 +5,7 @@ public extension RDFS {
     static var isDefinedBy: IsDefinedBy { IsDefinedBy() }
 
     /// rdfs:isDefinedBy.
-    struct IsDefinedBy: RDFKit.Property, RDFSLowerCamelTerm, RDFKit.AnnotationProperty, DomainConstrainedProperty, RangeConstrainedProperty, SubpropertyAwareProperty {
+    struct IsDefinedBy: RDFKit.RDFProperty, RDFSLowerCamelTerm, RDFKit.AnnotationProperty, DomainConstrainedProperty, RangeConstrainedProperty, SubpropertyAwareProperty {
         /// The rdfs:domain values declared for rdfs:isDefinedBy.
         public static let domains: [IRI] = [RDFS.Resource.iri]
 

@@ -5,7 +5,7 @@ public extension OWL {
     static var complementOf: ComplementOf { ComplementOf() }
 
     /// owl:complementOf.
-    struct ComplementOf: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct ComplementOf: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:complementOf.
         public static let domains: [IRI] = [OWL.Class.iri]
 

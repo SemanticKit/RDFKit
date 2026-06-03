@@ -5,7 +5,7 @@ public extension OWL {
     static var onClass: OnClass { OnClass() }
 
     /// owl:onClass.
-    struct OnClass: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct OnClass: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:onClass.
         public static let domains: [IRI] = [OWL.Restriction.iri]
 

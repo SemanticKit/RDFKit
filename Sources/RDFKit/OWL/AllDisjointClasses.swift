@@ -2,7 +2,7 @@ import Foundation
 
 public extension OWL {
     /// owl:AllDisjointClasses.
-    struct AllDisjointClasses: RDFKit.Class, OWLTerm {
+    struct AllDisjointClasses: RDFKit.RDFClass, OWLTerm {
         /// Creates an owl:AllDisjointClasses term value.
         public init() {}
     }

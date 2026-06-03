@@ -5,7 +5,7 @@ public extension OWL {
     static var bottomDataProperty: BottomDataProperty { BottomDataProperty() }
 
     /// owl:bottomDataProperty.
-    struct BottomDataProperty: RDFKit.Property, OWLLowerCamelTerm, RDFKit.DatatypeProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct BottomDataProperty: RDFKit.RDFProperty, OWLLowerCamelTerm, RDFKit.DatatypeProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:bottomDataProperty.
         public static let domains: [IRI] = [OWL.Thing.iri]
 

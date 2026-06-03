@@ -5,10 +5,10 @@ import Testing
     @Test func bundledMatrixCoversRDFRDFSandOWLTerms() throws {
         let matrix = try StandardsMatrix.bundled()
 
-        #expect(matrix.entries(in: "RDF").count == 22)
-        #expect(matrix.entries(in: "RDFS").count == 15)
+        #expect(matrix.entries(in: "RDF").count == 32)
+        #expect(matrix.entries(in: "RDFS").count == 16)
         #expect(matrix.entries(in: "OWL").count == 77)
-        #expect(matrix.entries.count == 114)
+        #expect(matrix.entries.count == 125)
     }
 
     @Test func matrixRecordsRepresentativeDependencyEdges() throws {

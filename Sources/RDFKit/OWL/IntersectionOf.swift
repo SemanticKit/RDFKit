@@ -5,7 +5,7 @@ public extension OWL {
     static var intersectionOf: IntersectionOf { IntersectionOf() }
 
     /// owl:intersectionOf.
-    struct IntersectionOf: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct IntersectionOf: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:intersectionOf.
         public static let domains: [IRI] = [RDFS.Class.iri]
 

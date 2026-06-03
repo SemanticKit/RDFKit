@@ -5,7 +5,7 @@ public extension OWL {
     static var datatypeComplementOf: DatatypeComplementOf { DatatypeComplementOf() }
 
     /// owl:datatypeComplementOf.
-    struct DatatypeComplementOf: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct DatatypeComplementOf: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:datatypeComplementOf.
         public static let domains: [IRI] = [RDFS.Datatype.iri]
 

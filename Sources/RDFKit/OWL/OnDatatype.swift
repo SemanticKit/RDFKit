@@ -5,7 +5,7 @@ public extension OWL {
     static var onDatatype: OnDatatype { OnDatatype() }
 
     /// owl:onDatatype.
-    struct OnDatatype: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct OnDatatype: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:onDatatype.
         public static let domains: [IRI] = [RDFS.Datatype.iri]
 

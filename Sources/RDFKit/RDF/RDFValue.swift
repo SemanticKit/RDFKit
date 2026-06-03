@@ -5,7 +5,7 @@ public extension RDF {
     static var value: Value { Value() }
 
     /// rdf:value.
-    struct Value: RDFKit.Property, RDFLowerCamelTerm {
+    struct Value: RDFKit.RDFProperty, RDFLowerCamelTerm {
         /// Creates an rdf:value term value.
         public init() {}
     }

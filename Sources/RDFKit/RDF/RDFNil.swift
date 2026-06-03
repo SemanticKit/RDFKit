@@ -5,7 +5,7 @@ public extension RDF {
     static var nilValue: Nil { Nil() }
 
     /// rdf:nil.
-    struct Nil: RDFKit.Individual, RDFLowerCamelTerm {
+    struct Nil: RDFKit.RDFIndividual, RDFLowerCamelTerm {
         /// Creates an rdf:nil term value.
         public init() {}
     }

@@ -5,7 +5,7 @@ public extension RDF {
     static var direction: Direction { Direction() }
 
     /// rdf:direction.
-    struct Direction: RDFKit.Property, RDFLowerCamelTerm {
+    struct Direction: RDFKit.RDFProperty, RDFLowerCamelTerm {
         /// Creates an rdf:direction term value.
         public init() {}
     }

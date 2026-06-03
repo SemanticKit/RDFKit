@@ -5,7 +5,7 @@ public extension RDFS {
     static var subClassOf: SubClassOf { SubClassOf() }
 
     /// rdfs:subClassOf.
-    struct SubClassOf: RDFKit.Property, RDFSLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct SubClassOf: RDFKit.RDFProperty, RDFSLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for rdfs:subClassOf.
         public static let domains: [IRI] = [RDFS.Class.iri]
 

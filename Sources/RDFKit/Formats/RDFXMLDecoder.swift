@@ -7,7 +7,7 @@ struct RDFXMLDecoder {
     private var graph = Graph()
     private var blankNodeCounter: Int = 0
 
-    private let rdfNamespace = RDF.namespace.rawValue
+    private let rdfNamespace = RDF.declaredNamespace.rawValue
     private let itsNamespace = "http://www.w3.org/2005/11/its"
 
     /// Creates an RDF/XML graph decoder.

@@ -1,7 +1,12 @@
 import Foundation
 
 /// The OWL vocabulary namespace.
-public enum OWL {
-    /// The OWL namespace IRI.
-    public static let namespace = Namespace("http://www.w3.org/2002/07/owl#")
+public struct OWL: Equatable, Hashable, Sendable {
+    /// Creates an OWL vocabulary DSL value.
+    public init() {}
+}
+
+extension OWL: StandardsVocabulary {
+    /// The standards matrix label for OWL.
+    static var standardsLabel: String { "OWL" }
 }

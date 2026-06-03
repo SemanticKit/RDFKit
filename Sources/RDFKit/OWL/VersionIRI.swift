@@ -5,7 +5,7 @@ public extension OWL {
     static var versionIRI: VersionIRI { VersionIRI() }
 
     /// owl:versionIRI.
-    struct VersionIRI: RDFKit.Property, OWLLowerCamelTerm, RDFKit.OntologyProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct VersionIRI: RDFKit.RDFProperty, OWLLowerCamelTerm, RDFKit.OntologyProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:versionIRI.
         public static let domains: [IRI] = [OWL.Ontology.iri]
 

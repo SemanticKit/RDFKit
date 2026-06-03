@@ -5,7 +5,7 @@ public extension OWL {
     static var disjointWith: DisjointWith { DisjointWith() }
 
     /// owl:disjointWith.
-    struct DisjointWith: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct DisjointWith: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:disjointWith.
         public static let domains: [IRI] = [OWL.Class.iri]
 

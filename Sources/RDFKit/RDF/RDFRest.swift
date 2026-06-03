@@ -5,7 +5,7 @@ public extension RDF {
     static var rest: Rest { Rest() }
 
     /// rdf:rest.
-    struct Rest: RDFKit.Property, RDFLowerCamelTerm, RelationshipProperty {
+    struct Rest: RDFKit.RDFProperty, RDFLowerCamelTerm, RelationshipProperty {
         /// Creates an rdf:rest term value.
         public init() {}
     }

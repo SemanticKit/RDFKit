@@ -5,7 +5,7 @@ public extension OWL {
     static var equivalentProperty: EquivalentProperty { EquivalentProperty() }
 
     /// owl:equivalentProperty.
-    struct EquivalentProperty: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct EquivalentProperty: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:equivalentProperty.
         public static let domains: [IRI] = [RDF.Property.iri]
 

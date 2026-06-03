@@ -5,7 +5,7 @@ public extension OWL {
     static var annotatedSource: AnnotatedSource { AnnotatedSource() }
 
     /// owl:annotatedSource.
-    struct AnnotatedSource: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct AnnotatedSource: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:annotatedSource.
         public static let domains: [IRI] = [RDFS.Resource.iri]
 

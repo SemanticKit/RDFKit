@@ -5,7 +5,7 @@ public extension RDFS {
     static var comment: Comment { Comment() }
 
     /// rdfs:comment.
-    struct Comment: RDFKit.Property, RDFSLowerCamelTerm, RDFKit.AnnotationProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct Comment: RDFKit.RDFProperty, RDFSLowerCamelTerm, RDFKit.AnnotationProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for rdfs:comment.
         public static let domains: [IRI] = [RDFS.Resource.iri]
 

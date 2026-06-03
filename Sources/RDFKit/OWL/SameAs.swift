@@ -5,7 +5,7 @@ public extension OWL {
     static var sameAs: SameAs { SameAs() }
 
     /// owl:sameAs.
-    struct SameAs: RDFKit.Property, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
+    struct SameAs: RDFKit.RDFProperty, OWLLowerCamelTerm, RelationshipProperty, DomainConstrainedProperty, RangeConstrainedProperty {
         /// The rdfs:domain values declared for owl:sameAs.
         public static let domains: [IRI] = [OWL.Thing.iri]
 
