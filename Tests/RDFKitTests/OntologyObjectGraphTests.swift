@@ -186,6 +186,36 @@ import Testing
         #expect(sampleAssetFacts.labels == ["Sample Asset"])
     }
 
+    /// Verifies that property bodies can declare related properties.
+    @Test func propertyBodyDeclarationMaterializesNestedProperty() throws {
+        let graph = try OntologyObjectGraph(PropertyWithNestedPropertyOntology())
+        let namespace = Namespace("https://example.com/property-terms#")
+        let relation = QualifiedName(namespace: namespace, localName: LocalName("relation")).iri
+        let owner = QualifiedName(namespace: namespace, localName: LocalName("owner")).iri
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+
+        #expect(graph.declarations.map(\.iri) == [relation, owner, asset])
+        #expect(graph.properties == [relation, owner])
+        #expect(graph.classes == [asset])
+        #expect(graph.transitiveSuperproperties[owner] == [relation])
+
+        let relationFacts = try #require(graph.facts[relation])
+        #expect(relationFacts.types == [RDF.Property.iri])
+        #expect(relationFacts.labels == ["relation"])
+        #expect(relationFacts.superproperties == [])
+
+        let ownerFacts = try #require(graph.facts[owner])
+        #expect(ownerFacts.types == [RDF.Property.iri])
+        #expect(ownerFacts.superproperties == [relation])
+        #expect(ownerFacts.domains == [asset])
+        #expect(ownerFacts.ranges == [RDFS.Resource.iri])
+        #expect(ownerFacts.labels == ["owner"])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [RDFS.Class.iri])
+        #expect(assetFacts.labels == ["Asset"])
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -364,6 +394,33 @@ import Testing
                     Type(IRI("https://example.com/class-terms#Asset"))
                     Label("Sample Asset")
                 }
+            }
+        }
+    }
+
+    /// A custom ontology declaring a related property inside property content.
+    private struct PropertyWithNestedPropertyOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/property-terms#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            Property("relation") {
+                Type(RDF.Property.self)
+                Label("relation")
+
+                Property("owner") {
+                    Type(RDF.Property.self)
+                    SubPropertyOf(IRI("https://example.com/property-terms#relation"))
+                    Domain(IRI("https://example.com/property-terms#Asset"))
+                    Range(RDFS.Resource.self)
+                    Label("owner")
+                }
+            }
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                Label("Asset")
             }
         }
     }

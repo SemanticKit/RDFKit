@@ -31,3 +31,4 @@ public struct Property<Body: PropertyContent>: NamespaceScopedDeclaration, Ontol
 }
 
 extension Property: ClassContent {}
+extension Property: PropertyContent {}
