@@ -6,6 +6,12 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     public enum Failure: Error, Equatable, Sendable {
         /// Declaration materialization exceeded the configured recursion bound.
         case maximumDepthExceeded(Int)
+
+        /// Two merged object graphs declared different values for the same IRI.
+        case duplicateDeclaration(IRI)
+
+        /// Two merged object graphs declared different targets for the same alias prefix.
+        case conflictingAlias(String)
     }
 
     /// The ontology environment used to resolve scoped declarations.
@@ -35,6 +41,15 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     /// Declaration facts keyed by declaration IRI.
     public let facts: [IRI: OntologyDeclarationFacts]
 
+    /// Dependency edges materialized from declaration facts and subclass/subproperty closure.
+    public let dependencyEdges: [OntologyDependencyEdge]
+
+    /// Transitive rdfs:subClassOf targets keyed by declaration IRI.
+    public let transitiveSuperclasses: [IRI: Set<IRI>]
+
+    /// Transitive rdfs:subPropertyOf targets keyed by declaration IRI.
+    public let transitiveSuperproperties: [IRI: Set<IRI>]
+
     /// Creates an object graph from ontology content.
     public init<ContentValue: Content>(content: ContentValue) throws {
         try self.init(content: content, maximumDepth: 64)
@@ -44,6 +59,14 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     init<ContentValue: Content>(content: ContentValue, maximumDepth: Int) throws {
         let environment = ContentNamespaceResolver.environment(in: content)
         let declarations = try Self.declarations(in: content, environment: environment, maximumDepth: maximumDepth)
+        let facts = Self.facts(in: declarations)
+        let transitiveSuperclasses = Self.transitiveObjects(in: facts, over: \.superclasses)
+        let transitiveSuperproperties = Self.transitiveObjects(in: facts, over: \.superproperties)
+        let dependencyEdges = Self.dependencyEdges(
+            in: facts,
+            transitiveSuperclasses: transitiveSuperclasses,
+            transitiveSuperproperties: transitiveSuperproperties
+        )
 
         self.environment = environment
         self.declarations = declarations
@@ -53,7 +76,44 @@ public struct OntologyObjectGraph: Equatable, Sendable {
         self.properties = try Self.termIRIs(in: content, environment: environment, role: .property).union(declarations.iris(for: .property))
         self.datatypes = try Self.termIRIs(in: content, environment: environment, role: .datatype).union(declarations.iris(for: .datatype))
         self.individuals = try Self.termIRIs(in: content, environment: environment, role: .individual).union(declarations.iris(for: .individual))
-        self.facts = Self.facts(in: declarations)
+        self.facts = facts
+        self.transitiveSuperclasses = transitiveSuperclasses
+        self.transitiveSuperproperties = transitiveSuperproperties
+        self.dependencyEdges = dependencyEdges
+    }
+
+    /// Creates an object graph from already materialized pieces.
+    private init(
+        environment: OntologyEnvironment,
+        declarations: [OntologyDeclaration],
+        aliases: [String: IRI],
+        terms: Set<IRI>,
+        classes: Set<IRI>,
+        properties: Set<IRI>,
+        datatypes: Set<IRI>,
+        individuals: Set<IRI>
+    ) {
+        let facts = Self.facts(in: declarations)
+        let transitiveSuperclasses = Self.transitiveObjects(in: facts, over: \.superclasses)
+        let transitiveSuperproperties = Self.transitiveObjects(in: facts, over: \.superproperties)
+        let dependencyEdges = Self.dependencyEdges(
+            in: facts,
+            transitiveSuperclasses: transitiveSuperclasses,
+            transitiveSuperproperties: transitiveSuperproperties
+        )
+
+        self.environment = environment
+        self.declarations = declarations
+        self.aliases = aliases
+        self.terms = terms
+        self.classes = classes
+        self.properties = properties
+        self.datatypes = datatypes
+        self.individuals = individuals
+        self.facts = facts
+        self.transitiveSuperclasses = transitiveSuperclasses
+        self.transitiveSuperproperties = transitiveSuperproperties
+        self.dependencyEdges = dependencyEdges
     }
 
     /// Creates an object graph from an ontology value.
@@ -69,6 +129,20 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     /// Creates an object graph from a vocabulary type.
     public init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue.Type) throws {
         try self.init(content: vocabulary.ontology)
+    }
+
+    /// Returns an object graph combining this graph with another graph.
+    public func merging(with other: OntologyObjectGraph) throws -> OntologyObjectGraph {
+        try OntologyObjectGraph(
+            environment: environment,
+            declarations: mergedDeclarations(with: other),
+            aliases: mergedAliases(with: other),
+            terms: terms.union(other.terms),
+            classes: classes.union(other.classes),
+            properties: properties.union(other.properties),
+            datatypes: datatypes.union(other.datatypes),
+            individuals: individuals.union(other.individuals)
+        )
     }
 
     /// Returns alias mappings declared in content.
@@ -142,6 +216,95 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     /// Returns declaration facts keyed by declaration IRI.
     private static func facts(in declarations: [OntologyDeclaration]) -> [IRI: OntologyDeclarationFacts] {
         Dictionary(uniqueKeysWithValues: declarations.map { ($0.iri, $0.facts) })
+    }
+
+    /// Returns transitive object targets for one relationship.
+    private static func transitiveObjects(
+        in facts: [IRI: OntologyDeclarationFacts],
+        over keyPath: KeyPath<OntologyDeclarationFacts, Set<IRI>>
+    ) -> [IRI: Set<IRI>] {
+        Dictionary(uniqueKeysWithValues: facts.keys.sorted().map { source in
+            (source, transitiveObjects(from: source, in: facts, over: keyPath))
+        })
+    }
+
+    /// Returns the transitive object closure for one fact relationship.
+    private static func transitiveObjects(
+        from source: IRI,
+        in facts: [IRI: OntologyDeclarationFacts],
+        over keyPath: KeyPath<OntologyDeclarationFacts, Set<IRI>>
+    ) -> Set<IRI> {
+        var visited: Set<IRI> = []
+        var queue = Array(facts[source]?[keyPath: keyPath] ?? [])
+
+        while let next = queue.first {
+            queue.removeFirst()
+
+            if visited.insert(next).inserted {
+                queue.append(contentsOf: facts[next]?[keyPath: keyPath] ?? [])
+            }
+        }
+
+        return visited
+    }
+
+    /// Returns dependency edges derived from declaration facts and closure.
+    private static func dependencyEdges(
+        in facts: [IRI: OntologyDeclarationFacts],
+        transitiveSuperclasses: [IRI: Set<IRI>],
+        transitiveSuperproperties: [IRI: Set<IRI>]
+    ) -> [OntologyDependencyEdge] {
+        var edges: Set<OntologyDependencyEdge> = []
+
+        for source in facts.keys.sorted() {
+            guard let fact = facts[source] else { continue }
+
+            edges.formUnion(fact.types.map { OntologyDependencyEdge(source: source, kind: .type, target: $0) })
+            edges.formUnion((transitiveSuperclasses[source] ?? []).map { OntologyDependencyEdge(source: source, kind: .subClassOf, target: $0) })
+            edges.formUnion((transitiveSuperproperties[source] ?? []).map { OntologyDependencyEdge(source: source, kind: .subPropertyOf, target: $0) })
+            edges.formUnion(fact.domains.map { OntologyDependencyEdge(source: source, kind: .domain, target: $0) })
+            edges.formUnion(fact.ranges.map { OntologyDependencyEdge(source: source, kind: .range, target: $0) })
+            edges.formUnion(fact.seeAlso.map { OntologyDependencyEdge(source: source, kind: .seeAlso, target: $0) })
+            edges.formUnion(fact.isDefinedBy.map { OntologyDependencyEdge(source: source, kind: .isDefinedBy, target: $0) })
+        }
+
+        return edges.sorted()
+    }
+
+    /// Returns declarations from two graphs after validating duplicates.
+    private func mergedDeclarations(with other: OntologyObjectGraph) throws -> [OntologyDeclaration] {
+        var declarationsByIRI = Dictionary(uniqueKeysWithValues: declarations.map { ($0.iri, $0) })
+        var merged = declarations
+
+        for declaration in other.declarations {
+            if let existing = declarationsByIRI[declaration.iri] {
+                guard existing == declaration else {
+                    throw Failure.duplicateDeclaration(declaration.iri)
+                }
+            } else {
+                declarationsByIRI[declaration.iri] = declaration
+                merged.append(declaration)
+            }
+        }
+
+        return merged
+    }
+
+    /// Returns aliases from two graphs after validating conflicts.
+    private func mergedAliases(with other: OntologyObjectGraph) throws -> [String: IRI] {
+        var merged = aliases
+
+        for (prefix, iri) in other.aliases {
+            if let current = merged[prefix] {
+                guard current == iri else {
+                    throw Failure.conflictingAlias(prefix)
+                }
+            } else {
+                merged[prefix] = iri
+            }
+        }
+
+        return merged
     }
 }
 

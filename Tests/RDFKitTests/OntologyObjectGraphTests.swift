@@ -10,15 +10,13 @@ import Testing
         let rdfGraph = try OntologyObjectGraph(RDF())
         let rdfsGraph = try OntologyObjectGraph(RDFS())
         let owlGraph = try OntologyObjectGraph(OWL())
-        let closureFacts = mergedFacts([
-            rdfGraph.facts,
-            rdfsGraph.facts,
-            owlGraph.facts
-        ])
+        let standardsGraph = try rdfGraph
+            .merging(with: rdfsGraph)
+            .merging(with: owlGraph)
 
-        try assertObjectGraph(rdfGraph, covers: matrix.entries(in: "RDF"), closureFacts: closureFacts)
-        try assertObjectGraph(rdfsGraph, covers: matrix.entries(in: "RDFS"), closureFacts: closureFacts)
-        try assertObjectGraph(owlGraph, covers: matrix.entries(in: "OWL"), closureFacts: closureFacts)
+        try assertObjectGraph(rdfGraph, covers: matrix.entries(in: "RDF"), closureGraph: standardsGraph)
+        try assertObjectGraph(rdfsGraph, covers: matrix.entries(in: "RDFS"), closureGraph: standardsGraph)
+        try assertObjectGraph(owlGraph, covers: matrix.entries(in: "OWL"), closureGraph: standardsGraph)
 
         #expect(rdfGraph.aliases["rdf"] == RDF.declaredNamespace.iri)
         #expect(rdfGraph.aliases["rdfs"] == RDFS.declaredNamespace.iri)
@@ -48,6 +46,8 @@ import Testing
         #expect(graph.properties == [name])
         #expect(graph.datatypes == [])
         #expect(graph.individuals == [])
+        #expect(graph.transitiveSuperclasses[asset] == [RDFS.Resource.iri])
+        #expect(graph.transitiveSuperproperties[name] == [])
 
         let assetDeclaration = try #require(graph.declarations.first)
         #expect(assetDeclaration.id == asset)
@@ -73,6 +73,15 @@ import Testing
         #expect(nameFacts.labels == ["name"])
         #expect(nameFacts.isDefinedBy == [namespace.iri])
         #expect(nameDeclaration.facts == nameFacts)
+        #expect(Set(graph.dependencyEdges) == [
+            OntologyDependencyEdge(source: asset, kind: .type, target: RDFS.Class.iri),
+            OntologyDependencyEdge(source: asset, kind: .subClassOf, target: RDFS.Resource.iri),
+            OntologyDependencyEdge(source: asset, kind: .isDefinedBy, target: namespace.iri),
+            OntologyDependencyEdge(source: name, kind: .type, target: RDF.Property.iri),
+            OntologyDependencyEdge(source: name, kind: .domain, target: asset),
+            OntologyDependencyEdge(source: name, kind: .range, target: RDF.LangString.iri),
+            OntologyDependencyEdge(source: name, kind: .isDefinedBy, target: namespace.iri)
+        ])
     }
 
     /// Verifies that declaration blocks can be authored without body boilerplate.
@@ -99,10 +108,11 @@ import Testing
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
         covers entries: [VocabularyMatrixEntry],
-        closureFacts: [IRI: OntologyDeclarationFacts]
+        closureGraph: OntologyObjectGraph
     ) throws {
         let expectedTerms = Set(entries.map(\.iri))
         let declarationsByIRI = Dictionary(uniqueKeysWithValues: graph.declarations.map { ($0.iri, $0) })
+        let edgesBySource = Dictionary(grouping: closureGraph.dependencyEdges, by: \.source)
 
         #expect(graph.terms == expectedTerms)
         #expect(Set(graph.declarations.map(\.iri)) == expectedTerms)
@@ -121,8 +131,10 @@ import Testing
             #expect(vocabularyRole(for: declaration.role) == entry.role)
             #expect(declaration.facts == fact)
             #expect(fact.types == Set(entry.directTypes))
-            #expect(transitiveObjects(from: entry.iri, in: closureFacts, over: \.superclasses) == Set(entry.subclassChain))
-            #expect(transitiveObjects(from: entry.iri, in: closureFacts, over: \.superproperties) == Set(entry.subpropertyChain))
+            #expect(closureGraph.transitiveSuperclasses[entry.iri] == Set(entry.subclassChain))
+            #expect(closureGraph.transitiveSuperproperties[entry.iri] == Set(entry.subpropertyChain))
+            let expectedEdges = try dependencyEdges(for: entry)
+            #expect(Set(edgesBySource[entry.iri] ?? []) == expectedEdges)
             #expect(fact.domains == Set(entry.domain))
             #expect(fact.ranges == Set(entry.range))
             #expect(fact.labels == Set(entry.labels))
@@ -151,31 +163,12 @@ import Testing
         }
     }
 
-    /// Merges independently materialized ontology fact maps.
-    private func mergedFacts(_ factMaps: [[IRI: OntologyDeclarationFacts]]) -> [IRI: OntologyDeclarationFacts] {
-        factMaps.reduce(into: [:]) { result, facts in
-            result.merge(facts) { current, _ in current }
-        }
-    }
-
-    /// Returns the transitive object closure for one fact relationship.
-    private func transitiveObjects(
-        from iri: IRI,
-        in facts: [IRI: OntologyDeclarationFacts],
-        over keyPath: KeyPath<OntologyDeclarationFacts, Set<IRI>>
-    ) -> Set<IRI> {
-        var visited: Set<IRI> = []
-        var queue = Array(facts[iri]?[keyPath: keyPath] ?? [])
-
-        while let next = queue.first {
-            queue.removeFirst()
-
-            if visited.insert(next).inserted {
-                queue.append(contentsOf: facts[next]?[keyPath: keyPath] ?? [])
-            }
-        }
-
-        return visited
+    /// Returns the dependency edges expected from a standards matrix row.
+    private func dependencyEdges(for entry: VocabularyMatrixEntry) throws -> Set<OntologyDependencyEdge> {
+        Set(try entry.dependencyEdges.map { edge in
+            let kind = try #require(OntologyDependencyKind(rawValue: edge.kind))
+            return OntologyDependencyEdge(source: entry.iri, kind: kind, target: edge.target)
+        })
     }
 
     /// A custom ontology authored with the same DSL as the standards.

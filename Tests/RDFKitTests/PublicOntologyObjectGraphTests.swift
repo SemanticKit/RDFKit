@@ -33,6 +33,12 @@ import RDFKit
         #expect(identifierDeclaration.localName == "identifier")
         #expect(identifierDeclaration.role == .property)
         #expect(identifierFacts.types.isEmpty)
+        #expect(graph.transitiveSuperclasses[asset] == [])
+        #expect(graph.transitiveSuperproperties[identifier] == [])
+        #expect(Set(graph.dependencyEdges) == [
+            OntologyDependencyEdge(source: asset, kind: .type, target: IRI("http://www.w3.org/2000/01/rdf-schema#Class")),
+            OntologyDependencyEdge(source: asset, kind: .isDefinedBy, target: namespace.iri)
+        ])
     }
 
     private struct PublicAssetOntology: Ontology {
