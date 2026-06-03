@@ -257,6 +257,48 @@ import Testing
         #expect(archivedCatalogFacts.labels == ["Archived catalog"])
     }
 
+    /// Verifies that result-builder control flow materializes ontology content.
+    @Test func controlFlowDSLContentMaterializesObjectGraph() throws {
+        let graph = try OntologyObjectGraph(ControlFlowOntology())
+        let namespace = Namespace("https://example.com/control-flow#")
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+        let digitalAsset = QualifiedName(namespace: namespace, localName: LocalName("DigitalAsset")).iri
+        let name = QualifiedName(namespace: namespace, localName: LocalName("name")).iri
+        let owner = QualifiedName(namespace: namespace, localName: LocalName("owner")).iri
+        let assetCode = QualifiedName(namespace: namespace, localName: LocalName("AssetCode")).iri
+        let sampleAsset = QualifiedName(namespace: namespace, localName: LocalName("sampleAsset")).iri
+
+        #expect(graph.declarations.map(\.iri) == [asset, digitalAsset, name, owner, assetCode, sampleAsset])
+        #expect(graph.classes == [asset, digitalAsset])
+        #expect(graph.properties == [name, owner])
+        #expect(graph.datatypes == [assetCode])
+        #expect(graph.individuals == [sampleAsset])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [RDFS.Class.iri])
+        #expect(assetFacts.labels == ["Asset"])
+        #expect(assetFacts.comments == ["A conditionally described asset."])
+
+        let digitalAssetFacts = try #require(graph.facts[digitalAsset])
+        #expect(digitalAssetFacts.superclasses == [asset])
+
+        let nameFacts = try #require(graph.facts[name])
+        #expect(nameFacts.domains == [asset])
+        #expect(nameFacts.ranges == [RDF.LangString.iri])
+
+        let ownerFacts = try #require(graph.facts[owner])
+        #expect(ownerFacts.domains == [asset])
+        #expect(ownerFacts.ranges == [RDFS.Resource.iri])
+
+        let assetCodeFacts = try #require(graph.facts[assetCode])
+        #expect(assetCodeFacts.types == [RDFS.Datatype.iri])
+        #expect(assetCodeFacts.labels == ["Asset code"])
+
+        let sampleAssetFacts = try #require(graph.facts[sampleAsset])
+        #expect(sampleAssetFacts.types == [asset])
+        #expect(sampleAssetFacts.labels == ["Sample asset"])
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -499,6 +541,72 @@ import Testing
                     Type(RDFS.Resource.self)
                     SeeAlso("catalog")
                     Label("Archived catalog")
+                }
+            }
+        }
+    }
+
+    /// A custom ontology using Swift control flow inside DSL content blocks.
+    private struct ControlFlowOntology: Ontology {
+        static let includeAsset = true
+        static let propertyNames = ["name", "owner"]
+        static let datatypeLabels = ["Asset code"]
+        static let includeSampleAsset = true
+
+        var content: some Content {
+            Namespace("https://example.com/control-flow#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            if Self.includeAsset {
+                Class("Asset") {
+                    Type(RDFS.Class.self)
+                    if Self.includeAsset {
+                        Label("Asset")
+                    }
+                    for subclass in ["DigitalAsset"] {
+                        Class(subclass) {
+                            Type(RDFS.Class.self)
+                            SubClassOf("Asset")
+                        }
+                    }
+                    Annotation {
+                        if Self.includeAsset {
+                            Comment("A conditionally described asset.")
+                        }
+                    }
+                }
+            }
+
+            for propertyName in Self.propertyNames {
+                Property(propertyName) {
+                    Type(RDF.Property.self)
+                    Domain("Asset")
+                    if propertyName == "name" {
+                        Range(RDF.LangString.self)
+                    } else {
+                        Range(RDFS.Resource.self)
+                    }
+                }
+            }
+
+            if Self.includeAsset {
+                Datatype("AssetCode") {
+                    Type(RDFS.Datatype.self)
+                    for label in Self.datatypeLabels {
+                        Label(label)
+                    }
+                }
+            } else {
+                Datatype("SkippedAssetCode")
+            }
+
+            if Self.includeSampleAsset {
+                Individual("sampleAsset") {
+                    Type("Asset")
+                    Annotation {
+                        Label("Sample asset")
+                    }
                 }
             }
         }

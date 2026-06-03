@@ -17,4 +17,29 @@ public enum OntologyContentBuilder {
     public static func buildBlock(_ content: any OntologyContent...) -> ContentGroup {
         ContentGroup(content)
     }
+
+    /// Builds optional ontology content.
+    public static func buildOptional(_ content: (any OntologyContent)?) -> ContentGroup {
+        content.map { ContentGroup([$0]) } ?? ContentGroup([])
+    }
+
+    /// Builds the first branch of conditional ontology content.
+    public static func buildEither(first content: any OntologyContent) -> ContentGroup {
+        ContentGroup([content])
+    }
+
+    /// Builds the second branch of conditional ontology content.
+    public static func buildEither(second content: any OntologyContent) -> ContentGroup {
+        ContentGroup([content])
+    }
+
+    /// Builds repeated ontology content.
+    public static func buildArray<ContentValue: OntologyContent>(_ components: [ContentValue]) -> ContentGroup {
+        ContentGroup(components.map { $0 as any Content })
+    }
+
+    /// Builds ontology content guarded by availability checks.
+    public static func buildLimitedAvailability<ContentValue: OntologyContent>(_ content: ContentValue) -> ContentGroup {
+        ContentGroup([content])
+    }
 }
