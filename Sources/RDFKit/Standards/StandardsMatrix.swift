@@ -71,7 +71,7 @@ public struct StandardsMatrix: Equatable, Sendable {
         let comments = literalObjects(subject: iri, predicate: RDFS.comment, graph: graph)
         let seeAlso = iriObjects(subject: iri, predicate: RDFS.seeAlso, graph: graph)
         let isDefinedBy = iriObjects(subject: iri, predicate: RDFS.isDefinedBy, graph: graph)
-        let role = roleFor(directTypes: directTypes, subclassChain: subclassChain)
+        let role = roleFor(directTypes: directTypes)
         let edges = dependencyEdges(
             directTypes: directTypes,
             subclassChain: subclassChain,
@@ -127,13 +127,17 @@ public struct StandardsMatrix: Equatable, Sendable {
         return visited.sorted()
     }
 
-    private static func roleFor(directTypes: [IRI], subclassChain: [IRI]) -> VocabularyRole {
+    private static func roleFor(directTypes: [IRI]) -> VocabularyRole {
         if contains(RDFS.Datatype.iri, in: directTypes) { return .datatype }
-        if contains(RDF.Property.iri, in: directTypes) { return .property }
-        if contains(OWL.ObjectProperty.iri, in: directTypes) || contains(OWL.DatatypeProperty.iri, in: directTypes) || contains(OWL.AnnotationProperty.iri, in: directTypes) || contains(OWL.OntologyProperty.iri, in: directTypes) { return .property }
-        if contains(RDFS.Class.iri, in: directTypes) { return .class }
+        if contains(RDF.Property.iri, in: directTypes) ||
+            contains(OWL.ObjectProperty.iri, in: directTypes) ||
+            contains(OWL.DatatypeProperty.iri, in: directTypes) ||
+            contains(OWL.AnnotationProperty.iri, in: directTypes) ||
+            contains(OWL.OntologyProperty.iri, in: directTypes) {
+            return .property
+        }
+        if contains(RDFS.Class.iri, in: directTypes) || contains(OWL.Class.iri, in: directTypes) { return .class }
         if contains(OWL.NamedIndividual.iri, in: directTypes) { return .individual }
-        if contains(RDF.Property.iri, in: subclassChain) { return .property }
         return .term
     }
 

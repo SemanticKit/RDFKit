@@ -28,7 +28,7 @@ import Testing
         _ = ontology.content
     }
 
-    @Test func siblingNamespacesExposeStandardTerms() {
+    @Test func siblingNamespacesExposeStandardTerms() throws {
         #expect(RDF.type.iri == IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
         #expect(RDFS.Class.iri == IRI("http://www.w3.org/2000/01/rdf-schema#Class"))
         #expect(OWL.Thing.iri == IRI("http://www.w3.org/2002/07/owl#Thing"))
