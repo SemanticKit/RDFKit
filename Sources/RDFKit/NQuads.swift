@@ -198,10 +198,10 @@ private struct NQuadsParser {
     private mutating func parseSubject() throws -> AnyRDFSubject {
         if lexer.starts(with: "_:") {
             let blank = try parseBlankNode()
-            return try AnyRDFSubject(blank)
+            return AnyRDFSubject(blank)
         }
         let iri = try parseIriRef()
-        return try AnyRDFSubject(iri)
+        return AnyRDFSubject(iri)
     }
 
     private mutating func parsePredicate() throws -> IRI {
@@ -268,7 +268,7 @@ private struct NQuadsParser {
 
     private mutating func parseIriRef() throws -> IRI {
         let value = try parseIriRefString()
-        return try IRI(value)
+        return IRI(value)
     }
 
     private mutating func parseIriRefString() throws -> String {

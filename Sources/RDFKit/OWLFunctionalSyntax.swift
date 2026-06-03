@@ -117,7 +117,7 @@ private struct OWLFunctionalParser {
 
         if let ontologyIRI {
             try insertTriple(
-                subject: try AnyRDFSubject(ontologyIRI),
+                subject: AnyRDFSubject(ontologyIRI),
                 predicate: RDF.type,
                 object: AnyRDFObject(OWL.Ontology.iri)
             )
@@ -169,7 +169,7 @@ private struct OWLFunctionalParser {
 
         guard let ontologyIRI else { return }
         try insertTriple(
-            subject: try AnyRDFSubject(ontologyIRI),
+            subject: AnyRDFSubject(ontologyIRI),
             predicate: OWL.imports,
             object: AnyRDFObject(imported)
         )
@@ -190,7 +190,7 @@ private struct OWLFunctionalParser {
         skipWhitespaceAndComments()
         try expect(")")
 
-        let subject = try AnyRDFSubject(entity)
+        let subject = AnyRDFSubject(entity)
         let object: IRI
 
         switch entityType {
@@ -228,7 +228,7 @@ private struct OWLFunctionalParser {
         try expect(")")
 
         try insertTriple(
-            subject: try AnyRDFSubject(subClass),
+            subject: AnyRDFSubject(subClass),
             predicate: RDFS.subClassOf,
             object: AnyRDFObject(superClass)
         )
@@ -250,7 +250,7 @@ private struct OWLFunctionalParser {
         guard let first = classes.first else { return }
         for other in classes.dropFirst() {
             try insertTriple(
-                subject: try AnyRDFSubject(first),
+                subject: AnyRDFSubject(first),
                 predicate: OWL.equivalentClass,
                 object: AnyRDFObject(other)
             )
@@ -273,7 +273,7 @@ private struct OWLFunctionalParser {
         guard let first = classes.first else { return }
         for other in classes.dropFirst() {
             try insertTriple(
-                subject: try AnyRDFSubject(first),
+                subject: AnyRDFSubject(first),
                 predicate: OWL.disjointWith,
                 object: AnyRDFObject(other)
             )
@@ -385,10 +385,10 @@ private struct OWLFunctionalParser {
     private mutating func parseIndividual() throws -> AnyRDFSubject {
         if starts(with: "_:") {
             let blank = try parseBlankNode()
-            return try AnyRDFSubject(blank)
+            return AnyRDFSubject(blank)
         }
         let iri = try parseIri()
-        return try AnyRDFSubject(iri)
+        return AnyRDFSubject(iri)
     }
 
     private mutating func parseIndividualObject() throws -> AnyRDFObject {
@@ -599,11 +599,7 @@ private struct OWLFunctionalParser {
     }
 
     private func resolveIri(_ value: String) throws -> IRI {
-        do {
-            return try IRI(value)
-        } catch {
-            throw OWLFunctionalSyntaxError.invalidIri(value)
-        }
+        IRI(value)
     }
 
     // MARK: - Lexer

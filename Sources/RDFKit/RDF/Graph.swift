@@ -123,8 +123,8 @@ extension Graph {
     /// Returns a graph containing triples from both graphs.
     public func merging(with other: Graph) -> Graph {
         var merged = self
-        for triple in other.triples where !merged.contains(triple) {
-            try? merged.insert(triple)
+        for triple in other.triples {
+            merged.triples.insert(triple)
         }
         return merged
     }

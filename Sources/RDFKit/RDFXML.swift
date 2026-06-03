@@ -274,7 +274,7 @@ private struct RDFXMLParser {
                 _ = try emitStatement(subject: subject, predicate: predicate, object: AnyRDFObject(blank), idAttr: idAttr, annotationAttr: annotationAttr, annotationNodeIDAttr: annotationNodeIDAttr, context: context)
                 var childLiCounter = 1
                 for child in childElements {
-                    try parsePropertyElement(child, subject: try AnyRDFSubject(blank), inherited: context, liCounter: &childLiCounter)
+                    try parsePropertyElement(child, subject: AnyRDFSubject(blank), inherited: context, liCounter: &childLiCounter)
                 }
                 return
             case "Collection":
@@ -348,10 +348,10 @@ private struct RDFXMLParser {
                 let predicateIRI = try attributeIRI(attr)
                 if predicateIRI == RDF.type {
                     let typeIRI = try resolveIriReference(attr.value, base: context.baseIRI)
-                    try insertTriple(subject: try AnyRDFSubject(blank), predicate: predicateIRI, object: AnyRDFObject(typeIRI))
+                    try insertTriple(subject: AnyRDFSubject(blank), predicate: predicateIRI, object: AnyRDFObject(typeIRI))
                 } else {
                     let literal = try makeLiteral(value: attr.value, language: context.language, direction: context.direction)
-                    try insertTriple(subject: try AnyRDFSubject(blank), predicate: predicateIRI, object: AnyRDFObject(literal))
+                    try insertTriple(subject: AnyRDFSubject(blank), predicate: predicateIRI, object: AnyRDFObject(literal))
                 }
             }
         } else if let iri = resourceNode.node as? IRI {
@@ -359,10 +359,10 @@ private struct RDFXMLParser {
                 let predicateIRI = try attributeIRI(attr)
                 if predicateIRI == RDF.type {
                     let typeIRI = try resolveIriReference(attr.value, base: context.baseIRI)
-                    try insertTriple(subject: try AnyRDFSubject(iri), predicate: predicateIRI, object: AnyRDFObject(typeIRI))
+                    try insertTriple(subject: AnyRDFSubject(iri), predicate: predicateIRI, object: AnyRDFObject(typeIRI))
                 } else {
                     let literal = try makeLiteral(value: attr.value, language: context.language, direction: context.direction)
-                    try insertTriple(subject: try AnyRDFSubject(iri), predicate: predicateIRI, object: AnyRDFObject(literal))
+                    try insertTriple(subject: AnyRDFSubject(iri), predicate: predicateIRI, object: AnyRDFObject(literal))
                 }
             }
         }
@@ -393,7 +393,7 @@ private struct RDFXMLParser {
             let blank = try tempParser.newBlankNode()
             var liCounter = 1
             for child in childElements {
-                try tempParser.parsePropertyElement(child, subject: try AnyRDFSubject(blank), inherited: inherited, liCounter: &liCounter)
+                try tempParser.parsePropertyElement(child, subject: AnyRDFSubject(blank), inherited: inherited, liCounter: &liCounter)
             }
         }
 
@@ -421,7 +421,7 @@ private struct RDFXMLParser {
         for (index, item) in objects.enumerated() {
             let current = blanks[index]
             try insertTriple(
-                subject: try AnyRDFSubject(current),
+                subject: AnyRDFSubject(current),
                 predicate: RDF.first,
                 object: item
             )
@@ -432,7 +432,7 @@ private struct RDFXMLParser {
                 restObject = AnyRDFObject(blanks[index + 1])
             }
             try insertTriple(
-                subject: try AnyRDFSubject(current),
+                subject: AnyRDFSubject(current),
                 predicate: RDF.rest,
                 object: restObject
             )
@@ -459,7 +459,7 @@ private struct RDFXMLParser {
     }
 
     private mutating func reify(statement: Graph.TripleType, reifier: IRI) throws {
-        let reifierSubject = try AnyRDFSubject(reifier)
+        let reifierSubject = AnyRDFSubject(reifier)
         try insertTriple(subject: reifierSubject, predicate: RDF.subject, object: try asObject(statement.subject))
         try insertTriple(subject: reifierSubject, predicate: RDF.predicate, object: AnyRDFObject(statement.predicate))
         try insertTriple(subject: reifierSubject, predicate: RDF.object, object: statement.object)
@@ -500,14 +500,14 @@ private struct RDFXMLParser {
 
         if let about {
             let iri = try resolveIriReference(about, base: context.baseIRI)
-            return try AnyRDFSubject(iri)
+            return AnyRDFSubject(iri)
         }
         if let nodeID {
             return try AnyRDFSubject(BlankNode(nodeID))
         }
         if let id {
             let iri = try resolveIriReference("#" + id, base: context.baseIRI)
-            return try AnyRDFSubject(iri)
+            return AnyRDFSubject(iri)
         }
         return try AnyRDFSubject(newBlankNode())
     }
@@ -525,31 +525,31 @@ private struct RDFXMLParser {
         guard let namespace = element.namespaceURI else {
             throw RDFXMLError.invalidElement("Missing namespace for element \(element.localName).")
         }
-        return try IRI(namespace + element.localName)
+        return IRI(namespace + element.localName)
     }
 
     private func attributeIRI(_ attribute: XMLAttribute) throws -> IRI {
         guard let namespace = attribute.namespaceURI else {
             throw RDFXMLError.invalidAttribute("Missing namespace for attribute \(attribute.localName).")
         }
-        return try IRI(namespace + attribute.localName)
+        return IRI(namespace + attribute.localName)
     }
 
     private func resolveIriReference(_ value: String, base: IRI?) throws -> IRI {
         if let base, let baseURL = URL(string: base.string) {
             if let resolved = URL(string: value, relativeTo: baseURL)?.absoluteString {
-                return try IRI(resolved)
+                return IRI(resolved)
             }
         }
-        return try IRI(value)
+        return IRI(value)
     }
 
     private func resolveBase(_ value: String?, inherited: IRI?) throws -> IRI? {
         guard let value else { return inherited }
         if let inherited, let baseURL = URL(string: inherited.string), let resolved = URL(string: value, relativeTo: baseURL)?.absoluteString {
-            return try? IRI(resolved)
+            return IRI(resolved)
         }
-        return try? IRI(value)
+        return IRI(value)
     }
 
     private func elementContext(_ element: XMLElement, inherited: ElementContext) throws -> ElementContext {

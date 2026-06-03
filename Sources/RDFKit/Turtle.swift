@@ -133,7 +133,7 @@ private struct TurtleSerializer {
                 value += "--\(direction.rawValue)"
             }
         } else if let datatype = literal.datatype {
-            value += "^^\(formatIri(datatype as! IRI))"
+            value += "^^\(formatIri(datatype))"
         }
         return value
     }
@@ -285,7 +285,7 @@ private struct TurtleParser {
     private mutating func parseSubject() throws -> AnyRDFSubject {
         if lexer.peek() == "[" {
             let blank = try parseBlankNodePropertyList()
-            return try AnyRDFSubject(blank)
+            return AnyRDFSubject(blank)
         }
         if lexer.peek() == "(" {
             let obj = try parseCollection()
@@ -337,7 +337,7 @@ private struct TurtleParser {
             _ = lexer.advance()
             return blank
         }
-        let subject = try AnyRDFSubject(blank)
+        let subject = AnyRDFSubject(blank)
         try parsePredicateObjectList(subject: subject)
         lexer.skipWhitespaceAndComments()
         try lexer.expect("]")
@@ -363,7 +363,7 @@ private struct TurtleParser {
         var currentBlank = headBlank
 
         for (index, item) in items.enumerated() {
-            let subject = try AnyRDFSubject(currentBlank)
+            let subject = AnyRDFSubject(currentBlank)
             try addTriple(
                 subject: subject,
                     predicate: RDF.first.iri,
@@ -688,10 +688,10 @@ private struct TurtleParser {
     private mutating func resolveIri(_ value: String) throws -> IRI {
         if let base = baseIRI {
             if let resolved = URL(string: value, relativeTo: try base.asURL())?.absoluteString {
-                return try IRI(resolved)
+                return IRI(resolved)
             }
         }
-        return try IRI(value)
+        return IRI(value)
     }
 
     private func unescapeIri(_ value: String) -> String {
@@ -714,10 +714,10 @@ private struct TurtleParser {
 
     private func asSubject(_ object: AnyRDFObject) throws -> AnyRDFSubject {
         if let iri = object.node as? IRI {
-            return try AnyRDFSubject(iri)
+            return AnyRDFSubject(iri)
         }
         if let blank = object.node as? BlankNode {
-            return try AnyRDFSubject(blank)
+            return AnyRDFSubject(blank)
         }
         throw TurtleError.invalidToken("Object is not a valid subject", line: lexer.line, column: lexer.column)
     }
@@ -866,8 +866,8 @@ private struct TurtleLexer {
 
 private enum TurtleDatatypes {
     private static let namespace = "http://www.w3.org/2001/XMLSchema#"
-    static let xsdInteger = try! IRI("\(namespace)integer")
-    static let xsdDecimal = try! IRI("\(namespace)decimal")
-    static let xsdDouble = try! IRI("\(namespace)double")
-    static let xsdBoolean = try! IRI("\(namespace)boolean")
+    static let xsdInteger = IRI("\(namespace)integer")
+    static let xsdDecimal = IRI("\(namespace)decimal")
+    static let xsdDouble = IRI("\(namespace)double")
+    static let xsdBoolean = IRI("\(namespace)boolean")
 }

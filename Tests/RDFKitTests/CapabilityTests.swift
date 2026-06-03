@@ -7,7 +7,7 @@ import Testing
         let predicate = IRI("https://example.com/p")
         let object = try Literal("value")
         let triple = Graph.TripleType(
-            subject: try AnyRDFSubject(subject),
+            subject: AnyRDFSubject(subject),
             predicate: predicate,
             object: AnyRDFObject(object)
         )
@@ -54,7 +54,7 @@ import Testing
         )
         """
         let owlGraph = try Graph(owlFunctionalSyntax: functional)
-        let person = try AnyRDFSubject(IRI("https://example.com/Person"))
+        let person = AnyRDFSubject(IRI("https://example.com/Person"))
         let label = IRI("http://www.w3.org/2000/01/rdf-schema#label")
         let literal = AnyRDFObject(try Literal("Person"))
 
@@ -69,28 +69,28 @@ import Testing
         let alice = IRI("https://example.com/Alice")
         let reifier = IRI("https://example.com/statement")
         let typeTriple = Graph.TripleType(
-            subject: try AnyRDFSubject(alice),
+            subject: AnyRDFSubject(alice),
             predicate: RDF.type,
             object: AnyRDFObject(person)
         )
         var graph = Graph()
         try graph.insert(Graph.TripleType(
-            subject: try AnyRDFSubject(person),
+            subject: AnyRDFSubject(person),
             predicate: RDFS.subClassOf,
             object: AnyRDFObject(agent)
         ))
         try graph.insert(typeTriple)
-        try graph.insert(ReifiedTriple(reifier: try AnyRDFSubject(reifier), triple: typeTriple))
+        try graph.insert(ReifiedTriple(reifier: AnyRDFSubject(reifier), triple: typeTriple))
 
         let closure = graph.rdfsClosure()
 
         #expect(graph.contains(Graph.TripleType(
-            subject: try AnyRDFSubject(reifier),
+            subject: AnyRDFSubject(reifier),
             predicate: RDF.reifies,
             object: AnyRDFObject(TripleTerm(subject: typeTriple.subject, predicate: typeTriple.predicate, object: typeTriple.object))
         )))
         #expect(closure.contains(Graph.TripleType(
-            subject: try AnyRDFSubject(alice),
+            subject: AnyRDFSubject(alice),
             predicate: RDF.type,
             object: AnyRDFObject(agent)
         )))
