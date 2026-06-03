@@ -41,6 +41,39 @@ import RDFKit
         ])
     }
 
+    @Test func publicObjectGraphMaterializesControlFlowOntology() throws {
+        let graph = try OntologyObjectGraph(PublicControlFlowOntology())
+        let namespace = Namespace("https://example.com/public-control-flow#")
+        let asset = IRI("https://example.com/public-control-flow#Asset")
+        let imageAsset = IRI("https://example.com/public-control-flow#ImageAsset")
+        let title = IRI("https://example.com/public-control-flow#title")
+        let owner = IRI("https://example.com/public-control-flow#owner")
+        let publicAssetCode = IRI("https://example.com/public-control-flow#PublicAssetCode")
+        let sampleAsset = IRI("https://example.com/public-control-flow#sampleAsset")
+
+        #expect(graph.environment.namespace == namespace)
+        #expect(graph.declarations.map(\.iri) == [asset, imageAsset, title, owner, publicAssetCode, sampleAsset])
+        #expect(graph.classes == [asset, imageAsset])
+        #expect(graph.properties == [title, owner])
+        #expect(graph.datatypes == [publicAssetCode])
+        #expect(graph.individuals == [sampleAsset])
+
+        let imageAssetFacts = try #require(graph.facts[imageAsset])
+        #expect(imageAssetFacts.superclasses == [asset])
+
+        let titleFacts = try #require(graph.facts[title])
+        #expect(titleFacts.domains == [asset])
+        #expect(titleFacts.ranges == [IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#langString")])
+
+        let ownerFacts = try #require(graph.facts[owner])
+        #expect(ownerFacts.domains == [asset])
+        #expect(ownerFacts.ranges == [IRI("http://www.w3.org/2000/01/rdf-schema#Resource")])
+
+        let sampleAssetFacts = try #require(graph.facts[sampleAsset])
+        #expect(sampleAssetFacts.types == [asset])
+        #expect(sampleAssetFacts.labels == ["Sample public asset"])
+    }
+
     private struct PublicAssetOntology: Ontology {
         var content: some Content {
             Namespace("https://example.com/public-assets#")
@@ -56,6 +89,53 @@ import RDFKit
                 }
 
                 Property("identifier")
+            }
+        }
+    }
+
+    private struct PublicControlFlowOntology: Ontology {
+        static let properties = ["title", "owner"]
+        static let includeSample = true
+
+        var content: some Content {
+            Namespace("https://example.com/public-control-flow#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                if Self.includeSample {
+                    Label("Asset")
+                }
+                Class("ImageAsset") {
+                    Type(RDFS.Class.self)
+                    SubClassOf("Asset")
+                }
+            }
+
+            for property in Self.properties {
+                Property(property) {
+                    Type(RDF.Property.self)
+                    Domain("Asset")
+                    if property == "title" {
+                        Range(RDF.LangString.self)
+                    } else {
+                        Range(RDFS.Resource.self)
+                    }
+                }
+            }
+
+            Datatype("PublicAssetCode") {
+                Type(RDFS.Datatype.self)
+            }
+
+            if Self.includeSample {
+                Individual("sampleAsset") {
+                    Type("Asset")
+                    Annotation {
+                        Label("Sample public asset")
+                    }
+                }
             }
         }
     }
