@@ -112,11 +112,23 @@ struct OntologyExpansionSourceRenderer: Sendable {
     private func metadataProtocols(for facts: OntologyDeclarationFacts) -> [String] {
         var protocols: [String] = []
 
+        if facts.types.isEmpty == false {
+            protocols.append("TypedTerm")
+        }
+        if facts.superclasses.isEmpty == false {
+            protocols.append("SubclassAwareTerm")
+        }
         if facts.labels.isEmpty == false {
             protocols.append("LabeledTerm")
         }
         if facts.comments.isEmpty == false {
             protocols.append("CommentedTerm")
+        }
+        if facts.seeAlso.isEmpty == false {
+            protocols.append("SeeAlsoTerm")
+        }
+        if facts.isDefinedBy.isEmpty == false {
+            protocols.append("IsDefinedByTerm")
         }
         if facts.deprecated != nil {
             protocols.append("DeprecatedTerm")
@@ -164,6 +176,20 @@ struct OntologyExpansionSourceRenderer: Sendable {
     private func vocabularyFactDeclarations(for facts: OntologyDeclarationFacts, keyword: String) -> String {
         var declarations: [String] = []
 
+        if facts.types.isEmpty == false {
+            declarations.append("""
+
+                /// The rdf:type values declared for this term.
+                \(keyword) static let types: [IRI] = \(iriArraySource(facts.types))
+            """)
+        }
+        if facts.superclasses.isEmpty == false {
+            declarations.append("""
+
+                /// The rdfs:subClassOf values declared for this term.
+                \(keyword) static let superclasses: [IRI] = \(iriArraySource(facts.superclasses))
+            """)
+        }
         if facts.labels.isEmpty == false {
             declarations.append("""
 
@@ -204,6 +230,20 @@ struct OntologyExpansionSourceRenderer: Sendable {
 
                 /// The rdfs:subPropertyOf values declared for this term.
                 \(keyword) static let superproperties: [IRI] = \(iriArraySource(facts.superproperties))
+            """)
+        }
+        if facts.seeAlso.isEmpty == false {
+            declarations.append("""
+
+                /// The rdfs:seeAlso values declared for this term.
+                \(keyword) static let seeAlso: [IRI] = \(iriArraySource(facts.seeAlso))
+            """)
+        }
+        if facts.isDefinedBy.isEmpty == false {
+            declarations.append("""
+
+                /// The rdfs:isDefinedBy values declared for this term.
+                \(keyword) static let isDefinedBy: [IRI] = \(iriArraySource(facts.isDefinedBy))
             """)
         }
 

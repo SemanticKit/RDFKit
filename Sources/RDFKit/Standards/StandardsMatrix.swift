@@ -138,6 +138,7 @@ public struct StandardsMatrix: Equatable, Sendable {
         }
         if contains(RDFS.Class.iri, in: directTypes) || contains(OWL.Class.iri, in: directTypes) { return .class }
         if contains(OWL.NamedIndividual.iri, in: directTypes) { return .individual }
+        if directTypes.isEmpty == false { return .individual }
         return .term
     }
 
