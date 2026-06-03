@@ -15,3 +15,10 @@ public struct SubClassOf: ClassContent, DatatypeContent {
         self.value = TermReference(value)
     }
 }
+
+extension SubClassOf: OntologyFactContent {
+    /// Adds this superclass relationship to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.superclasses.insert(value.iri)
+    }
+}

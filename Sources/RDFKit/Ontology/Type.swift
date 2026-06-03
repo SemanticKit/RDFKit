@@ -15,3 +15,10 @@ public struct Type: ClassContent, PropertyContent, DatatypeContent, IndividualCo
         self.value = TermReference(value)
     }
 }
+
+extension Type: OntologyFactContent {
+    /// Adds this type relationship to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.types.insert(value.iri)
+    }
+}

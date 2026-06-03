@@ -33,35 +33,8 @@ enum ContentFactResolver {
     }
 
     private static func collectFacts(in content: any Content, environment: OntologyEnvironment, facts: inout OntologyDeclarationFacts) {
-        if let type = content as? Type {
-            facts.types.insert(type.value.iri)
-        }
-        if let superclass = content as? SubClassOf {
-            facts.superclasses.insert(superclass.value.iri)
-        }
-        if let superproperty = content as? SubPropertyOf {
-            facts.superproperties.insert(superproperty.value.iri)
-        }
-        if let domain = content as? Domain {
-            facts.domains.insert(domain.value.iri)
-        }
-        if let range = content as? Range {
-            facts.ranges.insert(range.value.iri)
-        }
-        if let label = content as? Label {
-            facts.labels.insert(label.value)
-        }
-        if let comment = content as? Comment {
-            facts.comments.insert(comment.value)
-        }
-        if let seeAlso = content as? SeeAlso {
-            facts.seeAlso.insert(seeAlso.value.iri)
-        }
-        if let isDefinedBy = content as? IsDefinedBy {
-            facts.isDefinedBy.insert(isDefinedBy.value.iri)
-        }
-        if let deprecated = content as? OWLDeprecated {
-            facts.deprecated = deprecated.value
+        if let factContent = content as? any OntologyFactContent {
+            factContent.addFacts(to: &facts)
         }
         if let environmentContent = content as? any EnvironmentResolvedContent {
             collectFacts(in: environmentContent.resolve(in: environment), environment: environment, facts: &facts)

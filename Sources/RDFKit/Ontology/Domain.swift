@@ -15,3 +15,10 @@ public struct Domain: PropertyContent {
         self.value = TermReference(value)
     }
 }
+
+extension Domain: OntologyFactContent {
+    /// Adds this domain relationship to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.domains.insert(value.iri)
+    }
+}

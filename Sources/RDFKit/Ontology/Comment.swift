@@ -10,3 +10,10 @@ public struct Comment: ClassContent, PropertyContent, DatatypeContent, Individua
         self.value = value
     }
 }
+
+extension Comment: OntologyFactContent {
+    /// Adds this comment to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.comments.insert(value)
+    }
+}

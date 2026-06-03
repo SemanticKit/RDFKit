@@ -15,3 +15,10 @@ public struct SubPropertyOf: PropertyContent {
         self.value = TermReference(value)
     }
 }
+
+extension SubPropertyOf: OntologyFactContent {
+    /// Adds this superproperty relationship to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.superproperties.insert(value.iri)
+    }
+}

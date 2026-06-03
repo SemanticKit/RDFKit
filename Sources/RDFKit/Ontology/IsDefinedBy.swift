@@ -15,3 +15,10 @@ public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, Indiv
         self.value = TermReference(value)
     }
 }
+
+extension IsDefinedBy: OntologyFactContent {
+    /// Adds this defining resource reference to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.isDefinedBy.insert(value.iri)
+    }
+}

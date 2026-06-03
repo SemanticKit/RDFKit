@@ -15,3 +15,10 @@ public struct Range: PropertyContent {
         self.value = TermReference(value)
     }
 }
+
+extension Range: OntologyFactContent {
+    /// Adds this range relationship to the enclosing declaration facts.
+    func addFacts(to facts: inout OntologyDeclarationFacts) {
+        facts.ranges.insert(value.iri)
+    }
+}
