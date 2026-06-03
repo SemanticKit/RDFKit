@@ -9,6 +9,11 @@ public struct EmptyAliasContent: AliasContent {
     public init() {}
 }
 
+extension EmptyAliasContent: AliasMappingContent {
+    /// Adds no aliases to the IRI prefix map.
+    func addIRIPrefixes(to map: inout [String: IRI]) throws {}
+}
+
 /// A prefix alias bound to a namespace target.
 public struct Alias<Target: AliasTarget>: AliasContent {
     /// The alias prefix.
@@ -30,6 +35,17 @@ public struct Alias<Target: AliasTarget>: AliasContent {
     }
 }
 
+extension Alias: AliasMappingContent {
+    /// Adds this alias to the IRI prefix map.
+    func addIRIPrefixes(to map: inout [String: IRI]) throws {
+        if map[prefix] != nil {
+            throw AliasResolutionError.duplicatePrefix(prefix)
+        }
+
+        map[prefix] = try target.aliasNamespace().iri
+    }
+}
+
 /// A group of alias content values.
 public struct AliasGroup: AliasContent {
     /// The alias content values.
@@ -38,6 +54,19 @@ public struct AliasGroup: AliasContent {
     /// Creates an alias group.
     public init(_ elements: [any AliasContent]) {
         self.elements = elements
+    }
+}
+
+extension AliasGroup: AliasMappingContent {
+    /// Adds the grouped aliases to the IRI prefix map.
+    func addIRIPrefixes(to map: inout [String: IRI]) throws {
+        for element in elements {
+            guard let mappingContent = element as? any AliasMappingContent else {
+                throw AliasResolutionError.unsupportedAliasContent(String(describing: type(of: element)))
+            }
+
+            try mappingContent.addIRIPrefixes(to: &map)
+        }
     }
 }
 
