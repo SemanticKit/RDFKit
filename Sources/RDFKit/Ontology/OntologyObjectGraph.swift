@@ -131,6 +131,26 @@ public struct OntologyObjectGraph: Equatable, Sendable {
         try self.init(content: vocabulary.ontology)
     }
 
+    /// Returns the declaration for an IRI-backed value.
+    public func declaration<TermValue: IRIRepresentable>(for term: TermValue) -> OntologyDeclaration? {
+        declarations.first { $0.iri == term.iri }
+    }
+
+    /// Returns the declaration for an IRI-backed type.
+    public func declaration<TermType: TypeIRIRepresentable>(for term: TermType.Type) -> OntologyDeclaration? {
+        declarations.first { $0.iri == TermType.iri }
+    }
+
+    /// Returns declaration facts for an IRI-backed value.
+    public func facts<TermValue: IRIRepresentable>(for term: TermValue) -> OntologyDeclarationFacts? {
+        facts[term.iri]
+    }
+
+    /// Returns declaration facts for an IRI-backed type.
+    public func facts<TermType: TypeIRIRepresentable>(for term: TermType.Type) -> OntologyDeclarationFacts? {
+        facts[TermType.iri]
+    }
+
     /// Returns an object graph combining this graph with another graph.
     public func merging(with other: OntologyObjectGraph) throws -> OntologyObjectGraph {
         try OntologyObjectGraph(

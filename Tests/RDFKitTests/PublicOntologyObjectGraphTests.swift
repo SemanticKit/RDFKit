@@ -72,6 +72,13 @@ import RDFKit
         let sampleAssetFacts = try #require(graph.facts[sampleAsset])
         #expect(sampleAssetFacts.types == [asset])
         #expect(sampleAssetFacts.labels == ["Sample public asset"])
+
+        let typedAssetDeclaration = try #require(graph.declaration(for: PublicAsset.self))
+        #expect(typedAssetDeclaration.iri == asset)
+        #expect(graph.declaration(for: IRI("https://example.com/public-control-flow#title"))?.iri == title)
+        #expect(graph.facts(for: PublicAsset.self)?.labels == ["Asset"])
+        let typedSampleFacts = try #require(graph.facts(for: PublicSampleAsset()))
+        #expect(typedSampleFacts.types == [asset])
     }
 
     private struct PublicAssetOntology: Ontology {
@@ -138,5 +145,19 @@ import RDFKit
                 }
             }
         }
+    }
+
+    private struct PublicAsset: OntologyScopedTerm, RDFClass {
+        static let ontology = PublicControlFlowOntology()
+        static let localName = LocalName("Asset")
+
+        init() {}
+    }
+
+    private struct PublicSampleAsset: OntologyScopedTerm, RDFIndividual {
+        static let ontology = PublicControlFlowOntology()
+        static let localName = LocalName("sampleAsset")
+
+        init() {}
     }
 }
