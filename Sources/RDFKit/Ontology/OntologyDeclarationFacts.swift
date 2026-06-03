@@ -1,36 +1,36 @@
 import Foundation
 
 /// Declaration facts authored in ontology DSL content.
-struct OntologyDeclarationFacts: Equatable, Sendable {
+public struct OntologyDeclarationFacts: Equatable, Sendable {
     /// The rdf:type values.
-    var types: Set<IRI> = []
+    public internal(set) var types: Set<IRI> = []
 
     /// The rdfs:subClassOf values.
-    var superclasses: Set<IRI> = []
+    public internal(set) var superclasses: Set<IRI> = []
 
     /// The rdfs:subPropertyOf values.
-    var superproperties: Set<IRI> = []
+    public internal(set) var superproperties: Set<IRI> = []
 
     /// The rdfs:domain values.
-    var domains: Set<IRI> = []
+    public internal(set) var domains: Set<IRI> = []
 
     /// The rdfs:range values.
-    var ranges: Set<IRI> = []
+    public internal(set) var ranges: Set<IRI> = []
 
     /// The rdfs:label values.
-    var labels: Set<String> = []
+    public internal(set) var labels: Set<String> = []
 
     /// The rdfs:comment values.
-    var comments: Set<String> = []
+    public internal(set) var comments: Set<String> = []
 
     /// The rdfs:seeAlso values.
-    var seeAlso: Set<IRI> = []
+    public internal(set) var seeAlso: Set<IRI> = []
 
     /// The rdfs:isDefinedBy values.
-    var isDefinedBy: Set<IRI> = []
+    public internal(set) var isDefinedBy: Set<IRI> = []
 
     /// The owl:deprecated value.
-    var deprecated: Bool?
+    public internal(set) var deprecated: Bool?
 
     /// Creates empty declaration facts.
     init() {}

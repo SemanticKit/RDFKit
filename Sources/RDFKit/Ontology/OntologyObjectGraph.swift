@@ -1,33 +1,33 @@
 import Foundation
 
 /// The object graph materialized from ontology DSL content.
-struct OntologyObjectGraph: Equatable, Sendable {
+public struct OntologyObjectGraph: Equatable, Sendable {
     /// The ontology environment used to resolve scoped declarations.
-    let environment: OntologyEnvironment
+    public let environment: OntologyEnvironment
 
     /// IRI prefix mappings declared by ontology content.
-    let aliases: [String: IRI]
+    public let aliases: [String: IRI]
 
     /// All declared term IRIs.
-    let terms: Set<IRI>
+    public let terms: Set<IRI>
 
     /// Declared class IRIs.
-    let classes: Set<IRI>
+    public let classes: Set<IRI>
 
     /// Declared property IRIs.
-    let properties: Set<IRI>
+    public let properties: Set<IRI>
 
     /// Declared datatype IRIs.
-    let datatypes: Set<IRI>
+    public let datatypes: Set<IRI>
 
     /// Declared individual IRIs.
-    let individuals: Set<IRI>
+    public let individuals: Set<IRI>
 
     /// Declaration facts keyed by declaration IRI.
-    let facts: [IRI: OntologyDeclarationFacts]
+    public let facts: [IRI: OntologyDeclarationFacts]
 
     /// Creates an object graph from ontology content.
-    init<ContentValue: Content>(content: ContentValue) throws {
+    public init<ContentValue: Content>(content: ContentValue) throws {
         let environment = ContentNamespaceResolver.environment(in: content)
 
         self.environment = environment
@@ -41,17 +41,17 @@ struct OntologyObjectGraph: Equatable, Sendable {
     }
 
     /// Creates an object graph from an ontology value.
-    init<OntologyValue: Ontology>(_ ontology: OntologyValue) throws {
+    public init<OntologyValue: Ontology>(_ ontology: OntologyValue) throws {
         try self.init(content: ontology.content)
     }
 
     /// Creates an object graph from a vocabulary value.
-    init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue) throws {
+    public init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue) throws {
         try self.init(VocabularyValue.self)
     }
 
     /// Creates an object graph from a vocabulary type.
-    init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue.Type) throws {
+    public init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue.Type) throws {
         try self.init(content: vocabulary.ontology)
     }
 
