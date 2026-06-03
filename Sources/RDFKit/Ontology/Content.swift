@@ -96,6 +96,21 @@ extension ContentGroup: OntologyNamespaceContent {
     }
 }
 
+extension ContentGroup: OntologyTermContent {
+    /// Returns term IRIs contributed by grouped content.
+    func termIRIs(in environment: OntologyEnvironment, role: OntologyDeclarationRole?) throws -> [IRI] {
+        var iris: [IRI] = []
+
+        for element in elements {
+            if let termContent = element as? any OntologyTermContent {
+                iris.append(contentsOf: try termContent.termIRIs(in: environment, role: role))
+            }
+        }
+
+        return iris
+    }
+}
+
 extension ContentGroup: OntologyFactContent {
     /// Adds declaration facts contributed by grouped content.
     func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
