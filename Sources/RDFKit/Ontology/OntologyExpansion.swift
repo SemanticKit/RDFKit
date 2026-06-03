@@ -23,9 +23,6 @@ public struct OntologyExpansion: Sendable {
 
     /// A failure encountered while expanding ontology content.
     public enum Failure: Error, Equatable, Sendable {
-        /// Expansion exceeded the configured recursion bound.
-        case maximumDepthExceeded(Int)
-
         /// A local name could not be converted into a Swift type identifier.
         case invalidSwiftTypeName(String)
     }
@@ -48,8 +45,7 @@ public struct OntologyExpansion: Sendable {
 
     /// Returns Swift source for the ontology terms declared by DSL content.
     public func source<OntologyValue: Ontology>(for ontology: OntologyValue) throws -> String {
-        let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: maximumDepth)
-            .declarations(in: ontology.content, environment: ontology.environment)
+        let declarations = try OntologyObjectGraph(content: ontology.content, maximumDepth: maximumDepth).declarations
         let ontologyExpression = ontologyExpression ?? "\(OntologyValue.self)()"
 
         return try OntologyExpansionSourceRenderer(
@@ -70,15 +66,13 @@ public struct OntologyExpansion: Sendable {
 
     /// Returns Swift source for the terms declared by a vocabulary's ontology content.
     public func source<VocabularyValue: Vocabulary>(for vocabulary: VocabularyValue.Type) throws -> String {
-        let environment = ContentNamespaceResolver.environment(in: VocabularyValue.ontology)
-        let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: maximumDepth)
-            .declarations(in: VocabularyValue.ontology, environment: environment)
+        let objectGraph = try OntologyObjectGraph(content: VocabularyValue.ontology, maximumDepth: maximumDepth)
 
         return try OntologyExpansionSourceRenderer(access: access, ontologyExpression: "", ontologyTypeName: "")
             .vocabularySource(
-                for: declarations,
+                for: objectGraph.declarations,
                 vocabularyName: String(describing: VocabularyValue.self),
-                namespace: environment.namespace
+                namespace: objectGraph.environment.namespace
             )
     }
 

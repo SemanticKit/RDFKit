@@ -42,22 +42,19 @@ import Testing
         let declaration = Class("Asset") {
             Label("Asset")
         }
-        let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: 8)
-            .declarations(in: ontology.content, environment: ontology.environment)
+        let graph = try OntologyObjectGraph(ontology)
 
         #expect(declaration.iri(in: ontology.environment) == IRI("https://example.com/child#Asset"))
-        #expect(declarations.map(\.iri) == [IRI("https://example.com/child#Asset")])
+        #expect(graph.declarations.map(\.iri) == [IRI("https://example.com/child#Asset")])
     }
 
     @Test func declarationContentInfersParentOntologyContext() throws {
         let ontology = ImplicitEnvironmentOntology()
         let asset = IRI("https://example.com/implicit-environment#Asset")
         let graph = try OntologyObjectGraph(ontology)
-        let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: 8)
-            .declarations(in: ontology.content, environment: ontology.environment)
 
         #expect(graph.classes == [asset])
-        #expect(declarations.map(\.iri) == [asset])
+        #expect(graph.declarations.map(\.iri) == [asset])
         #expect(graph.facts[asset]?.isDefinedBy == [ontology.iri])
     }
 

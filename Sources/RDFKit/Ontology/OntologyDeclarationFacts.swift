@@ -1,7 +1,7 @@
 import Foundation
 
 /// Declaration facts authored in ontology DSL content.
-public struct OntologyDeclarationFacts: Equatable, Sendable {
+public struct OntologyDeclarationFacts: Equatable, Hashable, Sendable, Codable {
     /// The rdf:type values.
     public internal(set) var types: Set<IRI> = []
 

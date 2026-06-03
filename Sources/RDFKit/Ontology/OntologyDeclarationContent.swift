@@ -1,10 +1,10 @@
 import Foundation
 
-/// Ontology DSL content that contributes declarations during expansion.
-protocol OntologyExpansionContent: Content {
-    /// Adds expansion declarations contributed by this content.
-    func addExpansionDeclarations(
-        to declarations: inout [OntologyExpansionDeclaration],
+/// Ontology DSL content that contributes materialized declarations.
+protocol OntologyDeclarationContent: Content {
+    /// Adds declarations contributed by this content.
+    func addOntologyDeclarations(
+        to declarations: inout [OntologyDeclaration],
         visited: inout Set<IRI>,
         environment: OntologyEnvironment,
         depth: Int,
@@ -13,15 +13,15 @@ protocol OntologyExpansionContent: Content {
 }
 
 extension NamespaceScopedDeclaration {
-    /// Adds this scoped declaration during expansion.
-    func addExpansionDeclarations(
-        to declarations: inout [OntologyExpansionDeclaration],
+    /// Adds this scoped declaration to the materialized declaration list.
+    func addOntologyDeclarations(
+        to declarations: inout [OntologyDeclaration],
         visited: inout Set<IRI>,
         environment: OntologyEnvironment,
         depth: Int,
         maximumDepth: Int
     ) throws {
-        try checkExpansionDepth(depth, maximumDepth: maximumDepth)
+        try checkDeclarationDepth(depth, maximumDepth: maximumDepth)
 
         let declarationIRI = iri(in: environment)
 
@@ -29,15 +29,15 @@ extension NamespaceScopedDeclaration {
             return
         }
 
-        declarations.append(OntologyExpansionDeclaration(
+        declarations.append(OntologyDeclaration(
             iri: declarationIRI,
             localName: localName,
             role: role,
             facts: OntologyDeclarationFacts(content: bodyContent, environment: environment)
         ))
 
-        if let expansionContent = bodyContent as? any OntologyExpansionContent {
-            try expansionContent.addExpansionDeclarations(
+        if let declarationContent = bodyContent as? any OntologyDeclarationContent {
+            try declarationContent.addOntologyDeclarations(
                 to: &declarations,
                 visited: &visited,
                 environment: environment,
@@ -48,20 +48,20 @@ extension NamespaceScopedDeclaration {
     }
 }
 
-extension ContentGroup: OntologyExpansionContent {
-    /// Adds expansion declarations contributed by grouped content.
-    func addExpansionDeclarations(
-        to declarations: inout [OntologyExpansionDeclaration],
+extension ContentGroup: OntologyDeclarationContent {
+    /// Adds declarations contributed by grouped content.
+    func addOntologyDeclarations(
+        to declarations: inout [OntologyDeclaration],
         visited: inout Set<IRI>,
         environment: OntologyEnvironment,
         depth: Int,
         maximumDepth: Int
     ) throws {
-        try checkExpansionDepth(depth, maximumDepth: maximumDepth)
+        try checkDeclarationDepth(depth, maximumDepth: maximumDepth)
 
         for element in elements {
-            if let expansionContent = element as? any OntologyExpansionContent {
-                try expansionContent.addExpansionDeclarations(
+            if let declarationContent = element as? any OntologyDeclarationContent {
+                try declarationContent.addOntologyDeclarations(
                     to: &declarations,
                     visited: &visited,
                     environment: environment,
@@ -73,9 +73,9 @@ extension ContentGroup: OntologyExpansionContent {
     }
 }
 
-/// Verifies bounded ontology expansion depth.
-private func checkExpansionDepth(_ depth: Int, maximumDepth: Int) throws {
+/// Verifies bounded ontology declaration materialization depth.
+private func checkDeclarationDepth(_ depth: Int, maximumDepth: Int) throws {
     guard depth <= maximumDepth else {
-        throw OntologyExpansion.Failure.maximumDepthExceeded(maximumDepth)
+        throw OntologyObjectGraph.Failure.maximumDepthExceeded(maximumDepth)
     }
 }

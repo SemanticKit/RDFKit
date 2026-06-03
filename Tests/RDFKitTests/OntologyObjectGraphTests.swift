@@ -42,17 +42,29 @@ import Testing
         #expect(graph.environment.iri == namespace.iri)
         #expect(graph.aliases["rdf"] == RDF.declaredNamespace.iri)
         #expect(graph.aliases["rdfs"] == RDFS.declaredNamespace.iri)
+        #expect(graph.declarations.map(\.iri) == [asset, name])
         #expect(graph.terms == [asset, name])
         #expect(graph.classes == [asset])
         #expect(graph.properties == [name])
         #expect(graph.datatypes == [])
         #expect(graph.individuals == [])
 
+        let assetDeclaration = try #require(graph.declarations.first)
+        #expect(assetDeclaration.id == asset)
+        #expect(assetDeclaration.localName == "Asset")
+        #expect(assetDeclaration.role == .class)
+
         let assetFacts = try #require(graph.facts[asset])
         #expect(assetFacts.types == [RDFS.Class.iri])
         #expect(assetFacts.superclasses == [RDFS.Resource.iri])
         #expect(assetFacts.labels == ["Asset"])
         #expect(assetFacts.isDefinedBy == [namespace.iri])
+        #expect(assetDeclaration.facts == assetFacts)
+
+        let nameDeclaration = try #require(graph.declarations.last)
+        #expect(nameDeclaration.id == name)
+        #expect(nameDeclaration.localName == "name")
+        #expect(nameDeclaration.role == .property)
 
         let nameFacts = try #require(graph.facts[name])
         #expect(nameFacts.types == [RDF.Property.iri])
@@ -60,6 +72,7 @@ import Testing
         #expect(nameFacts.ranges == [RDF.LangString.iri])
         #expect(nameFacts.labels == ["name"])
         #expect(nameFacts.isDefinedBy == [namespace.iri])
+        #expect(nameDeclaration.facts == nameFacts)
     }
 
     /// Verifies one ontology content value against the expected standards matrix rows.
@@ -69,8 +82,11 @@ import Testing
         closureFacts: [IRI: OntologyDeclarationFacts]
     ) throws {
         let expectedTerms = Set(entries.map(\.iri))
+        let declarationsByIRI = Dictionary(uniqueKeysWithValues: graph.declarations.map { ($0.iri, $0) })
 
         #expect(graph.terms == expectedTerms)
+        #expect(Set(graph.declarations.map(\.iri)) == expectedTerms)
+        #expect(graph.declarations.count == entries.count)
         #expect(graph.classes == iris(in: entries, role: .class))
         #expect(graph.properties == iris(in: entries, role: .property))
         #expect(graph.datatypes == iris(in: entries, role: .datatype))
@@ -78,8 +94,12 @@ import Testing
         #expect(graph.facts.count == entries.count)
 
         for entry in entries {
+            let declaration = try #require(declarationsByIRI[entry.iri])
             let fact = try #require(graph.facts[entry.iri])
 
+            #expect(declaration.localName == entry.localName)
+            #expect(vocabularyRole(for: declaration.role) == entry.role)
+            #expect(declaration.facts == fact)
             #expect(fact.types == Set(entry.directTypes))
             #expect(transitiveObjects(from: entry.iri, in: closureFacts, over: \.superclasses) == Set(entry.subclassChain))
             #expect(transitiveObjects(from: entry.iri, in: closureFacts, over: \.superproperties) == Set(entry.subpropertyChain))
@@ -95,6 +115,20 @@ import Testing
     /// Returns all expected IRIs for one matrix role.
     private func iris(in entries: [VocabularyMatrixEntry], role: VocabularyRole) -> Set<IRI> {
         Set(entries.filter { $0.role == role }.map(\.iri))
+    }
+
+    /// Returns the standards matrix role represented by an ontology declaration role.
+    private func vocabularyRole(for role: OntologyDeclarationRole) -> VocabularyRole {
+        switch role {
+        case .class:
+            .class
+        case .property:
+            .property
+        case .datatype:
+            .datatype
+        case .individual:
+            .individual
+        }
     }
 
     /// Merges independently materialized ontology fact maps.

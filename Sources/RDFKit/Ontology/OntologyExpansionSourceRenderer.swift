@@ -12,13 +12,13 @@ struct OntologyExpansionSourceRenderer: Sendable {
     let ontologyTypeName: String
 
     /// Returns Swift source for declarations.
-    func source(for declarations: [OntologyExpansionDeclaration]) throws -> String {
+    func source(for declarations: [OntologyDeclaration]) throws -> String {
         try declarations.map(source(for:)).joined(separator: "\n\n")
     }
 
     /// Returns nested Swift source for declarations owned by a vocabulary type.
     func vocabularySource(
-        for declarations: [OntologyExpansionDeclaration],
+        for declarations: [OntologyDeclaration],
         vocabularyName: String,
         namespace: Namespace
     ) throws -> String {
@@ -66,7 +66,7 @@ struct OntologyExpansionSourceRenderer: Sendable {
     }
 
     /// Returns Swift source for one expanded declaration.
-    private func source(for declaration: OntologyExpansionDeclaration) throws -> String {
+    private func source(for declaration: OntologyDeclaration) throws -> String {
         let typeName = try swiftTypeName(for: declaration.localName)
         let localName = escapedSwiftString(declaration.localName.rawValue)
         let keyword = access.keyword
@@ -91,7 +91,7 @@ struct OntologyExpansionSourceRenderer: Sendable {
 
     /// Returns Swift source for one nested vocabulary declaration.
     private func vocabularyDeclarationSource(
-        for declaration: OntologyExpansionDeclaration,
+        for declaration: OntologyDeclaration,
         vocabularyName: String
     ) throws -> String {
         let typeName = try swiftTypeName(for: declaration.localName)
@@ -134,7 +134,7 @@ struct OntologyExpansionSourceRenderer: Sendable {
 
     /// Returns all Swift protocols a generated vocabulary declaration should conform to.
     private func vocabularyConformanceList(
-        for declaration: OntologyExpansionDeclaration,
+        for declaration: OntologyDeclaration,
         termProtocol: String
     ) -> String {
         var protocols = ["RDFKit.\(roleProtocol(for: declaration.role))", termProtocol]

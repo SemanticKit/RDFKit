@@ -21,16 +21,8 @@ public protocol IndividualContent: Content {}
 /// Content accepted by annotation declarations.
 public protocol AnnotationContent: Content {}
 
-/// A DSL declaration role resolved inside an ontology namespace.
-enum OntologyDeclarationRole: Equatable, Sendable {
-    case `class`
-    case property
-    case datatype
-    case individual
-}
-
 /// Content whose term identity is scoped by the enclosing ontology namespace.
-protocol NamespaceScopedDeclaration: OntologyTermContent, OntologyDeclarationFactContent, OntologyExpansionContent {
+protocol NamespaceScopedDeclaration: OntologyTermContent, OntologyDeclarationFactContent, OntologyDeclarationContent {
     /// The declaration role.
     var role: OntologyDeclarationRole { get }
 

@@ -2,8 +2,17 @@ import Foundation
 
 /// The object graph materialized from ontology DSL content.
 public struct OntologyObjectGraph: Equatable, Sendable {
+    /// A failure encountered while materializing ontology content.
+    public enum Failure: Error, Equatable, Sendable {
+        /// Declaration materialization exceeded the configured recursion bound.
+        case maximumDepthExceeded(Int)
+    }
+
     /// The ontology environment used to resolve scoped declarations.
     public let environment: OntologyEnvironment
+
+    /// Ordered declarations materialized from ontology content.
+    public let declarations: [OntologyDeclaration]
 
     /// IRI prefix mappings declared by ontology content.
     public let aliases: [String: IRI]
@@ -28,16 +37,23 @@ public struct OntologyObjectGraph: Equatable, Sendable {
 
     /// Creates an object graph from ontology content.
     public init<ContentValue: Content>(content: ContentValue) throws {
+        try self.init(content: content, maximumDepth: 64)
+    }
+
+    /// Creates an object graph from ontology content with a bounded declaration depth.
+    init<ContentValue: Content>(content: ContentValue, maximumDepth: Int) throws {
         let environment = ContentNamespaceResolver.environment(in: content)
+        let declarations = try Self.declarations(in: content, environment: environment, maximumDepth: maximumDepth)
 
         self.environment = environment
+        self.declarations = declarations
         self.aliases = try Self.aliases(in: content)
-        self.terms = try Self.termIRIs(in: content, environment: environment)
-        self.classes = try Self.termIRIs(in: content, environment: environment, role: .class)
-        self.properties = try Self.termIRIs(in: content, environment: environment, role: .property)
-        self.datatypes = try Self.termIRIs(in: content, environment: environment, role: .datatype)
-        self.individuals = try Self.termIRIs(in: content, environment: environment, role: .individual)
-        self.facts = Self.facts(in: content, environment: environment)
+        self.terms = try Self.termIRIs(in: content, environment: environment).union(declarations.iris)
+        self.classes = try Self.termIRIs(in: content, environment: environment, role: .class).union(declarations.iris(for: .class))
+        self.properties = try Self.termIRIs(in: content, environment: environment, role: .property).union(declarations.iris(for: .property))
+        self.datatypes = try Self.termIRIs(in: content, environment: environment, role: .datatype).union(declarations.iris(for: .datatype))
+        self.individuals = try Self.termIRIs(in: content, environment: environment, role: .individual).union(declarations.iris(for: .individual))
+        self.facts = Self.facts(in: declarations)
     }
 
     /// Creates an object graph from an ontology value.
@@ -64,6 +80,28 @@ public struct OntologyObjectGraph: Equatable, Sendable {
         }
 
         return aliases
+    }
+
+    /// Returns ordered declarations materialized from content.
+    private static func declarations<ContentValue: Content>(
+        in content: ContentValue,
+        environment: OntologyEnvironment,
+        maximumDepth: Int
+    ) throws -> [OntologyDeclaration] {
+        var visited: Set<IRI> = []
+        var declarations: [OntologyDeclaration] = []
+
+        if let declarationContent = content as? any OntologyDeclarationContent {
+            try declarationContent.addOntologyDeclarations(
+                to: &declarations,
+                visited: &visited,
+                environment: environment,
+                depth: 0,
+                maximumDepth: maximumDepth
+            )
+        }
+
+        return declarations
     }
 
     /// Returns term IRIs declared by content.
@@ -102,16 +140,19 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     }
 
     /// Returns declaration facts keyed by declaration IRI.
-    private static func facts<ContentValue: Content>(
-        in content: ContentValue,
-        environment: OntologyEnvironment
-    ) -> [IRI: OntologyDeclarationFacts] {
-        var facts: [IRI: OntologyDeclarationFacts] = [:]
+    private static func facts(in declarations: [OntologyDeclaration]) -> [IRI: OntologyDeclarationFacts] {
+        Dictionary(uniqueKeysWithValues: declarations.map { ($0.iri, $0.facts) })
+    }
+}
 
-        if let declarationContent = content as? any OntologyDeclarationFactContent {
-            declarationContent.addDeclarationFacts(to: &facts, in: environment)
-        }
+private extension Array where Element == OntologyDeclaration {
+    /// All declaration IRIs.
+    var iris: Set<IRI> {
+        Set(map(\.iri))
+    }
 
-        return facts
+    /// Returns declaration IRIs matching the requested role.
+    func iris(for role: OntologyDeclarationRole) -> Set<IRI> {
+        Set(filter { $0.role == role }.map(\.iri))
     }
 }

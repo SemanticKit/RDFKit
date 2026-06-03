@@ -22,7 +22,7 @@ import Testing
     }
 
     @Test func expansionStopsAtConfiguredDepthBound() {
-        #expect(throws: OntologyExpansion.Failure.self) {
+        #expect(throws: OntologyObjectGraph.Failure.self) {
             try OntologyExpansion(maximumDepth: 0).source(for: GeneratedRDFOntology())
         }
     }
