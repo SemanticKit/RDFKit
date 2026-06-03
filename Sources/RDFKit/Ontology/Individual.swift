@@ -29,3 +29,5 @@ public struct Individual<Body: IndividualContent>: NamespaceScopedDeclaration, O
         self.content = content()
     }
 }
+
+extension Individual: ClassContent {}

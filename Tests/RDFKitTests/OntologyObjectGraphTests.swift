@@ -154,6 +154,38 @@ import Testing
         #expect(ownerFacts.labels == ["owner"])
     }
 
+    /// Verifies that class bodies can declare related ontology terms.
+    @Test func classBodyDeclarationMaterializesNestedTerms() throws {
+        let graph = try OntologyObjectGraph(ClassWithNestedTermsOntology())
+        let namespace = Namespace("https://example.com/class-terms#")
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+        let digitalAsset = QualifiedName(namespace: namespace, localName: LocalName("DigitalAsset")).iri
+        let assetCode = QualifiedName(namespace: namespace, localName: LocalName("AssetCode")).iri
+        let sampleAsset = QualifiedName(namespace: namespace, localName: LocalName("sampleAsset")).iri
+
+        #expect(graph.declarations.map(\.iri) == [asset, digitalAsset, assetCode, sampleAsset])
+        #expect(graph.classes == [asset, digitalAsset])
+        #expect(graph.datatypes == [assetCode])
+        #expect(graph.individuals == [sampleAsset])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [RDFS.Class.iri])
+        #expect(assetFacts.labels == ["Asset"])
+        #expect(assetFacts.superclasses == [])
+
+        let digitalAssetFacts = try #require(graph.facts[digitalAsset])
+        #expect(digitalAssetFacts.types == [RDFS.Class.iri])
+        #expect(digitalAssetFacts.superclasses == [asset])
+
+        let assetCodeFacts = try #require(graph.facts[assetCode])
+        #expect(assetCodeFacts.types == [RDFS.Datatype.iri])
+        #expect(assetCodeFacts.superclasses == [RDFS.Literal.iri])
+
+        let sampleAssetFacts = try #require(graph.facts[sampleAsset])
+        #expect(sampleAssetFacts.types == [asset])
+        #expect(sampleAssetFacts.labels == ["Sample Asset"])
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -302,6 +334,35 @@ import Testing
                     Domain(IRI("https://example.com/class-properties#Asset"))
                     Range(RDFS.Resource.self)
                     Label("owner")
+                }
+            }
+        }
+    }
+
+    /// A custom ontology declaring related terms inside class content.
+    private struct ClassWithNestedTermsOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/class-terms#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                Label("Asset")
+
+                Class("DigitalAsset") {
+                    Type(RDFS.Class.self)
+                    SubClassOf(IRI("https://example.com/class-terms#Asset"))
+                }
+
+                Datatype("AssetCode") {
+                    Type(RDFS.Datatype.self)
+                    SubClassOf(RDFS.Literal.self)
+                }
+
+                Individual("sampleAsset") {
+                    Type(IRI("https://example.com/class-terms#Asset"))
+                    Label("Sample Asset")
                 }
             }
         }

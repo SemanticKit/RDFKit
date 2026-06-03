@@ -29,3 +29,5 @@ public struct Class<Body: ClassContent>: NamespaceScopedDeclaration, OntologyCon
         self.content = content()
     }
 }
+
+extension Class: ClassContent {}

@@ -29,3 +29,5 @@ public struct Datatype<Body: DatatypeContent>: NamespaceScopedDeclaration, Ontol
         self.content = content()
     }
 }
+
+extension Datatype: ClassContent {}
