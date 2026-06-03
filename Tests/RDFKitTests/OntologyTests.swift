@@ -49,9 +49,9 @@ import Testing
         #expect(declarations.map(\.iri) == [IRI("https://example.com/child#Asset")])
     }
 
-    @Test func environmentContentLetsChildrenReadParentOntologyContext() throws {
-        let ontology = EnvironmentAwareOntology()
-        let asset = IRI("https://example.com/environment#Asset")
+    @Test func declarationContentInfersParentOntologyContext() throws {
+        let ontology = ImplicitEnvironmentOntology()
+        let asset = IRI("https://example.com/implicit-environment#Asset")
         let facts = ContentFactResolver.facts(in: ontology.content)
         let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: 8)
             .declarations(in: ontology.content, environment: ontology.environment)
@@ -59,7 +59,6 @@ import Testing
         #expect(try ContentTermResolver.classIRIs(in: ontology.content) == [asset])
         #expect(declarations.map(\.iri) == [asset])
         #expect(facts[asset]?.isDefinedBy == [ontology.iri])
-        #expect(facts[asset]?.comments == [ontology.iri.rawValue])
     }
 
     @Test func standardOntologyUsesDirectContentBuilder() {
@@ -224,15 +223,12 @@ import Testing
         }
     }
 
-    private struct EnvironmentAwareOntology: Ontology {
+    private struct ImplicitEnvironmentOntology: Ontology {
         var content: some Content {
-            Namespace("https://example.com/environment#")
+            Namespace("https://example.com/implicit-environment#")
 
-            Environment { environment in
-                Class("Asset") {
-                    IsDefinedBy(environment)
-                    Comment(environment.iri.rawValue)
-                }
+            Class("Asset") {
+                IsDefinedBy()
             }
         }
     }

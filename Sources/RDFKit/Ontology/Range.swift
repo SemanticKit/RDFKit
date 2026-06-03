@@ -18,7 +18,7 @@ public struct Range: PropertyContent {
 
 extension Range: OntologyFactContent {
     /// Adds this range relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.ranges.insert(value.iri)
     }
 }

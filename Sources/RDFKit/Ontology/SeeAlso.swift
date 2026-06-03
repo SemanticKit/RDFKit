@@ -18,7 +18,7 @@ public struct SeeAlso: ClassContent, PropertyContent, DatatypeContent, Individua
 
 extension SeeAlso: OntologyFactContent {
     /// Adds this seeAlso reference to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.seeAlso.insert(value.iri)
     }
 }

@@ -55,9 +55,6 @@ enum ContentTermResolver {
         if let term = content as? any Term, role == nil {
             collected.append(term.iri)
         }
-        if let environmentContent = content as? any EnvironmentResolvedContent {
-            collected.append(contentsOf: try iris(in: environmentContent.resolve(in: environment), environment: environment, role: role))
-        }
         if let group = content as? ContentGroup {
             for element in group.elements {
                 collected.append(contentsOf: try iris(in: element, environment: environment, role: role))

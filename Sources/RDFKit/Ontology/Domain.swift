@@ -18,7 +18,7 @@ public struct Domain: PropertyContent {
 
 extension Domain: OntologyFactContent {
     /// Adds this domain relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.domains.insert(value.iri)
     }
 }

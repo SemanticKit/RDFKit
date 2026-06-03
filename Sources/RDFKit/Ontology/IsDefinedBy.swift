@@ -3,7 +3,12 @@ import Foundation
 /// Declares an RDFS isDefinedBy reference inside ontology declaration content.
 public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent {
     /// The defining resource.
-    public let value: TermReference
+    private let value: TermReference?
+
+    /// Creates an isDefinedBy declaration for the enclosing ontology.
+    public init() {
+        self.value = nil
+    }
 
     /// Creates an isDefinedBy declaration from an IRI-backed value.
     public init<TermValue: IRIRepresentable>(_ value: TermValue) {
@@ -18,7 +23,7 @@ public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, Indiv
 
 extension IsDefinedBy: OntologyFactContent {
     /// Adds this defining resource reference to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
-        facts.isDefinedBy.insert(value.iri)
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
+        facts.isDefinedBy.insert(value?.iri ?? environment.iri)
     }
 }

@@ -13,7 +13,7 @@ public struct OWLDeprecated: ClassContent, PropertyContent, DatatypeContent, Ind
 
 extension OWLDeprecated: OntologyFactContent {
     /// Adds this deprecation marker to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.deprecated = value
     }
 }

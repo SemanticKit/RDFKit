@@ -13,7 +13,7 @@ public struct Label: ClassContent, PropertyContent, DatatypeContent, IndividualC
 
 extension Label: OntologyFactContent {
     /// Adds this label to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.labels.insert(value)
     }
 }

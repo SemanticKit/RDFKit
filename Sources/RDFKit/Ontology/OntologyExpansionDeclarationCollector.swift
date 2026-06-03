@@ -47,16 +47,6 @@ struct OntologyExpansionDeclarationCollector: Sendable {
             }
         }
 
-        if let environmentContent = content as? any EnvironmentResolvedContent {
-            try collect(
-                in: environmentContent.resolve(in: environment),
-                environment: environment,
-                depth: depth + 1,
-                visited: &visited,
-                declarations: &declarations
-            )
-        }
-
         if let group = content as? ContentGroup {
             for element in group.elements {
                 try collect(

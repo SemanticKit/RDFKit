@@ -13,7 +13,7 @@ public struct Comment: ClassContent, PropertyContent, DatatypeContent, Individua
 
 extension Comment: OntologyFactContent {
     /// Adds this comment to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.comments.insert(value)
     }
 }

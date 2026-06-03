@@ -18,7 +18,7 @@ public struct SubClassOf: ClassContent, DatatypeContent {
 
 extension SubClassOf: OntologyFactContent {
     /// Adds this superclass relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.superclasses.insert(value.iri)
     }
 }

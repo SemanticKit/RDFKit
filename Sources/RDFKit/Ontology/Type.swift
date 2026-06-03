@@ -18,7 +18,7 @@ public struct Type: ClassContent, PropertyContent, DatatypeContent, IndividualCo
 
 extension Type: OntologyFactContent {
     /// Adds this type relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.types.insert(value.iri)
     }
 }

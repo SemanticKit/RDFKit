@@ -15,9 +15,6 @@ enum ContentFactResolver {
             let iri = declaration.iri(in: environment)
             facts[iri] = declarationFacts(in: declaration.bodyContent, environment: environment)
         }
-        if let environmentContent = content as? any EnvironmentResolvedContent {
-            collect(in: environmentContent.resolve(in: environment), environment: environment, facts: &facts)
-        }
         if let group = content as? ContentGroup {
             for element in group.elements {
                 collect(in: element, environment: environment, facts: &facts)
@@ -34,10 +31,7 @@ enum ContentFactResolver {
 
     private static func collectFacts(in content: any Content, environment: OntologyEnvironment, facts: inout OntologyDeclarationFacts) {
         if let factContent = content as? any OntologyFactContent {
-            factContent.addFacts(to: &facts)
-        }
-        if let environmentContent = content as? any EnvironmentResolvedContent {
-            collectFacts(in: environmentContent.resolve(in: environment), environment: environment, facts: &facts)
+            factContent.addFacts(to: &facts, in: environment)
         }
         if let group = content as? ContentGroup {
             for element in group.elements {

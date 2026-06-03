@@ -18,7 +18,7 @@ public struct SubPropertyOf: PropertyContent {
 
 extension SubPropertyOf: OntologyFactContent {
     /// Adds this superproperty relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts) {
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
         facts.superproperties.insert(value.iri)
     }
 }
