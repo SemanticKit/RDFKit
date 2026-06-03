@@ -5,7 +5,7 @@ public protocol Ontology: Identifiable, IRIRepresentable where ID == IRI {
     associatedtype Body: Content
 
     /// The ontology content.
-    @ContentBuilder var content: Body { get }
+    @OntologyContentBuilder var content: Body { get }
 }
 
 extension Ontology {

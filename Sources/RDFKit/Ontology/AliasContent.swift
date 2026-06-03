@@ -1,7 +1,7 @@
 import Foundation
 
 /// Ontology alias content.
-public protocol AliasContent: Content {}
+public protocol AliasContent: OntologyContent {}
 
 /// An empty alias content value.
 public struct EmptyAliasContent: AliasContent {

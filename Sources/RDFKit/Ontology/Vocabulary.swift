@@ -1,11 +1,11 @@
 import Foundation
 
 /// A DSL type that represents an RDF vocabulary.
-public protocol Vocabulary: Content, IRIRepresentable, TypeIRIRepresentable {
+public protocol Vocabulary: OntologyContent, IRIRepresentable, TypeIRIRepresentable {
     associatedtype Body: Content
 
     /// The vocabulary ontology content.
-    @ContentBuilder static var ontology: Body { get }
+    @OntologyContentBuilder static var ontology: Body { get }
 }
 
 /// A vocabulary whose terms are provided by the bundled standards matrix.

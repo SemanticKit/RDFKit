@@ -1,7 +1,7 @@
 import Foundation
 
 /// An RDF namespace IRI used to qualify local vocabulary names.
-public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, CustomDebugStringConvertible, IRIRepresentable, AliasTarget, Content {
+public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, CustomDebugStringConvertible, IRIRepresentable, AliasTarget, OntologyContent {
     /// The namespace IRI text.
     public let rawValue: String
 
