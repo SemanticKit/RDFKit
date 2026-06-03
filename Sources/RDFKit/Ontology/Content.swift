@@ -60,7 +60,7 @@ extension NamespaceScopedDeclaration {
 
     /// Adds this scoped declaration's facts to the declaration fact map.
     func addDeclarationFacts(to facts: inout [IRI: OntologyDeclarationFacts], in environment: OntologyEnvironment) {
-        facts[iri(in: environment)] = ContentFactResolver.declarationFacts(in: bodyContent, environment: environment)
+        facts[iri(in: environment)] = OntologyDeclarationFacts(content: bodyContent, environment: environment)
     }
 }
 

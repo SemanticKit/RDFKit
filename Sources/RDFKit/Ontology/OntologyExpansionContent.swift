@@ -33,7 +33,7 @@ extension NamespaceScopedDeclaration {
             iri: declarationIRI,
             localName: localName,
             role: role,
-            facts: ContentFactResolver.declarationFacts(in: bodyContent, environment: environment)
+            facts: OntologyDeclarationFacts(content: bodyContent, environment: environment)
         ))
 
         if let expansionContent = bodyContent as? any OntologyExpansionContent {

@@ -28,14 +28,16 @@ struct OntologyObjectGraph: Equatable, Sendable {
 
     /// Creates an object graph from ontology content.
     init<ContentValue: Content>(content: ContentValue) throws {
-        self.environment = ContentNamespaceResolver.environment(in: content)
+        let environment = ContentNamespaceResolver.environment(in: content)
+
+        self.environment = environment
         self.aliases = try Self.aliases(in: content)
-        self.terms = try ContentTermResolver.termIRIs(in: content)
-        self.classes = try ContentTermResolver.classIRIs(in: content)
-        self.properties = try ContentTermResolver.propertyIRIs(in: content)
-        self.datatypes = try ContentTermResolver.datatypeIRIs(in: content)
-        self.individuals = try ContentTermResolver.individualIRIs(in: content)
-        self.facts = ContentFactResolver.facts(in: content)
+        self.terms = try Self.termIRIs(in: content, environment: environment)
+        self.classes = try Self.termIRIs(in: content, environment: environment, role: .class)
+        self.properties = try Self.termIRIs(in: content, environment: environment, role: .property)
+        self.datatypes = try Self.termIRIs(in: content, environment: environment, role: .datatype)
+        self.individuals = try Self.termIRIs(in: content, environment: environment, role: .individual)
+        self.facts = Self.facts(in: content, environment: environment)
     }
 
     /// Creates an object graph from an ontology value.
@@ -62,5 +64,54 @@ struct OntologyObjectGraph: Equatable, Sendable {
         }
 
         return aliases
+    }
+
+    /// Returns term IRIs declared by content.
+    private static func termIRIs<ContentValue: Content>(
+        in content: ContentValue,
+        environment: OntologyEnvironment,
+        role: OntologyDeclarationRole? = nil
+    ) throws -> Set<IRI> {
+        Set(try termIRIList(in: content, environment: environment, role: role))
+    }
+
+    /// Returns ordered term IRIs declared by content.
+    private static func termIRIList(in content: any Content, environment: OntologyEnvironment, role: OntologyDeclarationRole?) throws -> [IRI] {
+        var collected: [IRI] = []
+
+        if let termContent = content as? any OntologyTermContent {
+            collected.append(contentsOf: try termContent.termIRIs(in: environment, role: role))
+        }
+        if let term = content as? any RDFClass, role == nil || role == .class {
+            collected.append(term.iri)
+        }
+        if let term = content as? any RDFProperty, role == nil || role == .property {
+            collected.append(term.iri)
+        }
+        if let term = content as? any RDFDatatype, role == nil || role == .datatype {
+            collected.append(term.iri)
+        }
+        if let term = content as? any RDFIndividual, role == nil || role == .individual {
+            collected.append(term.iri)
+        }
+        if let term = content as? any Term, role == nil {
+            collected.append(term.iri)
+        }
+
+        return collected
+    }
+
+    /// Returns declaration facts keyed by declaration IRI.
+    private static func facts<ContentValue: Content>(
+        in content: ContentValue,
+        environment: OntologyEnvironment
+    ) -> [IRI: OntologyDeclarationFacts] {
+        var facts: [IRI: OntologyDeclarationFacts] = [:]
+
+        if let declarationContent = content as? any OntologyDeclarationFactContent {
+            declarationContent.addDeclarationFacts(to: &facts, in: environment)
+        }
+
+        return facts
     }
 }
