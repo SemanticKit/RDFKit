@@ -76,6 +76,21 @@ public struct ContentGroup: OntologyContent, ClassContent, PropertyContent, Data
     }
 }
 
+extension ContentGroup: OntologyNamespaceContent {
+    /// The namespace declarations contributed by grouped content.
+    var declaredNamespaces: [Namespace] {
+        var namespaces: [Namespace] = []
+
+        for element in elements {
+            if let namespaceContent = element as? any OntologyNamespaceContent {
+                namespaces.append(contentsOf: namespaceContent.declaredNamespaces)
+            }
+        }
+
+        return namespaces
+    }
+}
+
 /// Builds protocol-based ontology content.
 @resultBuilder
 public enum ContentBuilder {

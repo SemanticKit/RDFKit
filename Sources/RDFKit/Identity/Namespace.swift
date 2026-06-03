@@ -31,3 +31,8 @@ public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codabl
         lhs.rawValue < rhs.rawValue
     }
 }
+
+extension Namespace: OntologyNamespaceContent {
+    /// The namespace declaration represented by this value.
+    var declaredNamespaces: [Namespace] { [self] }
+}

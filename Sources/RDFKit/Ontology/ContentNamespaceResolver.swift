@@ -16,12 +16,10 @@ enum ContentNamespaceResolver {
 
     /// Returns all namespaces declared by content.
     private static func namespaces(in content: any Content) -> [Namespace] {
-        if let namespace = content as? Namespace {
-            return [namespace]
+        guard let namespaceContent = content as? any OntologyNamespaceContent else {
+            return []
         }
-        if let group = content as? ContentGroup {
-            return group.elements.flatMap(namespaces(in:))
-        }
-        return []
+
+        return namespaceContent.declaredNamespaces
     }
 }
