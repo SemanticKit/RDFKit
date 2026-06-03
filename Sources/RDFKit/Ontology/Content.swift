@@ -18,7 +18,7 @@ public protocol DatatypeContent: Content {}
 /// Content accepted by individual declarations.
 public protocol IndividualContent: Content {}
 
-/// Content accepted by annotation declarations.
+/// Content accepted by annotation blocks.
 public protocol AnnotationContent: Content {}
 
 /// Content whose term identity is scoped by the enclosing ontology namespace.

@@ -15,6 +15,11 @@ public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, Indiv
         self.value = TermReference(value)
     }
 
+    /// Creates an isDefinedBy declaration from an IRI-backed type.
+    public init<TermType: TypeIRIRepresentable>(_ value: TermType.Type) {
+        self.value = TermReference(value)
+    }
+
     /// Creates an isDefinedBy declaration from a vocabulary value.
     public init<VocabularyValue: Vocabulary>(_ value: VocabularyValue) {
         self.value = TermReference(value)

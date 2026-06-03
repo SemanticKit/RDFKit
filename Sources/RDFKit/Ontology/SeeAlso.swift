@@ -10,6 +10,11 @@ public struct SeeAlso: ClassContent, PropertyContent, DatatypeContent, Individua
         self.value = TermReference(value)
     }
 
+    /// Creates a seeAlso declaration from an IRI-backed type.
+    public init<TermType: TypeIRIRepresentable>(_ value: TermType.Type) {
+        self.value = TermReference(value)
+    }
+
     /// Creates a seeAlso declaration from a vocabulary value.
     public init<VocabularyValue: Vocabulary>(_ value: VocabularyValue) {
         self.value = TermReference(value)

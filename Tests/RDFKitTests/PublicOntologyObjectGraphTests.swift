@@ -49,9 +49,11 @@ import RDFKit
 
             Class("Asset") {
                 Type(RDFS.Class.self)
-                Label("Asset")
-                Comment("A managed public asset.")
-                IsDefinedBy()
+                Annotation {
+                    Label("Asset")
+                    Comment("A managed public asset.")
+                    IsDefinedBy()
+                }
             }
 
             Property("identifier")

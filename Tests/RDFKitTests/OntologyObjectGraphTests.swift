@@ -104,6 +104,32 @@ import Testing
         #expect(graph.facts[root]?.types.isEmpty == true)
     }
 
+    /// Verifies that annotation blocks materialize declaration facts without changing declaration roles.
+    @Test func annotationDSLContentMaterializesObjectGraphFacts() throws {
+        let graph = try OntologyObjectGraph(AnnotatedAssetOntology())
+        let namespace = Namespace("https://example.com/annotated-assets#")
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+        let owner = QualifiedName(namespace: namespace, localName: LocalName("owner")).iri
+
+        #expect(graph.declarations.map(\.iri) == [asset, owner])
+        #expect(graph.classes == [asset])
+        #expect(graph.properties == [owner])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [RDFS.Class.iri])
+        #expect(assetFacts.labels == ["Asset"])
+        #expect(assetFacts.comments == ["A managed asset."])
+        #expect(assetFacts.seeAlso == [RDFS.Resource.iri])
+        #expect(assetFacts.isDefinedBy == [namespace.iri])
+
+        let ownerFacts = try #require(graph.facts[owner])
+        #expect(ownerFacts.types == [RDF.Property.iri])
+        #expect(ownerFacts.domains == [asset])
+        #expect(ownerFacts.ranges == [RDFS.Resource.iri])
+        #expect(ownerFacts.labels == ["owner"])
+        #expect(ownerFacts.comments == ["The resource that owns an asset."])
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -204,6 +230,35 @@ import Testing
             Property("name")
             Datatype("AssetCode")
             Individual("root")
+        }
+    }
+
+    /// A custom ontology using annotation blocks inside declarations.
+    private struct AnnotatedAssetOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/annotated-assets#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                Annotation {
+                    Label("Asset")
+                    Comment("A managed asset.")
+                    SeeAlso(RDFS.Resource.self)
+                    IsDefinedBy()
+                }
+            }
+
+            Property("owner") {
+                Type(RDF.Property.self)
+                Domain(IRI("https://example.com/annotated-assets#Asset"))
+                Range(RDFS.Resource.self)
+                Annotation {
+                    Label("owner")
+                    Comment("The resource that owns an asset.")
+                }
+            }
         }
     }
 }
