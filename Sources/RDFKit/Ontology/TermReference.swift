@@ -1,7 +1,7 @@
 import Foundation
 
-/// A reference to a term used inside ontology declaration content.
-public struct TermReference: ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent, IRIRepresentable, Identifiable, Equatable, Hashable {
+/// An IRI-backed reference to a term used inside ontology declaration content.
+public struct TermReference: ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent, IRIRepresentable, Identifiable, Equatable, Hashable, Sendable {
     private let reference: any IRIReference
 
     /// The referenced term IRI.

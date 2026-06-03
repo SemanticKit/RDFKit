@@ -340,7 +340,7 @@ import Testing
 
             Property("name") {
                 Type(RDF.Property.self)
-                Domain(IRI("https://example.com/assets#Asset"))
+                Domain("Asset")
                 Range(RDF.LangString.self)
                 Label("name")
                 IsDefinedBy()
@@ -402,7 +402,7 @@ import Testing
 
                 Property("owner") {
                     Type(RDF.Property.self)
-                    Domain(IRI("https://example.com/class-properties#Asset"))
+                    Domain("Asset")
                     Range(RDFS.Resource.self)
                     Label("owner")
                 }
@@ -423,7 +423,7 @@ import Testing
 
                 Class("DigitalAsset") {
                     Type(RDFS.Class.self)
-                    SubClassOf(IRI("https://example.com/class-terms#Asset"))
+                    SubClassOf("Asset")
                 }
 
                 Datatype("AssetCode") {
@@ -432,7 +432,7 @@ import Testing
                 }
 
                 Individual("sampleAsset") {
-                    Type(IRI("https://example.com/class-terms#Asset"))
+                    Type("Asset")
                     Label("Sample Asset")
                 }
             }
@@ -452,8 +452,8 @@ import Testing
 
                 Property("owner") {
                     Type(RDF.Property.self)
-                    SubPropertyOf(IRI("https://example.com/property-terms#relation"))
-                    Domain(IRI("https://example.com/property-terms#Asset"))
+                    SubPropertyOf("relation")
+                    Domain("Asset")
                     Range(RDFS.Resource.self)
                     Label("owner")
                 }
@@ -478,7 +478,7 @@ import Testing
 
                 Datatype("LegacyAssetCode") {
                     Type(RDFS.Datatype.self)
-                    SubClassOf(IRI("https://example.com/datatype-terms#AssetCode"))
+                    SubClassOf("AssetCode")
                     Label("Legacy asset code")
                 }
             }
@@ -497,7 +497,7 @@ import Testing
 
                 Individual("archivedCatalog") {
                     Type(RDFS.Resource.self)
-                    SeeAlso(IRI("https://example.com/individual-terms#catalog"))
+                    SeeAlso("catalog")
                     Label("Archived catalog")
                 }
             }
