@@ -30,7 +30,7 @@ public struct StandardsMatrix: Equatable, Sendable {
         var graph = Graph()
         for spec in specs {
             let text = try bundledTurtle(named: spec.file)
-            graph = graph.merging(with: try Graph(turtle: text))
+            graph = graph.merging(with: try Turtle().decodeGraph(text))
         }
         var rows: [VocabularyMatrixEntry] = []
         for spec in specs {

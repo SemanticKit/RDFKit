@@ -1,8 +1,7 @@
 import Foundation
 
-public extension RDFS {
-    /// The RDF and RDFS axioms used by RDFKit's RDFS closure implementation.
-    static var axiomsGraph: Graph {
+private enum RDFSAxioms {
+    static func graph() throws -> Graph {
         var graph = Graph()
         for (subject, predicate, object) in classAxioms + propertyAxioms + schemaAxioms {
             let triple = Graph.TripleType(
@@ -10,7 +9,7 @@ public extension RDFS {
                 predicate: predicate,
                 object: AnyRDFObject(object.iri)
             )
-            try? graph.insert(triple)
+            try graph.insert(triple)
         }
         return graph
     }
@@ -103,27 +102,34 @@ public extension RDFS {
     }
 }
 
-public extension Graph {
-    /// Returns this graph with RDFS-entailable triples added.
-    func rdfsClosure(includeAxioms: Bool = true) -> Graph {
-        var reasoner = RDFSReasoner(graph: self, includeAxioms: includeAxioms)
-        return reasoner.computeClosure().merged(with: self)
+/// Computes RDFS-entailable graph and dataset content.
+public struct RDFSClosure: Sendable {
+    /// Whether standard RDF/RDFS axioms are included in the closure.
+    public let includeAxioms: Bool
+
+    /// Creates an RDFS closure service.
+    public init(includeAxioms: Bool = true) {
+        self.includeAxioms = includeAxioms
     }
 
-    /// Returns only the RDFS triples inferred from this graph.
-    func rdfsInferredTriples(includeAxioms: Bool = true) -> Set<Graph.TripleType> {
-        rdfsClosure(includeAxioms: includeAxioms).triples.subtracting(triples)
+    /// Returns a graph with RDFS-entailable triples added.
+    public func applied(to graph: Graph) throws -> Graph {
+        var reasoner = try RDFSReasoner(graph: graph, includeAxioms: includeAxioms)
+        return reasoner.computeClosure().merged(with: graph)
     }
-}
 
-public extension Dataset {
-    /// Returns this dataset with RDFS-entailable triples added to each graph.
-    func rdfsClosure(includeAxioms: Bool = true) -> Dataset {
+    /// Returns only triples inferred by RDFS closure.
+    public func inferredTriples(from graph: Graph) throws -> Set<Graph.TripleType> {
+        try applied(to: graph).triples.subtracting(graph.triples)
+    }
+
+    /// Returns a dataset with RDFS-entailable triples added to each graph.
+    public func applied(to dataset: Dataset) throws -> Dataset {
         var named: [IRI: Graph] = [:]
-        for (name, graph) in namedGraphs {
-            named[name] = graph.rdfsClosure(includeAxioms: includeAxioms)
+        for (name, graph) in dataset.namedGraphs {
+            named[name] = try applied(to: graph)
         }
-        return Dataset(defaultGraph: defaultGraph.rdfsClosure(includeAxioms: includeAxioms), namedGraphs: named)
+        return Dataset(defaultGraph: try applied(to: dataset.defaultGraph), namedGraphs: named)
     }
 }
 
@@ -131,8 +137,8 @@ private struct RDFSReasoner {
     private var graph: Graph
     private let includeAxioms: Bool
 
-    init(graph: Graph, includeAxioms: Bool) {
-        self.graph = includeAxioms ? graph.merged(with: RDFS.axiomsGraph) : graph
+    init(graph: Graph, includeAxioms: Bool) throws {
+        self.graph = includeAxioms ? graph.merged(with: try RDFSAxioms.graph()) : graph
         self.includeAxioms = includeAxioms
     }
 

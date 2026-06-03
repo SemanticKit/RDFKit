@@ -20,10 +20,11 @@ import Testing
     @Test func ontologyUsesProtocolBasedAliasesAndContent() throws {
         let ontology = SemanticKitOntology()
         let rdfAlias = Alias("rdf", RDF.namespace)
+        let rdfAliasNamespace = try rdfAlias.target.aliasNamespace()
 
         #expect(ontology.id == IRI("https://example.com/ontology#"))
         #expect(ontology.iri == ontology.id)
-        #expect(try rdfAlias.target.aliasNamespace() == RDF.namespace)
+        #expect(rdfAliasNamespace == RDF.namespace)
         _ = ontology.content
     }
 

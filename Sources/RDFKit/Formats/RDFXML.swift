@@ -28,15 +28,25 @@ public enum RDFXMLError: Error, CustomStringConvertible {
     }
 }
 
-public extension Graph {
-    init(rdfxml: String, baseIRI: IRI? = nil) throws {
-        var parser = RDFXMLParser(text: rdfxml, baseIRI: baseIRI)
-        self = try parser.parseGraph()
+/// RDF/XML RDF graph format.
+public struct RDFXML: GraphDecodingFormat, GraphEncodingFormat {
+    private let baseIRI: IRI?
+
+    /// Creates an RDF/XML format.
+    public init(baseIRI: IRI? = nil) {
+        self.baseIRI = baseIRI
     }
 
-    func rdfxmlString(baseIRI: IRI? = nil) -> String {
+    /// Decodes RDF/XML source into a graph.
+    public func decodeGraph(_ source: String) throws -> Graph {
+        var parser = RDFXMLParser(text: source, baseIRI: baseIRI)
+        return try parser.parseGraph()
+    }
+
+    /// Encodes a graph as RDF/XML source.
+    public func encodeGraph(_ graph: Graph) throws -> String {
         let serializer = RDFXMLSerializer(baseIRI: baseIRI)
-        return serializer.serialize(graph: self)
+        return serializer.serialize(graph: graph)
     }
 }
 

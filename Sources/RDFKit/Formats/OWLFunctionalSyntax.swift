@@ -31,10 +31,15 @@ public enum OWLFunctionalSyntaxError: Error, CustomStringConvertible {
     }
 }
 
-public extension Graph {
-    init(owlFunctionalSyntax text: String) throws {
-        var parser = OWLFunctionalParser(text: text)
-        self = try parser.parseGraph()
+/// OWL 2 Functional-Style Syntax graph import format.
+public struct OWLFunctionalSyntax: GraphDecodingFormat {
+    /// Creates an OWL Functional-Style Syntax format.
+    public init() {}
+
+    /// Decodes OWL Functional-Style Syntax source into a graph.
+    public func decodeGraph(_ source: String) throws -> Graph {
+        var parser = OWLFunctionalParser(text: source)
+        return try parser.parseGraph()
     }
 }
 

@@ -22,11 +22,12 @@ import Testing
 
     @Test func nTriplesAndNQuadsRoundTripThroughSharedModel() throws {
         let ntriples = "<https://example.com/s> <https://example.com/p> \"hello\"@en ."
-        let graph = try Graph(ntriples: ntriples)
+        let graph = try NTriples().decodeGraph(ntriples)
         let dataset = try Dataset().inserting(graph)
-        let reparsed = try Dataset(nquads: dataset.nquadsString())
+        let reparsed = try NQuads().decodeDataset(NQuads().encodeDataset(dataset))
+        let encodedNTriples = try NTriples().encodeGraph(graph)
 
-        #expect(graph.ntriplesString().contains("\"hello\"@en"))
+        #expect(encodedNTriples.contains("\"hello\"@en"))
         #expect(reparsed.defaultGraph.triples == graph.triples)
     }
 
@@ -36,7 +37,11 @@ import Testing
         @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
         ex:Person rdfs:label "Person" .
         """
-        let turtleGraph = try Graph(turtle: turtle)
+        let turtleFormat = Turtle {
+            Alias("ex", "https://example.com/")
+            Alias("rdfs", RDFS.namespace)
+        }
+        let turtleGraph = try turtleFormat.decodeGraph(turtle)
 
         let rdfxml = """
         <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
@@ -45,7 +50,7 @@ import Testing
           </rdf:Description>
         </rdf:RDF>
         """
-        let rdfxmlGraph = try Graph(rdfxml: rdfxml)
+        let rdfxmlGraph = try RDFXML().decodeGraph(rdfxml)
 
         let functional = """
         Ontology(<https://example.com/ontology>
@@ -53,7 +58,7 @@ import Testing
             AnnotationAssertion(<http://www.w3.org/2000/01/rdf-schema#label> <https://example.com/Person> "Person")
         )
         """
-        let owlGraph = try Graph(owlFunctionalSyntax: functional)
+        let owlGraph = try OWLFunctionalSyntax().decodeGraph(functional)
         let person = AnyRDFSubject(IRI("https://example.com/Person"))
         let label = IRI("http://www.w3.org/2000/01/rdf-schema#label")
         let literal = AnyRDFObject(try Literal("Person"))
@@ -61,6 +66,8 @@ import Testing
         #expect(turtleGraph.contains(Graph.TripleType(subject: person, predicate: label, object: literal)))
         #expect(rdfxmlGraph.contains(Graph.TripleType(subject: person, predicate: label, object: literal)))
         #expect(owlGraph.contains(Graph.TripleType(subject: person, predicate: label, object: literal)))
+        let encodedTurtle = try turtleFormat.encodeGraph(turtleGraph)
+        #expect(encodedTurtle.contains("@prefix ex: <https://example.com/> ."))
     }
 
     @Test func reificationAndRDFSClosureUseReplacementNamespaces() throws {
@@ -80,9 +87,9 @@ import Testing
             object: AnyRDFObject(agent)
         ))
         try graph.insert(typeTriple)
-        try graph.insert(ReifiedTriple(reifier: AnyRDFSubject(reifier), triple: typeTriple))
+        try ReifiedTriple(reifier: AnyRDFSubject(reifier), triple: typeTriple).write(to: &graph)
 
-        let closure = graph.rdfsClosure()
+        let closure = try RDFSClosure().applied(to: graph)
 
         #expect(graph.contains(Graph.TripleType(
             subject: AnyRDFSubject(reifier),

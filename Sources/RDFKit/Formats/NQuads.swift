@@ -1,14 +1,12 @@
 import Foundation
 
-// MARK: - N-Triples import / export
+// MARK: - N-Quads import / export
 
-public enum NTriplesError: Error, CustomStringConvertible {
+public enum NQuadsError: Error, CustomStringConvertible {
     case unexpectedEndOfInput(line: Int, column: Int)
     case unexpectedCharacter(Character, line: Int, column: Int)
     case invalidToken(String, line: Int, column: Int)
-    case invalidBlankNodeLabel(line: Int, column: Int)
-    case invalidLanguageTag(line: Int, column: Int)
-    case invalidIriRef(line: Int, column: Int)
+    case invalidGraphName(line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -18,33 +16,37 @@ public enum NTriplesError: Error, CustomStringConvertible {
             return "Unexpected character '\(char)' at line \(line), column \(column)."
         case let .invalidToken(token, line, column):
             return "Invalid token '\(token)' at line \(line), column \(column)."
-        case let .invalidBlankNodeLabel(line, column):
-            return "Invalid blank node label at line \(line), column \(column)."
-        case let .invalidLanguageTag(line, column):
-            return "Invalid language tag at line \(line), column \(column)."
-        case let .invalidIriRef(line, column):
-            return "Invalid IRI reference at line \(line), column \(column)."
+        case let .invalidGraphName(line, column):
+            return "Invalid graph name at line \(line), column \(column). Graph names must be IRIs."
         }
     }
 }
 
-public extension Graph {
-    init(ntriples: String) throws {
-        var parser = NTriplesParser(text: ntriples)
-        self = try parser.parseGraph()
+/// N-Quads RDF dataset format.
+public struct NQuads: DatasetDecodingFormat, DatasetEncodingFormat {
+    /// Creates an N-Quads format.
+    public init() {}
+
+    /// Decodes N-Quads source into a dataset.
+    public func decodeDataset(_ source: String) throws -> Dataset {
+        var parser = NQuadsParser(text: source)
+        return try parser.parseDataset()
     }
 
-    func ntriplesString() -> String {
-        let serializer = NTriplesSerializer()
-        return serializer.serialize(graph: self)
+    /// Encodes a dataset as N-Quads source.
+    public func encodeDataset(_ dataset: Dataset) throws -> String {
+        let serializer = NQuadsSerializer()
+        return serializer.serialize(dataset: dataset)
     }
 }
 
 // MARK: - Serializer
 
-private struct NTriplesSerializer {
-    func serialize(graph: Graph) -> String {
-        let sortedTriples = graph.triples.sorted { lhs, rhs in
+private struct NQuadsSerializer {
+    func serialize(dataset: Dataset) -> String {
+        var lines: [String] = []
+
+        let defaultTriples = dataset.defaultGraph.triples.sorted { lhs, rhs in
             let ls = lhs.subject.description
             let rs = rhs.subject.description
             if ls != rs { return ls < rs }
@@ -54,13 +56,26 @@ private struct NTriplesSerializer {
             return lhs.object.description < rhs.object.description
         }
 
-        var lines: [String] = []
-        lines.reserveCapacity(sortedTriples.count)
-        for triple in sortedTriples {
-            lines.append(
-                "\(formatSubject(triple.subject)) \(formatPredicate(triple.predicate)) \(formatObject(triple.object)) ."
-            )
+        for triple in defaultTriples {
+            lines.append("\(formatSubject(triple.subject)) \(formatPredicate(triple.predicate)) \(formatObject(triple.object)) .")
         }
+
+        for (graphName, graph) in dataset.namedGraphs.sorted(by: { $0.key.string < $1.key.string }) {
+            let graphTriples = graph.triples.sorted { lhs, rhs in
+                let ls = lhs.subject.description
+                let rs = rhs.subject.description
+                if ls != rs { return ls < rs }
+                let lp = lhs.predicate.string
+                let rp = rhs.predicate.string
+                if lp != rp { return lp < rp }
+                return lhs.object.description < rhs.object.description
+            }
+
+            for triple in graphTriples {
+                lines.append("\(formatSubject(triple.subject)) \(formatPredicate(triple.predicate)) \(formatObject(triple.object)) \(formatIri(graphName)) .")
+            }
+        }
+
         return lines.joined(separator: "\n")
     }
 
@@ -123,8 +138,6 @@ private struct NTriplesSerializer {
             case "\n": result.append("\\n")
             case "\r": result.append("\\r")
             case "\t": result.append("\\t")
-            case "\u{0008}": result.append("\\b")
-            case "\u{000C}": result.append("\\f")
             default:
                 result.append(String(scalar))
             }
@@ -135,62 +148,57 @@ private struct NTriplesSerializer {
 
 // MARK: - Parser
 
-private struct NTriplesParser {
-    private var lexer: NTriplesLexer
-    private var graph = Graph()
+private struct NQuadsParser {
+    private var lexer: NQuadsLexer
+    private var defaultGraph = Graph()
+    private var namedGraphs: [IRI: Graph] = [:]
 
     init(text: String) {
-        self.lexer = NTriplesLexer(text)
+        self.lexer = NQuadsLexer(text)
     }
 
-    mutating func parseGraph() throws -> Graph {
+    mutating func parseDataset() throws -> Dataset {
         while true {
-            lexer.skipHorizontalWhitespace()
+            lexer.skipWhitespaceAndComments()
             if lexer.isAtEnd { break }
-            if lexer.consumeEOL() { continue }
-            if lexer.peek() == "#" {
-                lexer.skipComment()
-                _ = lexer.consumeEOL()
+            if try parseVersionDirectiveIfPresent() {
                 continue
             }
-            if try parseVersionDirectiveIfPresent() { continue }
-            try parseTriple()
+            try parseQuad()
         }
-        return graph
+
+        return Dataset(defaultGraph: defaultGraph, namedGraphs: namedGraphs)
     }
 
     private mutating func parseVersionDirectiveIfPresent() throws -> Bool {
         if lexer.consumeWord("VERSION", caseInsensitive: false, wordBoundary: true) {
-            try lexer.requireHorizontalWhitespace()
+            lexer.skipWhitespaceAndComments()
             _ = try parseStringLiteral()
-            lexer.skipHorizontalWhitespace()
-            if lexer.peek() == "#" { lexer.skipComment() }
-            _ = lexer.consumeEOL()
+            lexer.skipWhitespaceAndComments()
+            if lexer.peek() == "." {
+                _ = lexer.advance()
+            }
             return true
         }
         return false
     }
 
-    private mutating func parseTriple() throws {
+    private mutating func parseQuad() throws {
         let subject = try parseSubject()
-        try lexer.requireHorizontalWhitespace()
+        lexer.skipWhitespaceAndComments()
         let predicate = try parsePredicate()
-        try lexer.requireHorizontalWhitespace()
+        lexer.skipWhitespaceAndComments()
         let object = try parseObject()
-        lexer.skipHorizontalWhitespace()
-        try lexer.expect(".")
-        lexer.skipHorizontalWhitespace()
-        if lexer.peek() == "#" { lexer.skipComment() }
-        if !lexer.consumeEOL(), !lexer.isAtEnd {
-            throw lexer.errorUnexpectedCharacter()
+        lexer.skipWhitespaceAndComments()
+
+        var graphName: IRI? = nil
+        if let ch = lexer.peek(), ch != "." {
+            graphName = try parseGraphName()
+            lexer.skipWhitespaceAndComments()
         }
 
-        let triple = Graph.TripleType(subject: subject, predicate: predicate, object: object)
-        do {
-            try graph.insert(triple)
-        } catch RDFGraphError.duplicateTriple {
-            return
-        }
+        try lexer.expect(".")
+        try addQuad(subject: subject, predicate: predicate, object: object, graphName: graphName)
     }
 
     private mutating func parseSubject() throws -> AnyRDFSubject {
@@ -207,7 +215,7 @@ private struct NTriplesParser {
     }
 
     private mutating func parseObject() throws -> AnyRDFObject {
-        if lexer.starts(with: "<<(") {
+        if lexer.starts(with: "<<") {
             let term = try parseTripleTerm()
             return AnyRDFObject(term)
         }
@@ -219,7 +227,7 @@ private struct NTriplesParser {
             let iri = try parseIriRef()
             return AnyRDFObject(iri)
         }
-        if lexer.peek() == "\"" {
+        if lexer.peek() == "\"" || lexer.peek() == "'" {
             let literal = try parseLiteral()
             return AnyRDFObject(literal)
         }
@@ -227,53 +235,41 @@ private struct NTriplesParser {
         throw lexer.errorUnexpectedCharacter()
     }
 
+    private mutating func parseGraphName() throws -> IRI {
+        if lexer.starts(with: "_:") {
+            _ = try parseBlankNode()
+            throw NQuadsError.invalidGraphName(line: lexer.line, column: lexer.column)
+        }
+        return try parseIriRef()
+    }
+
     private mutating func parseTripleTerm() throws -> TripleTerm {
-        try lexer.expect("<<(")
-        lexer.skipHorizontalWhitespace()
+        try lexer.expect("<<")
+        lexer.skipWhitespaceAndComments()
+        var hasParens = false
+        if lexer.peek() == "(" {
+            hasParens = true
+            _ = lexer.advance()
+            lexer.skipWhitespaceAndComments()
+        }
         let subject = try parseSubject()
-        try lexer.requireHorizontalWhitespace()
+        lexer.skipWhitespaceAndComments()
         let predicate = try parsePredicate()
-        try lexer.requireHorizontalWhitespace()
+        lexer.skipWhitespaceAndComments()
         let object = try parseObject()
-        lexer.skipHorizontalWhitespace()
-        try lexer.expect(")>>")
+        lexer.skipWhitespaceAndComments()
+        if hasParens {
+            try lexer.expect(")")
+            lexer.skipWhitespaceAndComments()
+        }
+        try lexer.expect(">>")
         return TripleTerm(subject: subject, predicate: predicate, object: object)
     }
 
     private mutating func parseBlankNode() throws -> BlankNode {
         try lexer.expect("_:")
-        let label = try parseBlankNodeLabel()
+        let label = try parseNameToken()
         return try BlankNode(label)
-    }
-
-    private mutating func parseBlankNodeLabel() throws -> String {
-        var token = ""
-        guard let first = lexer.peek() else { throw lexer.errorUnexpectedEnd() }
-        guard isPNCharsU(first) || isDigit(first) else {
-            throw NTriplesError.invalidBlankNodeLabel(line: lexer.line, column: lexer.column)
-        }
-        token.append(first)
-        _ = lexer.advance()
-
-        var lastWasDot = false
-        while let ch = lexer.peek() {
-            if isPNChars(ch) {
-                token.append(ch)
-                lastWasDot = false
-                _ = lexer.advance()
-            } else if ch == "." {
-                token.append(ch)
-                lastWasDot = true
-                _ = lexer.advance()
-            } else {
-                break
-            }
-        }
-
-        if lastWasDot {
-            throw NTriplesError.invalidBlankNodeLabel(line: lexer.line, column: lexer.column)
-        }
-        return token
     }
 
     private mutating func parseIriRef() throws -> IRI {
@@ -291,32 +287,41 @@ private struct NTriplesParser {
             }
             if ch == "\\" {
                 _ = lexer.advance()
-                guard let escaped = lexer.advance() else { throw lexer.errorUnexpectedEnd() }
+                guard let escaped = lexer.advance() else {
+                    throw lexer.errorUnexpectedEnd()
+                }
                 switch escaped {
                 case "u":
                     value.append(try lexer.readUnicodeScalar(count: 4))
                 case "U":
                     value.append(try lexer.readUnicodeScalar(count: 8))
                 default:
-                    throw NTriplesError.invalidIriRef(line: lexer.line, column: lexer.column)
+                    value.append(escaped)
                 }
-                continue
+            } else {
+                value.append(ch)
+                _ = lexer.advance()
             }
-            if isInvalidIriChar(ch) {
-                throw NTriplesError.invalidIriRef(line: lexer.line, column: lexer.column)
-            }
-            value.append(ch)
-            _ = lexer.advance()
         }
         throw lexer.errorUnexpectedEnd()
     }
 
     private mutating func parseLiteral() throws -> Literal {
         let string = try parseStringLiteral()
-        lexer.skipHorizontalWhitespace()
+        lexer.skipWhitespaceAndComments()
         if lexer.peek() == "@" {
             _ = lexer.advance()
-            let (lang, direction) = try parseLangDir()
+            let lang = try parseLanguageTag()
+            var direction: TextDirection? = nil
+            if lexer.starts(with: "--") {
+                _ = lexer.advance()
+                _ = lexer.advance()
+                let dirToken = try parseNameToken()
+                guard let parsed = TextDirection(rawValue: dirToken) else {
+                    throw lexer.errorUnexpectedToken(dirToken)
+                }
+                direction = parsed
+            }
             return try Literal(string, languageTag: lang, textDirection: direction)
         }
         if lexer.starts(with: "^^") {
@@ -329,32 +334,32 @@ private struct NTriplesParser {
     }
 
     private mutating func parseStringLiteral() throws -> String {
-        try lexer.expect("\"")
+        guard let quote = lexer.peek(), quote == "\"" || quote == "'" else {
+            throw lexer.errorUnexpectedCharacter()
+        }
+        let quoteChar = quote
+        _ = lexer.advance()
+
         var value = ""
         while let ch = lexer.peek() {
-            if ch == "\"" {
+            if ch == quoteChar {
                 _ = lexer.advance()
                 return value
-            }
-            if ch == "\n" || ch == "\r" {
-                throw lexer.errorUnexpectedCharacter()
-            }
-            if ch == "\\" {
+            } else if ch == "\\" {
                 _ = lexer.advance()
-                guard let escaped = lexer.advance() else { throw lexer.errorUnexpectedEnd() }
+                guard let escaped = lexer.advance() else {
+                    throw lexer.errorUnexpectedEnd()
+                }
                 switch escaped {
-                case "t": value.append("\t")
-                case "b": value.append("\u{0008}")
                 case "n": value.append("\n")
+                case "t": value.append("\t")
                 case "r": value.append("\r")
-                case "f": value.append("\u{000C}")
                 case "\\": value.append("\\")
                 case "\"": value.append("\"")
                 case "'": value.append("'")
                 case "u": value.append(try lexer.readUnicodeScalar(count: 4))
                 case "U": value.append(try lexer.readUnicodeScalar(count: 8))
-                default:
-                    throw lexer.errorUnexpectedCharacter()
+                default: value.append(escaped)
                 }
             } else {
                 value.append(ch)
@@ -364,121 +369,70 @@ private struct NTriplesParser {
         throw lexer.errorUnexpectedEnd()
     }
 
-    private mutating func parseLangDir() throws -> (String, TextDirection?) {
+    private mutating func parseLanguageTag() throws -> String {
         var tag = ""
-        guard let first = lexer.peek(), isAlpha(first) else {
-            throw NTriplesError.invalidLanguageTag(line: lexer.line, column: lexer.column)
-        }
-        while let ch = lexer.peek(), isAlpha(ch) {
-            tag.append(ch)
-            _ = lexer.advance()
-        }
-
-        while lexer.peek() == "-" && lexer.peekNext() != "-" {
-            _ = lexer.advance()
-            tag.append("-")
-            var hadSegment = false
-            while let ch = lexer.peek(), isAlphaNumeric(ch) {
-                hadSegment = true
+        while let ch = lexer.peek() {
+            if ch == "-" && lexer.peekNext() == "-" {
+                break
+            }
+            if ch.isWhitespace { break }
+            if ch == "-" || ch.isLetter || ch.isNumber {
                 tag.append(ch)
                 _ = lexer.advance()
-            }
-            if !hadSegment {
-                throw NTriplesError.invalidLanguageTag(line: lexer.line, column: lexer.column)
-            }
-        }
-
-        var direction: TextDirection? = nil
-        if lexer.peek() == "-" && lexer.peekNext() == "-" {
-            _ = lexer.advance()
-            _ = lexer.advance()
-            var dirToken = ""
-            while let ch = lexer.peek(), isAlpha(ch) {
-                dirToken.append(ch)
-                _ = lexer.advance()
-            }
-            let normalized = dirToken.lowercased()
-            if let parsed = TextDirection(rawValue: normalized) {
-                direction = parsed
             } else {
-                throw NTriplesError.invalidLanguageTag(line: lexer.line, column: lexer.column)
+                break
             }
         }
-
-        return (tag.lowercased(), direction)
-    }
-
-    private func isAlpha(_ ch: Character) -> Bool {
-        guard let scalar = singleScalar(ch) else { return false }
-        return (0x41...0x5A).contains(scalar.value) || (0x61...0x7A).contains(scalar.value)
-    }
-
-    private func isDigit(_ ch: Character) -> Bool {
-        guard let scalar = singleScalar(ch) else { return false }
-        return (0x30...0x39).contains(scalar.value)
-    }
-
-    private func isAlphaNumeric(_ ch: Character) -> Bool {
-        isAlpha(ch) || isDigit(ch)
-    }
-
-    private func isInvalidIriChar(_ ch: Character) -> Bool {
-        guard let scalar = singleScalar(ch) else { return true }
-        let value = scalar.value
-        if value <= 0x20 { return true }
-        if "<>\"{}|^`".contains(ch) { return true }
-        return false
-    }
-
-    private func isPNCharsU(_ ch: Character) -> Bool {
-        guard let scalar = singleScalar(ch) else { return false }
-        return scalar.value == 0x5F || isPNCharsBase(scalar)
-    }
-
-    private func isPNChars(_ ch: Character) -> Bool {
-        guard let scalar = singleScalar(ch) else { return false }
-        let value = scalar.value
-        if isPNCharsU(ch) { return true }
-        if value == 0x2D { return true }
-        if (0x30...0x39).contains(value) { return true }
-        if value == 0x00B7 { return true }
-        if (0x0300...0x036F).contains(value) { return true }
-        if (0x203F...0x2040).contains(value) { return true }
-        return false
-    }
-
-    private func isPNCharsBase(_ scalar: UnicodeScalar) -> Bool {
-        let value = scalar.value
-        switch value {
-        case 0x41...0x5A, 0x61...0x7A:
-            return true
-        case 0x00C0...0x00D6,
-             0x00D8...0x00F6,
-             0x00F8...0x02FF,
-             0x0370...0x037D,
-             0x037F...0x1FFF,
-             0x200C...0x200D,
-             0x2070...0x218F,
-             0x2C00...0x2FEF,
-             0x3001...0xD7FF,
-             0xF900...0xFDCF,
-             0xFDF0...0xFFFD,
-             0x10000...0xEFFFF:
-            return true
-        default:
-            return false
+        if tag.isEmpty {
+            throw lexer.errorUnexpectedCharacter()
         }
+        return tag.lowercased()
     }
 
-    private func singleScalar(_ ch: Character) -> UnicodeScalar? {
-        let scalars = String(ch).unicodeScalars
-        return scalars.count == 1 ? scalars.first : nil
+    private mutating func parseNameToken() throws -> String {
+        var token = ""
+        while let ch = lexer.peek() {
+            if ch.isWhitespace || "<>\"'".contains(ch) { break }
+            if ch == "." {
+                if lexer.peekNext()?.isWhitespace == true { break }
+            }
+            token.append(ch)
+            _ = lexer.advance()
+        }
+        if token.isEmpty {
+            throw lexer.errorUnexpectedCharacter()
+        }
+        return token
+    }
+
+    private mutating func addQuad(
+        subject: AnyRDFSubject,
+        predicate: IRI,
+        object: AnyRDFObject,
+        graphName: IRI?
+    ) throws {
+        let triple = Graph.TripleType(subject: subject, predicate: predicate, object: object)
+        if let name = graphName {
+            var graph = try (namedGraphs[name] ?? Graph(name: name))
+            do {
+                try graph.insert(triple)
+            } catch RDFGraphError.duplicateTriple {
+                return
+            }
+            namedGraphs[name] = graph
+        } else {
+            do {
+                try defaultGraph.insert(triple)
+            } catch RDFGraphError.duplicateTriple {
+                return
+            }
+        }
     }
 }
 
 // MARK: - Lexer
 
-private struct NTriplesLexer {
+private struct NQuadsLexer {
     private let text: String
     private var index: String.Index
     private(set) var line: Int = 1
@@ -493,23 +447,21 @@ private struct NTriplesLexer {
         index >= text.endIndex
     }
 
-    mutating func skipHorizontalWhitespace() {
-        while let ch = peek(), ch == " " || ch == "\t" {
-            _ = advance()
+    mutating func skipWhitespaceAndComments() {
+        while let ch = peek() {
+            if ch == "#" {
+                skipComment()
+            } else if ch.isWhitespace {
+                _ = advance()
+            } else {
+                break
+            }
         }
     }
 
-    mutating func requireHorizontalWhitespace() throws {
-        if let ch = peek(), ch == " " || ch == "\t" {
-            skipHorizontalWhitespace()
-            return
-        }
-        throw errorUnexpectedCharacter()
-    }
-
-    mutating func skipComment() {
+    private mutating func skipComment() {
         while let ch = advance() {
-            if ch == "\n" || ch == "\r" { break }
+            if ch == "\n" { break }
         }
     }
 
@@ -532,23 +484,10 @@ private struct NTriplesLexer {
         if ch == "\n" {
             line += 1
             column = 1
-        } else if ch == "\r" {
-            line += 1
-            column = 1
         } else {
             column += 1
         }
         return ch
-    }
-
-    mutating func consumeEOL() -> Bool {
-        guard let ch = peek(), ch == "\n" || ch == "\r" else { return false }
-        var consumed = false
-        while let c = peek(), c == "\n" || c == "\r" {
-            _ = advance()
-            consumed = true
-        }
-        return consumed
     }
 
     mutating func expect(_ string: String) throws {
@@ -598,18 +537,18 @@ private struct NTriplesLexer {
         return String(scalar)
     }
 
-    func errorUnexpectedEnd() -> NTriplesError {
-        NTriplesError.unexpectedEndOfInput(line: line, column: column)
+    func errorUnexpectedEnd() -> NQuadsError {
+        NQuadsError.unexpectedEndOfInput(line: line, column: column)
     }
 
-    func errorUnexpectedCharacter() -> NTriplesError {
+    func errorUnexpectedCharacter() -> NQuadsError {
         if let ch = peek() {
-            return NTriplesError.unexpectedCharacter(ch, line: line, column: column)
+            return NQuadsError.unexpectedCharacter(ch, line: line, column: column)
         }
-        return NTriplesError.unexpectedEndOfInput(line: line, column: column)
+        return NQuadsError.unexpectedEndOfInput(line: line, column: column)
     }
 
-    func errorUnexpectedToken(_ token: String) -> NTriplesError {
-        NTriplesError.invalidToken(token, line: line, column: column)
+    func errorUnexpectedToken(_ token: String) -> NQuadsError {
+        NQuadsError.invalidToken(token, line: line, column: column)
     }
 }

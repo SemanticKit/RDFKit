@@ -20,12 +20,14 @@ import Testing
         #expect(SomeThing("Thing") == SomeThing.self)
     }
 
-    @Test func equalIRIBackedValuesHaveEqualHashes() {
+    @Test func equalIRIBackedValuesHaveEqualHashes() throws {
         let iri = IRI("https://example.com/SomeThing")
         let instance = SomeThing("Thing")
+        let iriSubject = AnyRDFSubject(iri)
+        let instanceSubject = try AnyRDFSubject(instance)
 
         #expect(iri.hashValue == instance.hashValue)
         #expect(AnyRDFObject(iri) == AnyRDFObject(instance))
-        #expect((try? AnyRDFSubject(iri)) == (try? AnyRDFSubject(instance)))
+        #expect(iriSubject == instanceSubject)
     }
 }

@@ -25,15 +25,35 @@ public enum TurtleError: Error, CustomStringConvertible {
     }
 }
 
-public extension Graph {
-    init(turtle: String, baseIRI: IRI? = nil) throws {
-        var parser = TurtleParser(text: turtle, baseIRI: baseIRI)
-        self = try parser.parseGraph()
+/// Turtle RDF graph format.
+public struct Turtle<Aliases: AliasContent>: GraphDecodingFormat, GraphEncodingFormat {
+    private let baseIRI: IRI?
+    private let aliases: Aliases
+
+    /// Creates a Turtle format with protocol-based alias content.
+    public init(baseIRI: IRI? = nil, @AliasBuilder aliases: () -> Aliases) {
+        self.baseIRI = baseIRI
+        self.aliases = aliases()
     }
 
-    func turtleString(prefixes: [String: IRI] = [:], baseIRI: IRI? = nil) -> String {
-        let serializer = TurtleSerializer(prefixes: prefixes, baseIRI: baseIRI)
-        return serializer.serialize(graph: self)
+    /// Decodes Turtle source into a graph.
+    public func decodeGraph(_ source: String) throws -> Graph {
+        var parser = TurtleParser(text: source, baseIRI: baseIRI)
+        return try parser.parseGraph()
+    }
+
+    /// Encodes a graph as Turtle source.
+    public func encodeGraph(_ graph: Graph) throws -> String {
+        let serializer = TurtleSerializer(prefixes: try aliases.iriPrefixMap(), baseIRI: baseIRI)
+        return serializer.serialize(graph: graph)
+    }
+}
+
+extension Turtle where Aliases == EmptyAliasContent {
+    /// Creates a Turtle format without aliases.
+    public init(baseIRI: IRI? = nil) {
+        self.baseIRI = baseIRI
+        self.aliases = EmptyAliasContent()
     }
 }
 
