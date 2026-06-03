@@ -19,6 +19,16 @@ import Testing
         try assertObjectGraph(rdfGraph, covers: matrix.entries(in: "RDF"), closureFacts: closureFacts)
         try assertObjectGraph(rdfsGraph, covers: matrix.entries(in: "RDFS"), closureFacts: closureFacts)
         try assertObjectGraph(owlGraph, covers: matrix.entries(in: "OWL"), closureFacts: closureFacts)
+
+        #expect(rdfGraph.aliases["rdf"] == RDF.declaredNamespace.iri)
+        #expect(rdfGraph.aliases["rdfs"] == RDFS.declaredNamespace.iri)
+        #expect(rdfGraph.aliases["owl"] == OWL.declaredNamespace.iri)
+        #expect(rdfsGraph.aliases["rdf"] == RDF.declaredNamespace.iri)
+        #expect(rdfsGraph.aliases["rdfs"] == RDFS.declaredNamespace.iri)
+        #expect(rdfsGraph.aliases["owl"] == OWL.declaredNamespace.iri)
+        #expect(owlGraph.aliases["rdf"] == RDF.declaredNamespace.iri)
+        #expect(owlGraph.aliases["rdfs"] == RDFS.declaredNamespace.iri)
+        #expect(owlGraph.aliases["owl"] == OWL.declaredNamespace.iri)
     }
 
     /// Verifies that a new ontology authored in the DSL materializes into an object graph.
@@ -30,6 +40,8 @@ import Testing
 
         #expect(graph.environment.namespace == namespace)
         #expect(graph.environment.iri == namespace.iri)
+        #expect(graph.aliases["rdf"] == RDF.declaredNamespace.iri)
+        #expect(graph.aliases["rdfs"] == RDFS.declaredNamespace.iri)
         #expect(graph.terms == [asset, name])
         #expect(graph.classes == [asset])
         #expect(graph.properties == [name])
@@ -116,6 +128,8 @@ import Testing
     private struct CustomAssetOntology: Ontology {
         var content: some Content {
             Namespace("https://example.com/assets#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
 
             Class("Asset") {
                 Type(RDFS.Class.self)

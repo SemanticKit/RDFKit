@@ -5,6 +5,9 @@ struct OntologyObjectGraph: Equatable, Sendable {
     /// The ontology environment used to resolve scoped declarations.
     let environment: OntologyEnvironment
 
+    /// IRI prefix mappings declared by ontology content.
+    let aliases: [String: IRI]
+
     /// All declared term IRIs.
     let terms: Set<IRI>
 
@@ -26,6 +29,7 @@ struct OntologyObjectGraph: Equatable, Sendable {
     /// Creates an object graph from ontology content.
     init<ContentValue: Content>(content: ContentValue) throws {
         self.environment = ContentNamespaceResolver.environment(in: content)
+        self.aliases = try Self.aliases(in: content)
         self.terms = try ContentTermResolver.termIRIs(in: content)
         self.classes = try ContentTermResolver.classIRIs(in: content)
         self.properties = try ContentTermResolver.propertyIRIs(in: content)
@@ -37,5 +41,16 @@ struct OntologyObjectGraph: Equatable, Sendable {
     /// Creates an object graph from an ontology value.
     init<OntologyValue: Ontology>(_ ontology: OntologyValue) throws {
         try self.init(content: ontology.content)
+    }
+
+    /// Returns alias mappings declared in content.
+    private static func aliases<ContentValue: Content>(in content: ContentValue) throws -> [String: IRI] {
+        var aliases: [String: IRI] = [:]
+
+        if let mappingContent = content as? any AliasMappingContent {
+            try mappingContent.addIRIPrefixes(to: &aliases)
+        }
+
+        return aliases
     }
 }
