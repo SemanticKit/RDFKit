@@ -6,13 +6,15 @@ import RDFKit
         let graph = try OntologyObjectGraph(PublicAssetOntology())
         let namespace = Namespace("https://example.com/public-assets#")
         let asset = IRI("https://example.com/public-assets#Asset")
+        let identifier = IRI("https://example.com/public-assets#identifier")
 
         #expect(graph.environment.namespace == namespace)
         #expect(graph.aliases["rdf"] == IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#"))
         #expect(graph.aliases["rdfs"] == IRI("http://www.w3.org/2000/01/rdf-schema#"))
-        #expect(graph.declarations.map(\.iri) == [asset])
+        #expect(graph.declarations.map(\.iri) == [asset, identifier])
         #expect(graph.classes == [asset])
-        #expect(graph.terms == [asset])
+        #expect(graph.properties == [identifier])
+        #expect(graph.terms == [asset, identifier])
 
         let declaration = try #require(graph.declarations.first)
         #expect(declaration.id == asset)
@@ -24,6 +26,13 @@ import RDFKit
         #expect(graph.facts[asset]?.labels == ["Asset"])
         #expect(graph.facts[asset]?.comments == ["A managed public asset."])
         #expect(graph.facts[asset]?.isDefinedBy == [namespace.iri])
+
+        let identifierDeclaration = try #require(graph.declarations.last)
+        let identifierFacts = try #require(graph.facts[identifier])
+        #expect(identifierDeclaration.id == identifier)
+        #expect(identifierDeclaration.localName == "identifier")
+        #expect(identifierDeclaration.role == .property)
+        #expect(identifierFacts.types.isEmpty)
     }
 
     private struct PublicAssetOntology: Ontology {
@@ -38,6 +47,8 @@ import RDFKit
                 Comment("A managed public asset.")
                 IsDefinedBy()
             }
+
+            Property("identifier")
         }
     }
 }

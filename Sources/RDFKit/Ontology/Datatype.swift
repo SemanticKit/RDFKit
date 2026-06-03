@@ -17,8 +17,14 @@ public struct Datatype<Body: DatatypeContent>: NamespaceScopedDeclaration, Ontol
     /// The declaration body content.
     var bodyContent: any Content { content }
 
+    /// Creates an empty datatype declaration in the enclosing ontology namespace.
+    public init(_ localName: String) where Body == EmptyContent {
+        self.localName = LocalName(localName)
+        self.content = EmptyContent()
+    }
+
     /// Creates a datatype declaration in the enclosing ontology namespace.
-    public init(_ localName: String, @ContentBuilder content: () -> Body) {
+    public init(_ localName: String, @DatatypeContentBuilder content: () -> Body) {
         self.localName = LocalName(localName)
         self.content = content()
     }

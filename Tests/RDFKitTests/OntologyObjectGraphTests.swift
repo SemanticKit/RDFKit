@@ -75,6 +75,26 @@ import Testing
         #expect(nameDeclaration.facts == nameFacts)
     }
 
+    /// Verifies that declaration blocks can be authored without body boilerplate.
+    @Test func emptyDeclarationDSLContentMaterializesObjectGraph() throws {
+        let graph = try OntologyObjectGraph(EmptyDeclarationOntology())
+        let namespace = Namespace("https://example.com/empty-declarations#")
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+        let name = QualifiedName(namespace: namespace, localName: LocalName("name")).iri
+        let code = QualifiedName(namespace: namespace, localName: LocalName("AssetCode")).iri
+        let root = QualifiedName(namespace: namespace, localName: LocalName("root")).iri
+
+        #expect(graph.declarations.map(\.iri) == [asset, name, code, root])
+        #expect(graph.classes == [asset])
+        #expect(graph.properties == [name])
+        #expect(graph.datatypes == [code])
+        #expect(graph.individuals == [root])
+        #expect(graph.facts[asset]?.types.isEmpty == true)
+        #expect(graph.facts[name]?.types.isEmpty == true)
+        #expect(graph.facts[code]?.types.isEmpty == true)
+        #expect(graph.facts[root]?.types.isEmpty == true)
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -179,6 +199,18 @@ import Testing
                 Label("name")
                 IsDefinedBy()
             }
+        }
+    }
+
+    /// A custom ontology using clean empty declarations.
+    private struct EmptyDeclarationOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/empty-declarations#")
+
+            Class("Asset")
+            Property("name")
+            Datatype("AssetCode")
+            Individual("root")
         }
     }
 }
