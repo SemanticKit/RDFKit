@@ -1,5 +1,4 @@
 import Foundation
-import SemanticKit
 
 // MARK: - N-Quads import / export
 

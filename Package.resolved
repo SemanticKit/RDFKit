@@ -1,24 +1,4 @@
 {
-  "originHash" : "7185461345648ee3239522fcac3c6d05c5c1617e942e4ae347d9c7e4de5bdda5",
-  "pins" : [
-    {
-      "identity" : "semantickit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SemanticKit/SemanticKit.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "0494322e0ce47336b8749d7b325a31891cd0cc1e"
-      }
-    },
-    {
-      "identity" : "swift-syntax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
-      "state" : {
-        "revision" : "0687f71944021d616d34d922343dcef086855920",
-        "version" : "600.0.1"
-      }
-    }
-  ],
+  "pins" : [],
   "version" : 3
 }

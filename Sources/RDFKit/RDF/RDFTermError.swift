@@ -1,0 +1,49 @@
+import Foundation
+
+/// Errors thrown while constructing or storing RDF terms.
+public enum RDFTermError: Error, LocalizedError {
+    /// The supplied IRI text is not usable as a Foundation URL.
+    case invalidIRI(String)
+
+    /// A blank node identifier was empty.
+    case emptyBlankNodeIdentifier
+
+    /// A language tag was empty.
+    case emptyLanguageTag
+
+    /// A language-tagged literal also declared a datatype.
+    case languageTagWithDatatype
+
+    /// A text direction was supplied without a language tag.
+    case textDirectionRequiresLanguageTag
+
+    /// A graph name was not an IRI or blank node.
+    case invalidGraphName
+
+    /// A subject was not an IRI or blank node.
+    case invalidSubject
+
+    /// A container membership index was not positive.
+    case invalidContainerMembershipIndex
+
+    public var errorDescription: String? {
+        switch self {
+        case let .invalidIRI(value):
+            return "Invalid IRI: \(value)"
+        case .emptyBlankNodeIdentifier:
+            return "Blank node identifier must not be empty."
+        case .emptyLanguageTag:
+            return "Language tag must not be empty."
+        case .languageTagWithDatatype:
+            return "Language-tagged strings must not declare a datatype."
+        case .textDirectionRequiresLanguageTag:
+            return "Text direction requires a language tag."
+        case .invalidGraphName:
+            return "Graph name must be IRI or BlankNode."
+        case .invalidSubject:
+            return "RDF subject must be IRI or BlankNode."
+        case .invalidContainerMembershipIndex:
+            return "Container membership property index must be positive."
+        }
+    }
+}

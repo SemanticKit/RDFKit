@@ -14,18 +14,16 @@ let package = Package(
             targets: ["RDFKit"]
         )
     ],
-    dependencies: [
-        .package(url: "https://github.com/SemanticKit/SemanticKit.git", branch: "main")
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "RDFKit",
-            dependencies: ["SemanticKit"],
+            dependencies: [],
             resources: [.copy("Turtle")]
         ),
         .testTarget(
             name: "RDFKitTests",
-            dependencies: ["RDFKit", "SemanticKit"],
+            dependencies: ["RDFKit"],
             resources: [.copy("Data")]
         )
     ]

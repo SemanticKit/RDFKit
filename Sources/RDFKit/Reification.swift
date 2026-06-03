@@ -1,5 +1,4 @@
 import Foundation
-import SemanticKit
 
 public struct PredicateObjectPair: Hashable {
     public let predicate: IRI
@@ -60,7 +59,7 @@ public struct ReifiedTriple: Hashable {
         result.append(
             Graph.TripleType(
                 subject: reifier,
-                predicate: RDF.Vocabulary.reifies,
+                predicate: RDF.reifies,
                 object: AnyRDFObject(tripleTerm)
             )
         )

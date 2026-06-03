@@ -2,7 +2,6 @@ import Foundation
 #if canImport(FoundationXML)
 import FoundationXML
 #endif
-import SemanticKit
 
 // MARK: - RDF/XML import / export
 
@@ -167,7 +166,7 @@ private struct RDFXMLParser {
     private var graph = Graph()
     private var blankNodeCounter: Int = 0
 
-    private let rdfNamespace = RDF.Vocabulary.namespace
+    private let rdfNamespace = RDF.namespace.rawValue
     private let itsNamespace = "http://www.w3.org/2005/11/its"
 
     init(text: String, baseIRI: IRI?) {
@@ -207,12 +206,12 @@ private struct RDFXMLParser {
 
         if !isRdfElement(element, localName: "Description") {
             let typeIRI = try elementIRI(element)
-            try insertTriple(subject: subject, predicate: RDF.Vocabulary.type, object: AnyRDFObject(typeIRI))
+            try insertTriple(subject: subject, predicate: RDF.type, object: AnyRDFObject(typeIRI))
         }
 
         for attr in element.attributes where isPropertyAttribute(attr) {
             let predicate = try attributeIRI(attr)
-            if predicate == RDF.Vocabulary.type {
+            if predicate == RDF.type {
                 let iri = try resolveIriReference(attr.value, base: context.baseIRI)
                 try insertTriple(subject: subject, predicate: predicate, object: AnyRDFObject(iri))
             } else {
@@ -266,7 +265,7 @@ private struct RDFXMLParser {
             switch parseType {
             case "Literal":
                 let xmlLiteral = serializeChildren(element.children)
-                let object = try Literal(xmlLiteral, datatype: RDF.Vocabulary.XMLLiteral)
+                let object = try Literal(xmlLiteral, datatype: RDF.XMLLiteral.iri)
                 let statement = try emitStatement(subject: subject, predicate: predicate, object: AnyRDFObject(object), idAttr: idAttr, annotationAttr: annotationAttr, annotationNodeIDAttr: annotationNodeIDAttr, context: context)
                 _ = statement
                 return
@@ -291,7 +290,7 @@ private struct RDFXMLParser {
                 return
             default:
                 let xmlLiteral = serializeChildren(element.children)
-                let object = try Literal(xmlLiteral, datatype: RDF.Vocabulary.XMLLiteral)
+                let object = try Literal(xmlLiteral, datatype: RDF.XMLLiteral.iri)
                 _ = try emitStatement(subject: subject, predicate: predicate, object: AnyRDFObject(object), idAttr: idAttr, annotationAttr: annotationAttr, annotationNodeIDAttr: annotationNodeIDAttr, context: context)
                 return
             }
@@ -347,7 +346,7 @@ private struct RDFXMLParser {
         if let blank = resourceNode.node as? BlankNode {
             for attr in propertyAttributes {
                 let predicateIRI = try attributeIRI(attr)
-                if predicateIRI == RDF.Vocabulary.type {
+                if predicateIRI == RDF.type {
                     let typeIRI = try resolveIriReference(attr.value, base: context.baseIRI)
                     try insertTriple(subject: try AnyRDFSubject(blank), predicate: predicateIRI, object: AnyRDFObject(typeIRI))
                 } else {
@@ -358,7 +357,7 @@ private struct RDFXMLParser {
         } else if let iri = resourceNode.node as? IRI {
             for attr in propertyAttributes {
                 let predicateIRI = try attributeIRI(attr)
-                if predicateIRI == RDF.Vocabulary.type {
+                if predicateIRI == RDF.type {
                     let typeIRI = try resolveIriReference(attr.value, base: context.baseIRI)
                     try insertTriple(subject: try AnyRDFSubject(iri), predicate: predicateIRI, object: AnyRDFObject(typeIRI))
                 } else {
@@ -408,7 +407,7 @@ private struct RDFXMLParser {
 
     private mutating func buildCollection(_ objects: [AnyRDFObject], subject: AnyRDFSubject, predicate: IRI, idAttr: String?, annotationAttr: String?, annotationNodeIDAttr: String?, context: ElementContext) throws {
         if objects.isEmpty {
-            _ = try emitStatement(subject: subject, predicate: predicate, object: AnyRDFObject(RDF.Vocabulary.nilValue), idAttr: idAttr, annotationAttr: annotationAttr, annotationNodeIDAttr: annotationNodeIDAttr, context: context)
+            _ = try emitStatement(subject: subject, predicate: predicate, object: AnyRDFObject(RDF.nilValue), idAttr: idAttr, annotationAttr: annotationAttr, annotationNodeIDAttr: annotationNodeIDAttr, context: context)
             return
         }
 
@@ -423,18 +422,18 @@ private struct RDFXMLParser {
             let current = blanks[index]
             try insertTriple(
                 subject: try AnyRDFSubject(current),
-                predicate: RDF.Vocabulary.first,
+                predicate: RDF.first,
                 object: item
             )
             let restObject: AnyRDFObject
             if index == blanks.count - 1 {
-                restObject = AnyRDFObject(RDF.Vocabulary.nilValue)
+                restObject = AnyRDFObject(RDF.nilValue)
             } else {
                 restObject = AnyRDFObject(blanks[index + 1])
             }
             try insertTriple(
                 subject: try AnyRDFSubject(current),
-                predicate: RDF.Vocabulary.rest,
+                predicate: RDF.rest,
                 object: restObject
             )
         }
@@ -461,15 +460,15 @@ private struct RDFXMLParser {
 
     private mutating func reify(statement: Graph.TripleType, reifier: IRI) throws {
         let reifierSubject = try AnyRDFSubject(reifier)
-        try insertTriple(subject: reifierSubject, predicate: RDF.Vocabulary.subject, object: try asObject(statement.subject))
-        try insertTriple(subject: reifierSubject, predicate: RDF.Vocabulary.predicate, object: AnyRDFObject(statement.predicate))
-        try insertTriple(subject: reifierSubject, predicate: RDF.Vocabulary.object, object: statement.object)
-        try insertTriple(subject: reifierSubject, predicate: RDF.Vocabulary.type, object: AnyRDFObject(RDF.Vocabulary.Statement))
+        try insertTriple(subject: reifierSubject, predicate: RDF.subject, object: try asObject(statement.subject))
+        try insertTriple(subject: reifierSubject, predicate: RDF.predicate, object: AnyRDFObject(statement.predicate))
+        try insertTriple(subject: reifierSubject, predicate: RDF.object, object: statement.object)
+        try insertTriple(subject: reifierSubject, predicate: RDF.type, object: AnyRDFObject(RDF.Statement.iri))
     }
 
     private mutating func annotate(statement: Graph.TripleType, reifier: AnyRDFSubject) throws {
         let tripleTerm = TripleTerm(subject: statement.subject, predicate: statement.predicate, object: statement.object)
-        try insertTriple(subject: reifier, predicate: RDF.Vocabulary.reifies, object: AnyRDFObject(tripleTerm))
+        try insertTriple(subject: reifier, predicate: RDF.reifies, object: AnyRDFObject(tripleTerm))
     }
 
     private mutating func insertTriple(_ triple: Graph.TripleType) throws {
@@ -480,7 +479,7 @@ private struct RDFXMLParser {
         }
     }
 
-    private mutating func insertTriple(subject: AnyRDFSubject, predicate: IRI, object: AnyRDFObject) throws {
+    private mutating func insertTriple<Predicate: IRIRepresentable>(subject: AnyRDFSubject, predicate: Predicate, object: AnyRDFObject) throws {
         try insertTriple(Graph.TripleType(subject: subject, predicate: predicate, object: object))
     }
 
@@ -515,7 +514,7 @@ private struct RDFXMLParser {
 
     private func predicateIRI(for element: XMLElement, liCounter: inout Int) throws -> IRI {
         if isRdfElement(element, localName: "li") {
-            let iri = try RDF.Vocabulary.containerMembershipProperty(liCounter)
+            let iri = try RDF.containerMembershipProperty(liCounter)
             liCounter += 1
             return iri
         }
@@ -642,7 +641,7 @@ private struct RDFXMLParser {
 
 private struct RDFXMLSerializer {
     private let baseIRI: IRI?
-    private let rdfNamespace = RDF.Vocabulary.namespace
+    private let rdfNamespace = RDF.namespace.rawValue
     private let itsNamespace = "http://www.w3.org/2005/11/its"
 
     init(baseIRI: IRI?) {

@@ -1,5 +1,4 @@
 import Foundation
-import SemanticKit
 
 // MARK: - Turtle import / export
 
@@ -89,7 +88,7 @@ private struct TurtleSerializer {
     }
 
     private func formatPredicate(_ predicate: IRI) -> String {
-        if predicate == RDF.Vocabulary.type {
+        if predicate == RDF.type {
             return "a"
         }
         return formatIri(predicate)
@@ -266,7 +265,7 @@ private struct TurtleParser {
 
     private mutating func parseVerb() throws -> IRI {
         if lexer.consumeWord("a", caseInsensitive: false, wordBoundary: true) {
-            return RDF.Vocabulary.type
+            return RDF.type.iri
         }
         return try parseIri()
     }
@@ -350,7 +349,7 @@ private struct TurtleParser {
         lexer.skipWhitespaceAndComments()
         if lexer.peek() == ")" {
             _ = lexer.advance()
-            return AnyRDFObject(RDF.Vocabulary.nilValue)
+            return AnyRDFObject(RDF.nilValue)
         }
 
         var items: [AnyRDFObject] = []
@@ -367,21 +366,21 @@ private struct TurtleParser {
             let subject = try AnyRDFSubject(currentBlank)
             try addTriple(
                 subject: subject,
-                predicate: RDF.Vocabulary.first,
+                    predicate: RDF.first.iri,
                 object: item
             )
 
             if index == items.count - 1 {
                 try addTriple(
                     subject: subject,
-                    predicate: RDF.Vocabulary.rest,
-                    object: AnyRDFObject(RDF.Vocabulary.nilValue)
+                    predicate: RDF.rest.iri,
+                    object: AnyRDFObject(RDF.nilValue)
                 )
             } else {
                 let nextBlank = try newBlankNode()
                 try addTriple(
                     subject: subject,
-                    predicate: RDF.Vocabulary.rest,
+                    predicate: RDF.rest.iri,
                     object: AnyRDFObject(nextBlank)
                 )
                 currentBlank = nextBlank

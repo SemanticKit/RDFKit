@@ -1,5 +1,4 @@
 import Foundation
-import SemanticKit
 
 // MARK: - OWL 2 Functional-Style Syntax import
 
@@ -119,8 +118,8 @@ private struct OWLFunctionalParser {
         if let ontologyIRI {
             try insertTriple(
                 subject: try AnyRDFSubject(ontologyIRI),
-                predicate: RDF.Vocabulary.type,
-                object: AnyRDFObject(OWL.Vocabulary.Ontology)
+                predicate: RDF.type,
+                object: AnyRDFObject(OWL.Ontology.iri)
             )
         }
 
@@ -171,7 +170,7 @@ private struct OWLFunctionalParser {
         guard let ontologyIRI else { return }
         try insertTriple(
             subject: try AnyRDFSubject(ontologyIRI),
-            predicate: OWL.Vocabulary.imports,
+            predicate: OWL.imports,
             object: AnyRDFObject(imported)
         )
     }
@@ -196,24 +195,24 @@ private struct OWLFunctionalParser {
 
         switch entityType {
         case "Class":
-            object = OWL.Vocabulary.Class
+            object = OWL.Class.iri
         case "ObjectProperty":
-            object = OWL.Vocabulary.ObjectProperty
+            object = OWL.ObjectProperty.iri
         case "DataProperty":
-            object = OWL.Vocabulary.DatatypeProperty
+            object = OWL.DatatypeProperty.iri
         case "AnnotationProperty":
-            object = OWL.Vocabulary.AnnotationProperty
+            object = OWL.AnnotationProperty.iri
         case "NamedIndividual":
-            object = OWL.Vocabulary.NamedIndividual
+            object = OWL.NamedIndividual.iri
         case "Datatype":
-            object = RDF.RDFS.Datatype
+            object = RDFS.Datatype.iri
         default:
             throw errorUnsupported(entityType)
         }
 
         try insertTriple(
             subject: subject,
-            predicate: RDF.Vocabulary.type,
+            predicate: RDF.type,
             object: AnyRDFObject(object)
         )
     }
@@ -230,7 +229,7 @@ private struct OWLFunctionalParser {
 
         try insertTriple(
             subject: try AnyRDFSubject(subClass),
-            predicate: RDF.RDFS.subClassOf,
+            predicate: RDFS.subClassOf,
             object: AnyRDFObject(superClass)
         )
     }
@@ -252,7 +251,7 @@ private struct OWLFunctionalParser {
         for other in classes.dropFirst() {
             try insertTriple(
                 subject: try AnyRDFSubject(first),
-                predicate: OWL.Vocabulary.equivalentClass,
+                predicate: OWL.equivalentClass,
                 object: AnyRDFObject(other)
             )
         }
@@ -275,7 +274,7 @@ private struct OWLFunctionalParser {
         for other in classes.dropFirst() {
             try insertTriple(
                 subject: try AnyRDFSubject(first),
-                predicate: OWL.Vocabulary.disjointWith,
+                predicate: OWL.disjointWith,
                 object: AnyRDFObject(other)
             )
         }
@@ -293,7 +292,7 @@ private struct OWLFunctionalParser {
 
         try insertTriple(
             subject: individual,
-            predicate: RDF.Vocabulary.type,
+            predicate: RDF.type,
             object: AnyRDFObject(classIri)
         )
     }
@@ -591,7 +590,7 @@ private struct OWLFunctionalParser {
 
     // MARK: - Helpers
 
-    private mutating func insertTriple(subject: AnyRDFSubject, predicate: IRI, object: AnyRDFObject) throws {
+    private mutating func insertTriple<Predicate: IRIRepresentable>(subject: AnyRDFSubject, predicate: Predicate, object: AnyRDFObject) throws {
         do {
             try graph.insert(Graph.TripleType(subject: subject, predicate: predicate, object: object))
         } catch RDFGraphError.duplicateTriple {
@@ -680,8 +679,18 @@ private struct OWLFunctionalParser {
     private func isStartOfIriRef() -> Bool {
         if peek() == "<" { return true }
         if starts(with: "_:") { return true }
-        if let ch = peek(), ch == ":" || ch.isLetter { return true }
-        return false
+        if peek() == ":" { return true }
+        var token = ""
+        var scanIndex = index
+        while scanIndex < text.endIndex {
+            let ch = text[scanIndex]
+            if ch.isWhitespace || ch == "(" || ch == ")" {
+                break
+            }
+            token.append(ch)
+            scanIndex = text.index(after: scanIndex)
+        }
+        return token.contains(":")
     }
 
     private mutating func readUnicodeScalar(count: Int) throws -> String {
