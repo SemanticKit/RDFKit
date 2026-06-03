@@ -55,12 +55,12 @@ import Testing
 
     @Test func ontologyScopedGeneratedTypeGetsIdentityFromDeclaration() throws {
         let literal = CompoundLiteral("Hello World")
-        let declarationIRIs = try ContentTermResolver.classIRIs(in: GeneratedRDFOntology().content)
+        let graph = try OntologyObjectGraph(GeneratedRDFOntology())
 
         #expect(literal.id == IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#CompoundLiteral"))
         #expect(literal == CompoundLiteral.self)
         #expect(literal.id == TermReference(CompoundLiteral.self))
-        #expect(declarationIRIs == [literal.id])
+        #expect(graph.classes == [literal.id])
     }
 
     private struct GeneratedRDFOntology: Ontology {

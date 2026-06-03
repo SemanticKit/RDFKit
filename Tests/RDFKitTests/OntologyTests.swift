@@ -52,13 +52,13 @@ import Testing
     @Test func declarationContentInfersParentOntologyContext() throws {
         let ontology = ImplicitEnvironmentOntology()
         let asset = IRI("https://example.com/implicit-environment#Asset")
-        let facts = ContentFactResolver.facts(in: ontology.content)
+        let graph = try OntologyObjectGraph(ontology)
         let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: 8)
             .declarations(in: ontology.content, environment: ontology.environment)
 
-        #expect(try ContentTermResolver.classIRIs(in: ontology.content) == [asset])
+        #expect(graph.classes == [asset])
         #expect(declarations.map(\.iri) == [asset])
-        #expect(facts[asset]?.isDefinedBy == [ontology.iri])
+        #expect(graph.facts[asset]?.isDefinedBy == [ontology.iri])
     }
 
     @Test func standardOntologyUsesDirectContentBuilder() {
@@ -111,13 +111,14 @@ import Testing
             "value"
         ])
         let terms = classes.union(datatypes).union(individuals).union(properties)
-        let facts = ContentFactResolver.facts(in: content)
+        let graph = try OntologyObjectGraph(content: content)
+        let facts = graph.facts
 
-        #expect(try ContentTermResolver.classIRIs(in: content) == classes)
-        #expect(try ContentTermResolver.datatypeIRIs(in: content) == datatypes)
-        #expect(try ContentTermResolver.individualIRIs(in: content) == individuals)
-        #expect(try ContentTermResolver.propertyIRIs(in: content) == properties)
-        #expect(try ContentTermResolver.termIRIs(in: content) == terms)
+        #expect(graph.classes == classes)
+        #expect(graph.datatypes == datatypes)
+        #expect(graph.individuals == individuals)
+        #expect(graph.properties == properties)
+        #expect(graph.terms == terms)
         #expect(facts[IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Alt")]?.types == [RDFS.Class.iri])
         #expect(facts[IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Alt")]?.superclasses == [RDFS.Container.iri])
         #expect(facts[IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#HTML")]?.types == [RDFS.Datatype.iri])
@@ -158,11 +159,12 @@ import Testing
             "subPropertyOf"
         ])
         let terms = classes.union(properties)
-        let facts = ContentFactResolver.facts(in: content)
+        let graph = try OntologyObjectGraph(content: content)
+        let facts = graph.facts
 
-        #expect(try ContentTermResolver.classIRIs(in: content) == classes)
-        #expect(try ContentTermResolver.propertyIRIs(in: content) == properties)
-        #expect(try ContentTermResolver.termIRIs(in: content) == terms)
+        #expect(graph.classes == classes)
+        #expect(graph.properties == properties)
+        #expect(graph.terms == terms)
         #expect(facts[RDFS.Resource.iri]?.types == [RDFS.Class.iri])
         #expect(facts[RDFS.Proposition.iri]?.superclasses == [RDFS.Resource.iri])
         #expect(facts[RDFS.Datatype.iri]?.superclasses == [RDFS.Class.iri])

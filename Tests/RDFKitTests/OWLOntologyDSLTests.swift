@@ -87,11 +87,12 @@ extension OntologyTests {
             "withRestrictions"
         ])
         let terms = classes.union(properties)
-        let facts = ContentFactResolver.facts(in: content)
+        let graph = try OntologyObjectGraph(content: content)
+        let facts = graph.facts
 
-        #expect(try ContentTermResolver.classIRIs(in: content) == classes)
-        #expect(try ContentTermResolver.propertyIRIs(in: content) == properties)
-        #expect(try ContentTermResolver.termIRIs(in: content) == terms)
+        #expect(graph.classes == classes)
+        #expect(graph.properties == properties)
+        #expect(graph.terms == terms)
         #expect(terms.count == 77)
         #expect(classes.count == 26)
         #expect(properties.count == 51)

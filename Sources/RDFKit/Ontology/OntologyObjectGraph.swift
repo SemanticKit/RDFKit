@@ -43,6 +43,16 @@ struct OntologyObjectGraph: Equatable, Sendable {
         try self.init(content: ontology.content)
     }
 
+    /// Creates an object graph from a vocabulary value.
+    init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue) throws {
+        try self.init(VocabularyValue.self)
+    }
+
+    /// Creates an object graph from a vocabulary type.
+    init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue.Type) throws {
+        try self.init(content: vocabulary.ontology)
+    }
+
     /// Returns alias mappings declared in content.
     private static func aliases<ContentValue: Content>(in content: ContentValue) throws -> [String: IRI] {
         var aliases: [String: IRI] = [:]

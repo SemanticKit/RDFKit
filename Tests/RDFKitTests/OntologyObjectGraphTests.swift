@@ -7,9 +7,9 @@ import Testing
     /// Verifies that production standard ontology DSL content materializes every standards matrix term and fact.
     @Test func standardOntologyDSLContentMaterializesStandardsMatrixObjectGraph() throws {
         let matrix = try StandardsMatrix.bundled()
-        let rdfGraph = try OntologyObjectGraph(content: RDF.ontology)
-        let rdfsGraph = try OntologyObjectGraph(content: RDFS.ontology)
-        let owlGraph = try OntologyObjectGraph(content: OWL.ontology)
+        let rdfGraph = try OntologyObjectGraph(RDF())
+        let rdfsGraph = try OntologyObjectGraph(RDFS())
+        let owlGraph = try OntologyObjectGraph(OWL())
         let closureFacts = mergedFacts([
             rdfGraph.facts,
             rdfsGraph.facts,
