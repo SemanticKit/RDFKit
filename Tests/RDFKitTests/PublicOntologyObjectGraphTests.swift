@@ -54,9 +54,9 @@ import RDFKit
                     Comment("A managed public asset.")
                     IsDefinedBy()
                 }
-            }
 
-            Property("identifier")
+                Property("identifier")
+            }
         }
     }
 }

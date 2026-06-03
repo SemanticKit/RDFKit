@@ -29,3 +29,5 @@ public struct Property<Body: PropertyContent>: NamespaceScopedDeclaration, Ontol
         self.content = content()
     }
 }
+
+extension Property: ClassContent {}

@@ -130,6 +130,30 @@ import Testing
         #expect(ownerFacts.comments == ["The resource that owns an asset."])
     }
 
+    /// Verifies that class bodies can declare reusable properties.
+    @Test func classBodyDeclarationMaterializesNestedProperty() throws {
+        let graph = try OntologyObjectGraph(ClassWithPropertyOntology())
+        let namespace = Namespace("https://example.com/class-properties#")
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+        let owner = QualifiedName(namespace: namespace, localName: LocalName("owner")).iri
+
+        #expect(graph.declarations.map(\.iri) == [asset, owner])
+        #expect(graph.classes == [asset])
+        #expect(graph.properties == [owner])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [RDFS.Class.iri])
+        #expect(assetFacts.labels == ["Asset"])
+        #expect(assetFacts.domains == [])
+        #expect(assetFacts.ranges == [])
+
+        let ownerFacts = try #require(graph.facts[owner])
+        #expect(ownerFacts.types == [RDF.Property.iri])
+        #expect(ownerFacts.domains == [asset])
+        #expect(ownerFacts.ranges == [RDFS.Resource.iri])
+        #expect(ownerFacts.labels == ["owner"])
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -257,6 +281,27 @@ import Testing
                 Annotation {
                     Label("owner")
                     Comment("The resource that owns an asset.")
+                }
+            }
+        }
+    }
+
+    /// A custom ontology declaring a property inside class content.
+    private struct ClassWithPropertyOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/class-properties#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                Label("Asset")
+
+                Property("owner") {
+                    Type(RDF.Property.self)
+                    Domain(IRI("https://example.com/class-properties#Asset"))
+                    Range(RDFS.Resource.self)
+                    Label("owner")
                 }
             }
         }
