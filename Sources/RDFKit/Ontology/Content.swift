@@ -30,7 +30,7 @@ enum OntologyDeclarationRole: Equatable, Sendable {
 }
 
 /// Content whose term identity is scoped by the enclosing ontology namespace.
-protocol NamespaceScopedDeclaration: OntologyTermContent {
+protocol NamespaceScopedDeclaration: OntologyTermContent, OntologyDeclarationFactContent {
     /// The declaration role.
     var role: OntologyDeclarationRole { get }
 
@@ -56,6 +56,11 @@ extension NamespaceScopedDeclaration {
         }
 
         return [iri(in: environment)]
+    }
+
+    /// Adds this scoped declaration's facts to the declaration fact map.
+    func addDeclarationFacts(to facts: inout [IRI: OntologyDeclarationFacts], in environment: OntologyEnvironment) {
+        facts[iri(in: environment)] = ContentFactResolver.declarationFacts(in: bodyContent, environment: environment)
     }
 }
 
@@ -97,6 +102,17 @@ extension ContentGroup: OntologyFactContent {
         for element in elements {
             if let factContent = element as? any OntologyFactContent {
                 factContent.addFacts(to: &facts, in: environment)
+            }
+        }
+    }
+}
+
+extension ContentGroup: OntologyDeclarationFactContent {
+    /// Adds declaration facts contributed by grouped content.
+    func addDeclarationFacts(to facts: inout [IRI: OntologyDeclarationFacts], in environment: OntologyEnvironment) {
+        for element in elements {
+            if let declarationContent = element as? any OntologyDeclarationFactContent {
+                declarationContent.addDeclarationFacts(to: &facts, in: environment)
             }
         }
     }

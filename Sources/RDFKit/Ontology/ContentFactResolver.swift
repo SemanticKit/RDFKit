@@ -11,14 +11,8 @@ enum ContentFactResolver {
     }
 
     private static func collect(in content: any Content, environment: OntologyEnvironment, facts: inout [IRI: OntologyDeclarationFacts]) {
-        if let declaration = content as? any NamespaceScopedDeclaration {
-            let iri = declaration.iri(in: environment)
-            facts[iri] = declarationFacts(in: declaration.bodyContent, environment: environment)
-        }
-        if let group = content as? ContentGroup {
-            for element in group.elements {
-                collect(in: element, environment: environment, facts: &facts)
-            }
+        if let declarationContent = content as? any OntologyDeclarationFactContent {
+            declarationContent.addDeclarationFacts(to: &facts, in: environment)
         }
     }
 
