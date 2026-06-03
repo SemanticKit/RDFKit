@@ -9,7 +9,7 @@ public protocol Vocabulary: Content, IRIRepresentable, TypeIRIRepresentable {
 }
 
 /// A vocabulary whose terms are provided by the bundled standards matrix.
-protocol StandardsVocabulary: Vocabulary {
+protocol StandardsVocabulary: Vocabulary, OntologyTermContent {
     /// The standards matrix label for this vocabulary.
     static var standardsLabel: String { get }
 }
@@ -17,6 +17,17 @@ protocol StandardsVocabulary: Vocabulary {
 extension StandardsVocabulary {
     /// The standards matrix label for this vocabulary value.
     var standardsLabel: String { Self.standardsLabel }
+}
+
+extension StandardsVocabulary {
+    /// Returns the bundled standards matrix term IRIs for this vocabulary.
+    func termIRIs(in environment: OntologyEnvironment, role: OntologyDeclarationRole?) throws -> [IRI] {
+        guard role == nil else {
+            return []
+        }
+
+        return try StandardsMatrix.bundled().entries(in: standardsLabel).map(\.iri)
+    }
 }
 
 public extension Vocabulary {

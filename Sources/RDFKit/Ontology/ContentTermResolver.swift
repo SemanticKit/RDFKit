@@ -37,6 +37,9 @@ enum ContentTermResolver {
 
     private static func iris(in content: any Content, environment: OntologyEnvironment, role: OntologyDeclarationRole?) throws -> [IRI] {
         var collected: [IRI] = []
+        if let termContent = content as? any OntologyTermContent {
+            collected.append(contentsOf: try termContent.termIRIs(in: environment, role: role))
+        }
         if let term = content as? any RDFClass, role == nil || role == .class {
             collected.append(term.iri)
         }
@@ -52,12 +55,6 @@ enum ContentTermResolver {
         if let term = content as? any Term, role == nil {
             collected.append(term.iri)
         }
-        if let vocabulary = content as? any StandardsVocabulary, role == nil {
-            collected.append(contentsOf: try standardsIRIs(in: vocabulary.standardsLabel))
-        }
-        if let declaration = content as? any NamespaceScopedDeclaration, role == nil || declaration.role == role {
-            collected.append(declaration.iri(in: environment))
-        }
         if let environmentContent = content as? any EnvironmentResolvedContent {
             collected.append(contentsOf: try iris(in: environmentContent.resolve(in: environment), environment: environment, role: role))
         }
@@ -67,9 +64,5 @@ enum ContentTermResolver {
             }
         }
         return collected
-    }
-
-    private static func standardsIRIs(in vocabulary: String) throws -> [IRI] {
-        try StandardsMatrix.bundled().entries(in: vocabulary).map(\.iri)
     }
 }

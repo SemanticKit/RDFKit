@@ -30,7 +30,7 @@ enum OntologyDeclarationRole: Equatable, Sendable {
 }
 
 /// Content whose term identity is scoped by the enclosing ontology namespace.
-protocol NamespaceScopedDeclaration: Content {
+protocol NamespaceScopedDeclaration: OntologyTermContent {
     /// The declaration role.
     var role: OntologyDeclarationRole { get }
 
@@ -45,6 +45,17 @@ extension NamespaceScopedDeclaration {
     /// Returns the declaration IRI inside an ontology environment.
     func iri(in environment: OntologyEnvironment) -> IRI {
         QualifiedName(namespace: environment.namespace, localName: localName).iri
+    }
+}
+
+extension NamespaceScopedDeclaration {
+    /// Returns the scoped declaration IRI when it matches the requested role.
+    func termIRIs(in environment: OntologyEnvironment, role requestedRole: OntologyDeclarationRole?) throws -> [IRI] {
+        guard requestedRole == nil || role == requestedRole else {
+            return []
+        }
+
+        return [iri(in: environment)]
     }
 }
 
