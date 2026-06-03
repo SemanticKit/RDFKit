@@ -31,3 +31,4 @@ public struct Individual<Body: IndividualContent>: NamespaceScopedDeclaration, O
 }
 
 extension Individual: ClassContent {}
+extension Individual: IndividualContent {}

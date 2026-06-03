@@ -216,6 +216,47 @@ import Testing
         #expect(assetFacts.labels == ["Asset"])
     }
 
+    /// Verifies that datatype bodies can declare related datatypes.
+    @Test func datatypeBodyDeclarationMaterializesNestedDatatype() throws {
+        let graph = try OntologyObjectGraph(DatatypeWithNestedDatatypeOntology())
+        let namespace = Namespace("https://example.com/datatype-terms#")
+        let assetCode = QualifiedName(namespace: namespace, localName: LocalName("AssetCode")).iri
+        let legacyAssetCode = QualifiedName(namespace: namespace, localName: LocalName("LegacyAssetCode")).iri
+
+        #expect(graph.declarations.map(\.iri) == [assetCode, legacyAssetCode])
+        #expect(graph.datatypes == [assetCode, legacyAssetCode])
+        #expect(graph.transitiveSuperclasses[legacyAssetCode] == [assetCode])
+
+        let assetCodeFacts = try #require(graph.facts[assetCode])
+        #expect(assetCodeFacts.types == [RDFS.Datatype.iri])
+        #expect(assetCodeFacts.labels == ["Asset code"])
+
+        let legacyAssetCodeFacts = try #require(graph.facts[legacyAssetCode])
+        #expect(legacyAssetCodeFacts.types == [RDFS.Datatype.iri])
+        #expect(legacyAssetCodeFacts.superclasses == [assetCode])
+        #expect(legacyAssetCodeFacts.labels == ["Legacy asset code"])
+    }
+
+    /// Verifies that individual bodies can declare related individuals.
+    @Test func individualBodyDeclarationMaterializesNestedIndividual() throws {
+        let graph = try OntologyObjectGraph(IndividualWithNestedIndividualOntology())
+        let namespace = Namespace("https://example.com/individual-terms#")
+        let catalog = QualifiedName(namespace: namespace, localName: LocalName("catalog")).iri
+        let archivedCatalog = QualifiedName(namespace: namespace, localName: LocalName("archivedCatalog")).iri
+
+        #expect(graph.declarations.map(\.iri) == [catalog, archivedCatalog])
+        #expect(graph.individuals == [catalog, archivedCatalog])
+
+        let catalogFacts = try #require(graph.facts[catalog])
+        #expect(catalogFacts.types == [RDFS.Resource.iri])
+        #expect(catalogFacts.labels == ["Catalog"])
+
+        let archivedCatalogFacts = try #require(graph.facts[archivedCatalog])
+        #expect(archivedCatalogFacts.types == [RDFS.Resource.iri])
+        #expect(archivedCatalogFacts.seeAlso == [catalog])
+        #expect(archivedCatalogFacts.labels == ["Archived catalog"])
+    }
+
     /// Verifies one ontology content value against the expected standards matrix rows.
     private func assertObjectGraph(
         _ graph: OntologyObjectGraph,
@@ -421,6 +462,44 @@ import Testing
             Class("Asset") {
                 Type(RDFS.Class.self)
                 Label("Asset")
+            }
+        }
+    }
+
+    /// A custom ontology declaring a related datatype inside datatype content.
+    private struct DatatypeWithNestedDatatypeOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/datatype-terms#")
+            Alias("rdfs", RDFS.self)
+
+            Datatype("AssetCode") {
+                Type(RDFS.Datatype.self)
+                Label("Asset code")
+
+                Datatype("LegacyAssetCode") {
+                    Type(RDFS.Datatype.self)
+                    SubClassOf(IRI("https://example.com/datatype-terms#AssetCode"))
+                    Label("Legacy asset code")
+                }
+            }
+        }
+    }
+
+    /// A custom ontology declaring a related individual inside individual content.
+    private struct IndividualWithNestedIndividualOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/individual-terms#")
+            Alias("rdfs", RDFS.self)
+
+            Individual("catalog") {
+                Type(RDFS.Resource.self)
+                Label("Catalog")
+
+                Individual("archivedCatalog") {
+                    Type(RDFS.Resource.self)
+                    SeeAlso(IRI("https://example.com/individual-terms#catalog"))
+                    Label("Archived catalog")
+                }
             }
         }
     }

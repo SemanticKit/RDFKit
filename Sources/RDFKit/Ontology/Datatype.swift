@@ -31,3 +31,4 @@ public struct Datatype<Body: DatatypeContent>: NamespaceScopedDeclaration, Ontol
 }
 
 extension Datatype: ClassContent {}
+extension Datatype: DatatypeContent {}
