@@ -17,14 +17,50 @@ struct OntologyExpansionSourceRenderer: Sendable {
     }
 
     /// Returns nested Swift source for declarations owned by a vocabulary type.
-    func vocabularySource(for declarations: [OntologyExpansionDeclaration], vocabularyName: String) throws -> String {
+    func vocabularySource(
+        for declarations: [OntologyExpansionDeclaration],
+        vocabularyName: String,
+        namespace: Namespace
+    ) throws -> String {
         let body = try declarations
             .map { try vocabularyDeclarationSource(for: $0, vocabularyName: vocabularyName) }
             .joined(separator: "\n\n")
 
         return """
+        \(vocabularyTermProtocolSource(vocabularyName: vocabularyName, namespace: namespace))
+
         \(access.keyword) extension \(vocabularyName) {
         \(indent(body))
+        }
+        """
+    }
+
+    /// Returns protocol scaffolding for generated vocabulary terms.
+    private func vocabularyTermProtocolSource(vocabularyName: String, namespace: Namespace) -> String {
+        let namespaceValue = escapedSwiftString(namespace.rawValue)
+        let keyword = access.keyword
+
+        return """
+        /// A type-level term from the \(vocabularyName) vocabulary.
+        \(keyword) protocol \(vocabularyName)Term: RDFKit.VocabularyTerm, RDFKit.OntologyContent {}
+
+        \(keyword) extension \(vocabularyName)Term {
+            /// The \(vocabularyName) namespace.
+            static var namespace: RDFKit.Namespace { RDFKit.Namespace("\(namespaceValue)") }
+
+            /// The \(vocabularyName) local name inferred from the Swift term type.
+            static var localName: RDFKit.LocalName { RDFKit.LocalName(String(describing: Self.self)) }
+        }
+
+        /// A \(vocabularyName) term whose RDF local name is lower camel case.
+        \(keyword) protocol \(vocabularyName)LowerCamelTerm: \(vocabularyName)Term {}
+
+        \(keyword) extension \(vocabularyName)LowerCamelTerm {
+            /// The \(vocabularyName) local name inferred from the Swift term type using lower camel case.
+            static var localName: RDFKit.LocalName {
+                let name = String(describing: Self.self)
+                return RDFKit.LocalName(name.prefix(1).lowercased() + name.dropFirst())
+            }
         }
         """
     }

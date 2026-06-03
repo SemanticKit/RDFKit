@@ -75,7 +75,11 @@ public struct OntologyExpansion: Sendable {
             .declarations(in: VocabularyValue.ontology, environment: environment)
 
         return try OntologyExpansionSourceRenderer(access: access, ontologyExpression: "", ontologyTypeName: "")
-            .vocabularySource(for: declarations, vocabularyName: String(describing: VocabularyValue.self))
+            .vocabularySource(
+                for: declarations,
+                vocabularyName: String(describing: VocabularyValue.self),
+                namespace: environment.namespace
+            )
     }
 
     /// Returns Swift source for the terms declared by a vocabulary value's ontology content.

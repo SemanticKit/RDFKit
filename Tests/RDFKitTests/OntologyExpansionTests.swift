@@ -100,13 +100,36 @@ import Testing
     @Test func generatedOntologySourceBuildsInConsumerPackage() throws {
         let generatedSource = try OntologyExpansion(ontologyExpression: "ConsumerOntology()")
             .sourceFile(for: ConsumerOntology())
-        let packageRoot = try makeConsumerPackage(generatedSource: generatedSource)
+        let packageRoot = try makeConsumerPackage(
+            generatedSource: generatedSource,
+            supportSource: consumerOntologySource(),
+            supportFileName: "ConsumerOntology.swift"
+        )
 
         defer {
             try? FileManager.default.removeItem(at: packageRoot)
         }
 
         #expect(generatedSource.contains("import RDFKit"))
+        try buildConsumerPackage(at: packageRoot)
+    }
+
+    @Test func generatedVocabularySourceBuildsInConsumerPackage() throws {
+        let generatedSource = try OntologyExpansion()
+            .sourceFile(for: ConsumerVocabulary.self)
+        let packageRoot = try makeConsumerPackage(
+            generatedSource: generatedSource,
+            supportSource: consumerVocabularySource(),
+            supportFileName: "ConsumerVocabulary.swift"
+        )
+
+        defer {
+            try? FileManager.default.removeItem(at: packageRoot)
+        }
+
+        #expect(generatedSource.contains("public protocol ConsumerVocabularyTerm"))
+        #expect(generatedSource.contains("public extension ConsumerVocabulary"))
+        #expect(generatedSource.contains("public static var owner: Owner { Owner() }"))
         try buildConsumerPackage(at: packageRoot)
     }
 
@@ -155,6 +178,38 @@ import Testing
             }
             Individual("exampleAsset") {
                 Type(IRI("https://example.com/generated#Asset"))
+                Label("Example Asset")
+            }
+        }
+    }
+
+    private struct ConsumerVocabulary: Vocabulary {
+        static var ontology: some Content {
+            Namespace("https://example.com/vocabulary#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+            Alias("owl", OWL.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                SubClassOf(RDFS.Resource.self)
+                Label("Asset")
+                Comment("A generated asset class.")
+            }
+            Property("owner") {
+                Type(RDF.Property.self)
+                Domain(IRI("https://example.com/vocabulary#Asset"))
+                Range(RDFS.Resource.self)
+                Label("owner")
+                Comment("The resource that owns an asset.")
+            }
+            Datatype("SKU") {
+                Type(RDFS.Datatype.self)
+                SubClassOf(RDFS.Literal.self)
+                Label("SKU")
+            }
+            Individual("exampleAsset") {
+                Type(IRI("https://example.com/vocabulary#Asset"))
                 Label("Example Asset")
             }
         }
@@ -338,7 +393,11 @@ import Testing
         return escaped
     }
 
-    private func makeConsumerPackage(generatedSource: String) throws -> URL {
+    private func makeConsumerPackage(
+        generatedSource: String,
+        supportSource: String,
+        supportFileName: String
+    ) throws -> URL {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("RDFKitGeneratedOntology-\(UUID().uuidString)")
         let sources = root
@@ -347,7 +406,7 @@ import Testing
 
         try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
         try write(packageManifestSource(), to: root.appendingPathComponent("Package.swift"))
-        try write(consumerOntologySource(), to: sources.appendingPathComponent("ConsumerOntology.swift"))
+        try write(supportSource, to: sources.appendingPathComponent(supportFileName))
         try write(generatedSource, to: sources.appendingPathComponent("GeneratedTerms.swift"))
 
         return root
@@ -409,6 +468,46 @@ import Testing
                 }
                 Individual("exampleAsset") {
                     Type(IRI("https://example.com/generated#Asset"))
+                    Label("Example Asset")
+                }
+            }
+        }
+        """
+    }
+
+    private func consumerVocabularySource() -> String {
+        """
+        import RDFKit
+
+        public struct ConsumerVocabulary: Vocabulary {
+            public init() {}
+
+            public static var ontology: some Content {
+                Namespace("https://example.com/vocabulary#")
+                Alias("rdf", RDF.self)
+                Alias("rdfs", RDFS.self)
+                Alias("owl", OWL.self)
+
+                Class("Asset") {
+                    Type(RDFS.Class.self)
+                    SubClassOf(RDFS.Resource.self)
+                    Label("Asset")
+                    Comment("A generated asset class.")
+                }
+                Property("owner") {
+                    Type(RDF.Property.self)
+                    Domain(IRI("https://example.com/vocabulary#Asset"))
+                    Range(RDFS.Resource.self)
+                    Label("owner")
+                    Comment("The resource that owns an asset.")
+                }
+                Datatype("SKU") {
+                    Type(RDFS.Datatype.self)
+                    SubClassOf(RDFS.Literal.self)
+                    Label("SKU")
+                }
+                Individual("exampleAsset") {
+                    Type(IRI("https://example.com/vocabulary#Asset"))
                     Label("Example Asset")
                 }
             }
