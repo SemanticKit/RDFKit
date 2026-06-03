@@ -30,7 +30,7 @@ enum OntologyDeclarationRole: Equatable, Sendable {
 }
 
 /// Content whose term identity is scoped by the enclosing ontology namespace.
-protocol NamespaceScopedDeclaration: OntologyTermContent, OntologyDeclarationFactContent {
+protocol NamespaceScopedDeclaration: OntologyTermContent, OntologyDeclarationFactContent, OntologyExpansionContent {
     /// The declaration role.
     var role: OntologyDeclarationRole { get }
 
