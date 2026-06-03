@@ -6,110 +6,213 @@ public enum OWL {
     public static let namespace = Namespace("http://www.w3.org/2002/07/owl#")
 
     /// owl:allValuesFrom.
-    public static let allValuesFrom = StandardTerm(namespace: namespace, localName: "allValuesFrom")
+    public static var allValuesFrom: AllValuesFrom { AllValuesFrom() }
     /// owl:annotatedProperty.
-    public static let annotatedProperty = StandardTerm(namespace: namespace, localName: "annotatedProperty")
+    public static var annotatedProperty: AnnotatedProperty { AnnotatedProperty() }
     /// owl:annotatedSource.
-    public static let annotatedSource = StandardTerm(namespace: namespace, localName: "annotatedSource")
+    public static var annotatedSource: AnnotatedSource { AnnotatedSource() }
     /// owl:annotatedTarget.
-    public static let annotatedTarget = StandardTerm(namespace: namespace, localName: "annotatedTarget")
+    public static var annotatedTarget: AnnotatedTarget { AnnotatedTarget() }
     /// owl:assertionProperty.
-    public static let assertionProperty = StandardTerm(namespace: namespace, localName: "assertionProperty")
+    public static var assertionProperty: AssertionProperty { AssertionProperty() }
     /// owl:backwardCompatibleWith.
-    public static let backwardCompatibleWith = StandardTerm(namespace: namespace, localName: "backwardCompatibleWith")
+    public static var backwardCompatibleWith: BackwardCompatibleWith { BackwardCompatibleWith() }
     /// owl:bottomDataProperty.
-    public static let bottomDataProperty = StandardTerm(namespace: namespace, localName: "bottomDataProperty")
+    public static var bottomDataProperty: BottomDataProperty { BottomDataProperty() }
     /// owl:bottomObjectProperty.
-    public static let bottomObjectProperty = StandardTerm(namespace: namespace, localName: "bottomObjectProperty")
+    public static var bottomObjectProperty: BottomObjectProperty { BottomObjectProperty() }
     /// owl:cardinality.
-    public static let cardinality = StandardTerm(namespace: namespace, localName: "cardinality")
+    public static var cardinality: Cardinality { Cardinality() }
     /// owl:complementOf.
-    public static let complementOf = StandardTerm(namespace: namespace, localName: "complementOf")
+    public static var complementOf: ComplementOf { ComplementOf() }
     /// owl:datatypeComplementOf.
-    public static let datatypeComplementOf = StandardTerm(namespace: namespace, localName: "datatypeComplementOf")
+    public static var datatypeComplementOf: DatatypeComplementOf { DatatypeComplementOf() }
     /// owl:deprecated.
-    public static let deprecated = StandardTerm(namespace: namespace, localName: "deprecated")
+    public static var deprecated: Deprecated { Deprecated() }
     /// owl:differentFrom.
-    public static let differentFrom = StandardTerm(namespace: namespace, localName: "differentFrom")
+    public static var differentFrom: DifferentFrom { DifferentFrom() }
     /// owl:disjointUnionOf.
-    public static let disjointUnionOf = StandardTerm(namespace: namespace, localName: "disjointUnionOf")
+    public static var disjointUnionOf: DisjointUnionOf { DisjointUnionOf() }
     /// owl:disjointWith.
-    public static let disjointWith = StandardTerm(namespace: namespace, localName: "disjointWith")
+    public static var disjointWith: DisjointWith { DisjointWith() }
     /// owl:distinctMembers.
-    public static let distinctMembers = StandardTerm(namespace: namespace, localName: "distinctMembers")
+    public static var distinctMembers: DistinctMembers { DistinctMembers() }
     /// owl:equivalentClass.
-    public static let equivalentClass = StandardTerm(namespace: namespace, localName: "equivalentClass")
+    public static var equivalentClass: EquivalentClass { EquivalentClass() }
     /// owl:equivalentProperty.
-    public static let equivalentProperty = StandardTerm(namespace: namespace, localName: "equivalentProperty")
+    public static var equivalentProperty: EquivalentProperty { EquivalentProperty() }
     /// owl:hasKey.
-    public static let hasKey = StandardTerm(namespace: namespace, localName: "hasKey")
+    public static var hasKey: HasKey { HasKey() }
     /// owl:hasSelf.
-    public static let hasSelf = StandardTerm(namespace: namespace, localName: "hasSelf")
+    public static var hasSelf: HasSelf { HasSelf() }
     /// owl:hasValue.
-    public static let hasValue = StandardTerm(namespace: namespace, localName: "hasValue")
+    public static var hasValue: HasValue { HasValue() }
     /// owl:imports.
-    public static let imports = StandardTerm(namespace: namespace, localName: "imports")
+    public static var imports: Imports { Imports() }
     /// owl:incompatibleWith.
-    public static let incompatibleWith = StandardTerm(namespace: namespace, localName: "incompatibleWith")
+    public static var incompatibleWith: IncompatibleWith { IncompatibleWith() }
     /// owl:intersectionOf.
-    public static let intersectionOf = StandardTerm(namespace: namespace, localName: "intersectionOf")
+    public static var intersectionOf: IntersectionOf { IntersectionOf() }
     /// owl:inverseOf.
-    public static let inverseOf = StandardTerm(namespace: namespace, localName: "inverseOf")
+    public static var inverseOf: InverseOf { InverseOf() }
     /// owl:maxCardinality.
-    public static let maxCardinality = StandardTerm(namespace: namespace, localName: "maxCardinality")
+    public static var maxCardinality: MaxCardinality { MaxCardinality() }
     /// owl:maxQualifiedCardinality.
-    public static let maxQualifiedCardinality = StandardTerm(namespace: namespace, localName: "maxQualifiedCardinality")
+    public static var maxQualifiedCardinality: MaxQualifiedCardinality { MaxQualifiedCardinality() }
     /// owl:members.
-    public static let members = StandardTerm(namespace: namespace, localName: "members")
+    public static var members: Members { Members() }
     /// owl:minCardinality.
-    public static let minCardinality = StandardTerm(namespace: namespace, localName: "minCardinality")
+    public static var minCardinality: MinCardinality { MinCardinality() }
     /// owl:minQualifiedCardinality.
-    public static let minQualifiedCardinality = StandardTerm(namespace: namespace, localName: "minQualifiedCardinality")
+    public static var minQualifiedCardinality: MinQualifiedCardinality { MinQualifiedCardinality() }
     /// owl:onClass.
-    public static let onClass = StandardTerm(namespace: namespace, localName: "onClass")
+    public static var onClass: OnClass { OnClass() }
     /// owl:onDataRange.
-    public static let onDataRange = StandardTerm(namespace: namespace, localName: "onDataRange")
+    public static var onDataRange: OnDataRange { OnDataRange() }
     /// owl:onDatatype.
-    public static let onDatatype = StandardTerm(namespace: namespace, localName: "onDatatype")
+    public static var onDatatype: OnDatatype { OnDatatype() }
     /// owl:oneOf.
-    public static let oneOf = StandardTerm(namespace: namespace, localName: "oneOf")
+    public static var oneOf: OneOf { OneOf() }
     /// owl:onProperties.
-    public static let onProperties = StandardTerm(namespace: namespace, localName: "onProperties")
+    public static var onProperties: OnProperties { OnProperties() }
     /// owl:onProperty.
-    public static let onProperty = StandardTerm(namespace: namespace, localName: "onProperty")
+    public static var onProperty: OnProperty { OnProperty() }
     /// owl:priorVersion.
-    public static let priorVersion = StandardTerm(namespace: namespace, localName: "priorVersion")
+    public static var priorVersion: PriorVersion { PriorVersion() }
     /// owl:propertyChainAxiom.
-    public static let propertyChainAxiom = StandardTerm(namespace: namespace, localName: "propertyChainAxiom")
+    public static var propertyChainAxiom: PropertyChainAxiom { PropertyChainAxiom() }
     /// owl:propertyDisjointWith.
-    public static let propertyDisjointWith = StandardTerm(namespace: namespace, localName: "propertyDisjointWith")
+    public static var propertyDisjointWith: PropertyDisjointWith { PropertyDisjointWith() }
     /// owl:qualifiedCardinality.
-    public static let qualifiedCardinality = StandardTerm(namespace: namespace, localName: "qualifiedCardinality")
+    public static var qualifiedCardinality: QualifiedCardinality { QualifiedCardinality() }
     /// owl:sameAs.
-    public static let sameAs = StandardTerm(namespace: namespace, localName: "sameAs")
+    public static var sameAs: SameAs { SameAs() }
     /// owl:someValuesFrom.
-    public static let someValuesFrom = StandardTerm(namespace: namespace, localName: "someValuesFrom")
+    public static var someValuesFrom: SomeValuesFrom { SomeValuesFrom() }
     /// owl:sourceIndividual.
-    public static let sourceIndividual = StandardTerm(namespace: namespace, localName: "sourceIndividual")
+    public static var sourceIndividual: SourceIndividual { SourceIndividual() }
     /// owl:targetIndividual.
-    public static let targetIndividual = StandardTerm(namespace: namespace, localName: "targetIndividual")
+    public static var targetIndividual: TargetIndividual { TargetIndividual() }
     /// owl:targetValue.
-    public static let targetValue = StandardTerm(namespace: namespace, localName: "targetValue")
+    public static var targetValue: TargetValue { TargetValue() }
     /// owl:topDataProperty.
-    public static let topDataProperty = StandardTerm(namespace: namespace, localName: "topDataProperty")
+    public static var topDataProperty: TopDataProperty { TopDataProperty() }
     /// owl:topObjectProperty.
-    public static let topObjectProperty = StandardTerm(namespace: namespace, localName: "topObjectProperty")
+    public static var topObjectProperty: TopObjectProperty { TopObjectProperty() }
     /// owl:unionOf.
-    public static let unionOf = StandardTerm(namespace: namespace, localName: "unionOf")
+    public static var unionOf: UnionOf { UnionOf() }
     /// owl:versionInfo.
-    public static let versionInfo = StandardTerm(namespace: namespace, localName: "versionInfo")
+    public static var versionInfo: VersionInfo { VersionInfo() }
     /// owl:versionIRI.
-    public static let versionIRI = StandardTerm(namespace: namespace, localName: "versionIRI")
+    public static var versionIRI: VersionIRI { VersionIRI() }
     /// owl:withRestrictions.
-    public static let withRestrictions = StandardTerm(namespace: namespace, localName: "withRestrictions")
+    public static var withRestrictions: WithRestrictions { WithRestrictions() }
 }
 
 public extension OWL {
+    /// owl:allValuesFrom.
+    struct AllValuesFrom: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("allValuesFrom"); public init() {} }
+    /// owl:annotatedProperty.
+    struct AnnotatedProperty: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("annotatedProperty"); public init() {} }
+    /// owl:annotatedSource.
+    struct AnnotatedSource: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("annotatedSource"); public init() {} }
+    /// owl:annotatedTarget.
+    struct AnnotatedTarget: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("annotatedTarget"); public init() {} }
+    /// owl:assertionProperty.
+    struct AssertionProperty: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("assertionProperty"); public init() {} }
+    /// owl:backwardCompatibleWith.
+    struct BackwardCompatibleWith: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("backwardCompatibleWith"); public init() {} }
+    /// owl:bottomDataProperty.
+    struct BottomDataProperty: RDFKit.Property, VocabularyTerm, RDFKit.DatatypeProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("bottomDataProperty"); public init() {} }
+    /// owl:bottomObjectProperty.
+    struct BottomObjectProperty: RDFKit.Property, VocabularyTerm, RDFKit.ObjectProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("bottomObjectProperty"); public init() {} }
+    /// owl:cardinality.
+    struct Cardinality: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("cardinality"); public init() {} }
+    /// owl:complementOf.
+    struct ComplementOf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("complementOf"); public init() {} }
+    /// owl:datatypeComplementOf.
+    struct DatatypeComplementOf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("datatypeComplementOf"); public init() {} }
+    /// owl:deprecated.
+    struct Deprecated: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("deprecated"); public init() {} }
+    /// owl:differentFrom.
+    struct DifferentFrom: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("differentFrom"); public init() {} }
+    /// owl:disjointUnionOf.
+    struct DisjointUnionOf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("disjointUnionOf"); public init() {} }
+    /// owl:disjointWith.
+    struct DisjointWith: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("disjointWith"); public init() {} }
+    /// owl:distinctMembers.
+    struct DistinctMembers: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("distinctMembers"); public init() {} }
+    /// owl:equivalentClass.
+    struct EquivalentClass: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("equivalentClass"); public init() {} }
+    /// owl:equivalentProperty.
+    struct EquivalentProperty: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("equivalentProperty"); public init() {} }
+    /// owl:hasKey.
+    struct HasKey: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("hasKey"); public init() {} }
+    /// owl:hasSelf.
+    struct HasSelf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("hasSelf"); public init() {} }
+    /// owl:hasValue.
+    struct HasValue: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("hasValue"); public init() {} }
+    /// owl:imports.
+    struct Imports: RDFKit.Property, VocabularyTerm, RDFKit.OntologyProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("imports"); public init() {} }
+    /// owl:incompatibleWith.
+    struct IncompatibleWith: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("incompatibleWith"); public init() {} }
+    /// owl:intersectionOf.
+    struct IntersectionOf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("intersectionOf"); public init() {} }
+    /// owl:inverseOf.
+    struct InverseOf: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("inverseOf"); public init() {} }
+    /// owl:maxCardinality.
+    struct MaxCardinality: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("maxCardinality"); public init() {} }
+    /// owl:maxQualifiedCardinality.
+    struct MaxQualifiedCardinality: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("maxQualifiedCardinality"); public init() {} }
+    /// owl:members.
+    struct Members: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("members"); public init() {} }
+    /// owl:minCardinality.
+    struct MinCardinality: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("minCardinality"); public init() {} }
+    /// owl:minQualifiedCardinality.
+    struct MinQualifiedCardinality: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("minQualifiedCardinality"); public init() {} }
+    /// owl:onClass.
+    struct OnClass: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("onClass"); public init() {} }
+    /// owl:onDataRange.
+    struct OnDataRange: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("onDataRange"); public init() {} }
+    /// owl:onDatatype.
+    struct OnDatatype: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("onDatatype"); public init() {} }
+    /// owl:oneOf.
+    struct OneOf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("oneOf"); public init() {} }
+    /// owl:onProperties.
+    struct OnProperties: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("onProperties"); public init() {} }
+    /// owl:onProperty.
+    struct OnProperty: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("onProperty"); public init() {} }
+    /// owl:priorVersion.
+    struct PriorVersion: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("priorVersion"); public init() {} }
+    /// owl:propertyChainAxiom.
+    struct PropertyChainAxiom: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("propertyChainAxiom"); public init() {} }
+    /// owl:propertyDisjointWith.
+    struct PropertyDisjointWith: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("propertyDisjointWith"); public init() {} }
+    /// owl:qualifiedCardinality.
+    struct QualifiedCardinality: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("qualifiedCardinality"); public init() {} }
+    /// owl:sameAs.
+    struct SameAs: RDFKit.Property, VocabularyTerm, RelationshipProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("sameAs"); public init() {} }
+    /// owl:someValuesFrom.
+    struct SomeValuesFrom: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("someValuesFrom"); public init() {} }
+    /// owl:sourceIndividual.
+    struct SourceIndividual: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("sourceIndividual"); public init() {} }
+    /// owl:targetIndividual.
+    struct TargetIndividual: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("targetIndividual"); public init() {} }
+    /// owl:targetValue.
+    struct TargetValue: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("targetValue"); public init() {} }
+    /// owl:topDataProperty.
+    struct TopDataProperty: RDFKit.Property, VocabularyTerm, RDFKit.DatatypeProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("topDataProperty"); public init() {} }
+    /// owl:topObjectProperty.
+    struct TopObjectProperty: RDFKit.Property, VocabularyTerm, RDFKit.ObjectProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("topObjectProperty"); public init() {} }
+    /// owl:unionOf.
+    struct UnionOf: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("unionOf"); public init() {} }
+    /// owl:versionInfo.
+    struct VersionInfo: RDFKit.Property, VocabularyTerm, RDFKit.AnnotationProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("versionInfo"); public init() {} }
+    /// owl:versionIRI.
+    struct VersionIRI: RDFKit.Property, VocabularyTerm, RDFKit.OntologyProperty { public static let namespace = OWL.namespace; public static let localName = LocalName("versionIRI"); public init() {} }
+    /// owl:withRestrictions.
+    struct WithRestrictions: RDFKit.Property, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("withRestrictions"); public init() {} }
+
     /// owl:AllDifferent.
     struct AllDifferent: RDFKit.Class, VocabularyTerm { public static let namespace = OWL.namespace; public static let localName = LocalName("AllDifferent"); public init() {} }
     /// owl:AllDisjointClasses.
