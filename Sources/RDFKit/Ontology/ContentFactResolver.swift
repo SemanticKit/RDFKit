@@ -33,11 +33,6 @@ enum ContentFactResolver {
         if let factContent = content as? any OntologyFactContent {
             factContent.addFacts(to: &facts, in: environment)
         }
-        if let group = content as? ContentGroup {
-            for element in group.elements {
-                collectFacts(in: element, environment: environment, facts: &facts)
-            }
-        }
     }
 }
 

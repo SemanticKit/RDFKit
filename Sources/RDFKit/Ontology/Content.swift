@@ -91,6 +91,17 @@ extension ContentGroup: OntologyNamespaceContent {
     }
 }
 
+extension ContentGroup: OntologyFactContent {
+    /// Adds declaration facts contributed by grouped content.
+    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
+        for element in elements {
+            if let factContent = element as? any OntologyFactContent {
+                factContent.addFacts(to: &facts, in: environment)
+            }
+        }
+    }
+}
+
 /// Builds protocol-based ontology content.
 @resultBuilder
 public enum ContentBuilder {
