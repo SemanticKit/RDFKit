@@ -8,6 +8,9 @@ struct OntologyExpansionSourceRenderer: Sendable {
     /// The expression emitted for each generated term's owning ontology.
     let ontologyExpression: String
 
+    /// The type emitted for each generated term's owning ontology.
+    let ontologyTypeName: String
+
     /// Returns Swift source for declarations.
     func source(for declarations: [OntologyExpansionDeclaration]) throws -> String {
         try declarations.map(source(for:)).joined(separator: "\n\n")
@@ -34,7 +37,7 @@ struct OntologyExpansionSourceRenderer: Sendable {
 
         return """
         \(keyword) struct \(typeName): OntologyScopedTerm, \(roleProtocol(for: declaration.role)) {
-            \(keyword) static let ontology = \(ontologyExpression)
+            \(keyword) static var ontology: \(ontologyTypeName) { \(ontologyExpression) }
             \(keyword) static let localName = LocalName("\(localName)")
 
             \(keyword) let value: String

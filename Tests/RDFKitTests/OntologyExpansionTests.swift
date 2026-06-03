@@ -8,7 +8,7 @@ import Testing
             .source(for: GeneratedRDFOntology())
 
         #expect(source.contains("public struct CompoundLiteral: OntologyScopedTerm, RDFClass"))
-        #expect(source.contains("public static let ontology = GeneratedRDFOntology()"))
+        #expect(source.contains("public static var ontology: GeneratedRDFOntology { GeneratedRDFOntology() }"))
         #expect(source.contains("public static let localName = LocalName(\"CompoundLiteral\")"))
         #expect(source.contains("public init(_ value: String)"))
     }
@@ -97,6 +97,19 @@ import Testing
         )
     }
 
+    @Test func generatedOntologySourceBuildsInConsumerPackage() throws {
+        let generatedSource = try OntologyExpansion(ontologyExpression: "ConsumerOntology()")
+            .sourceFile(for: ConsumerOntology())
+        let packageRoot = try makeConsumerPackage(generatedSource: generatedSource)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageRoot)
+        }
+
+        #expect(generatedSource.contains("import RDFKit"))
+        try buildConsumerPackage(at: packageRoot)
+    }
+
     private struct GeneratedRDFOntology: Ontology {
         var content: some Content {
             Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
@@ -111,6 +124,38 @@ import Testing
                 Type(RDF.Property.self)
                 Domain(RDFS.Class.self)
                 Range(RDFS.Class.self)
+            }
+        }
+    }
+
+    private struct ConsumerOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/generated#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+            Alias("owl", OWL.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                SubClassOf(RDFS.Resource.self)
+                Label("Asset")
+                Comment("A generated asset class.")
+            }
+            Property("owner") {
+                Type(RDF.Property.self)
+                Domain(IRI("https://example.com/generated#Asset"))
+                Range(RDFS.Resource.self)
+                Label("owner")
+                Comment("The resource that owns an asset.")
+            }
+            Datatype("SKU") {
+                Type(RDFS.Datatype.self)
+                SubClassOf(RDFS.Literal.self)
+                Label("SKU")
+            }
+            Individual("exampleAsset") {
+                Type(IRI("https://example.com/generated#Asset"))
+                Label("Example Asset")
             }
         }
     }
@@ -291,6 +336,123 @@ import Testing
         }
 
         return escaped
+    }
+
+    private func makeConsumerPackage(generatedSource: String) throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RDFKitGeneratedOntology-\(UUID().uuidString)")
+        let sources = root
+            .appendingPathComponent("Sources")
+            .appendingPathComponent("GeneratedOntologySmoke")
+
+        try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
+        try write(packageManifestSource(), to: root.appendingPathComponent("Package.swift"))
+        try write(consumerOntologySource(), to: sources.appendingPathComponent("ConsumerOntology.swift"))
+        try write(generatedSource, to: sources.appendingPathComponent("GeneratedTerms.swift"))
+
+        return root
+    }
+
+    private func packageManifestSource() -> String {
+        let packagePath = expectedEscapedSwiftString(repositoryRoot().path)
+
+        return """
+        // swift-tools-version: 6.3
+        import PackageDescription
+
+        let package = Package(
+            name: "GeneratedOntologySmoke",
+            platforms: [.macOS(.v26)],
+            products: [
+                .library(name: "GeneratedOntologySmoke", targets: ["GeneratedOntologySmoke"])
+            ],
+            dependencies: [
+                .package(path: "\(packagePath)")
+            ],
+            targets: [
+                .target(name: "GeneratedOntologySmoke", dependencies: ["RDFKit"])
+            ]
+        )
+        """
+    }
+
+    private func consumerOntologySource() -> String {
+        """
+        import RDFKit
+
+        public struct ConsumerOntology: Ontology {
+            public init() {}
+
+            public var content: some Content {
+                Namespace("https://example.com/generated#")
+                Alias("rdf", RDF.self)
+                Alias("rdfs", RDFS.self)
+                Alias("owl", OWL.self)
+
+                Class("Asset") {
+                    Type(RDFS.Class.self)
+                    SubClassOf(RDFS.Resource.self)
+                    Label("Asset")
+                    Comment("A generated asset class.")
+                }
+                Property("owner") {
+                    Type(RDF.Property.self)
+                    Domain(IRI("https://example.com/generated#Asset"))
+                    Range(RDFS.Resource.self)
+                    Label("owner")
+                    Comment("The resource that owns an asset.")
+                }
+                Datatype("SKU") {
+                    Type(RDFS.Datatype.self)
+                    SubClassOf(RDFS.Literal.self)
+                    Label("SKU")
+                }
+                Individual("exampleAsset") {
+                    Type(IRI("https://example.com/generated#Asset"))
+                    Label("Example Asset")
+                }
+            }
+        }
+        """
+    }
+
+    private func buildConsumerPackage(at packageRoot: URL) throws {
+        let process = Process()
+        let output = Pipe()
+
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["swift", "build", "--package-path", packageRoot.path]
+        process.standardOutput = output
+        process.standardError = output
+
+        try process.run()
+        process.waitUntilExit()
+
+        let outputData = output.fileHandleForReading.readDataToEndOfFile()
+        let outputText = String(decoding: outputData, as: UTF8.self)
+
+        if process.terminationStatus != 0 {
+            throw ConsumerPackageBuildFailure(output: outputText)
+        }
+    }
+
+    private func repositoryRoot() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private func write(_ text: String, to url: URL) throws {
+        try text.write(to: url, atomically: true, encoding: .utf8)
+    }
+}
+
+private struct ConsumerPackageBuildFailure: Error, CustomStringConvertible {
+    let output: String
+
+    var description: String {
+        output
     }
 }
 

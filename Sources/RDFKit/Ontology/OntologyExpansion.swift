@@ -52,8 +52,20 @@ public struct OntologyExpansion: Sendable {
             .declarations(in: ontology.content, environment: ontology.environment)
         let ontologyExpression = ontologyExpression ?? "\(OntologyValue.self)()"
 
-        return try OntologyExpansionSourceRenderer(access: access, ontologyExpression: ontologyExpression)
+        return try OntologyExpansionSourceRenderer(
+            access: access,
+            ontologyExpression: ontologyExpression,
+            ontologyTypeName: String(describing: OntologyValue.self)
+        )
             .source(for: declarations)
+    }
+
+    /// Returns a complete Swift source file for the ontology terms declared by DSL content.
+    public func sourceFile<OntologyValue: Ontology>(
+        for ontology: OntologyValue,
+        imports: [String] = ["RDFKit"]
+    ) throws -> String {
+        try sourceFile(imports: imports, body: source(for: ontology))
     }
 
     /// Returns Swift source for the terms declared by a vocabulary's ontology content.
@@ -62,12 +74,42 @@ public struct OntologyExpansion: Sendable {
         let declarations = try OntologyExpansionDeclarationCollector(maximumDepth: maximumDepth)
             .declarations(in: VocabularyValue.ontology, environment: environment)
 
-        return try OntologyExpansionSourceRenderer(access: access, ontologyExpression: "")
+        return try OntologyExpansionSourceRenderer(access: access, ontologyExpression: "", ontologyTypeName: "")
             .vocabularySource(for: declarations, vocabularyName: String(describing: VocabularyValue.self))
     }
 
     /// Returns Swift source for the terms declared by a vocabulary value's ontology content.
     public func source<VocabularyValue: Vocabulary>(for vocabulary: VocabularyValue) throws -> String {
         try source(for: VocabularyValue.self)
+    }
+
+    /// Returns a complete Swift source file for the terms declared by a vocabulary's ontology content.
+    public func sourceFile<VocabularyValue: Vocabulary>(
+        for vocabulary: VocabularyValue.Type,
+        imports: [String] = ["RDFKit"]
+    ) throws -> String {
+        try sourceFile(imports: imports, body: source(for: vocabulary))
+    }
+
+    /// Returns a complete Swift source file for the terms declared by a vocabulary value's ontology content.
+    public func sourceFile<VocabularyValue: Vocabulary>(
+        for vocabulary: VocabularyValue,
+        imports: [String] = ["RDFKit"]
+    ) throws -> String {
+        try sourceFile(for: VocabularyValue.self, imports: imports)
+    }
+
+    private func sourceFile(imports: [String], body: String) throws -> String {
+        let importSource = imports.map { "import \($0)" }.joined(separator: "\n")
+
+        guard importSource.isEmpty == false else {
+            return body
+        }
+
+        return """
+        \(importSource)
+
+        \(body)
+        """
     }
 }
