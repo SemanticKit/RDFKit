@@ -7,35 +7,66 @@ import Testing
     /// Verifies that production standard ontology DSL content materializes every standards matrix term and fact.
     @Test func standardOntologyDSLContentMaterializesStandardsMatrixObjectGraph() throws {
         let matrix = try StandardsMatrix.bundled()
+        let rdfGraph = try OntologyObjectGraph(content: RDF.ontology)
+        let rdfsGraph = try OntologyObjectGraph(content: RDFS.ontology)
+        let owlGraph = try OntologyObjectGraph(content: OWL.ontology)
         let closureFacts = mergedFacts([
-            ContentFactResolver.facts(in: RDF.ontology),
-            ContentFactResolver.facts(in: RDFS.ontology),
-            ContentFactResolver.facts(in: OWL.ontology)
+            rdfGraph.facts,
+            rdfsGraph.facts,
+            owlGraph.facts
         ])
 
-        try assertObjectGraph(RDF.ontology, covers: matrix.entries(in: "RDF"), closureFacts: closureFacts)
-        try assertObjectGraph(RDFS.ontology, covers: matrix.entries(in: "RDFS"), closureFacts: closureFacts)
-        try assertObjectGraph(OWL.ontology, covers: matrix.entries(in: "OWL"), closureFacts: closureFacts)
+        try assertObjectGraph(rdfGraph, covers: matrix.entries(in: "RDF"), closureFacts: closureFacts)
+        try assertObjectGraph(rdfsGraph, covers: matrix.entries(in: "RDFS"), closureFacts: closureFacts)
+        try assertObjectGraph(owlGraph, covers: matrix.entries(in: "OWL"), closureFacts: closureFacts)
+    }
+
+    /// Verifies that a new ontology authored in the DSL materializes into an object graph.
+    @Test func customOntologyDSLContentMaterializesObjectGraph() throws {
+        let graph = try OntologyObjectGraph(CustomAssetOntology())
+        let namespace = Namespace("https://example.com/assets#")
+        let asset = QualifiedName(namespace: namespace, localName: LocalName("Asset")).iri
+        let name = QualifiedName(namespace: namespace, localName: LocalName("name")).iri
+
+        #expect(graph.environment.namespace == namespace)
+        #expect(graph.environment.iri == namespace.iri)
+        #expect(graph.terms == [asset, name])
+        #expect(graph.classes == [asset])
+        #expect(graph.properties == [name])
+        #expect(graph.datatypes == [])
+        #expect(graph.individuals == [])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [RDFS.Class.iri])
+        #expect(assetFacts.superclasses == [RDFS.Resource.iri])
+        #expect(assetFacts.labels == ["Asset"])
+        #expect(assetFacts.isDefinedBy == [namespace.iri])
+
+        let nameFacts = try #require(graph.facts[name])
+        #expect(nameFacts.types == [RDF.Property.iri])
+        #expect(nameFacts.domains == [asset])
+        #expect(nameFacts.ranges == [RDF.LangString.iri])
+        #expect(nameFacts.labels == ["name"])
+        #expect(nameFacts.isDefinedBy == [namespace.iri])
     }
 
     /// Verifies one ontology content value against the expected standards matrix rows.
-    private func assertObjectGraph<ContentValue: Content>(
-        _ content: ContentValue,
+    private func assertObjectGraph(
+        _ graph: OntologyObjectGraph,
         covers entries: [VocabularyMatrixEntry],
         closureFacts: [IRI: OntologyDeclarationFacts]
     ) throws {
         let expectedTerms = Set(entries.map(\.iri))
-        let facts = ContentFactResolver.facts(in: content)
 
-        #expect(try ContentTermResolver.termIRIs(in: content) == expectedTerms)
-        #expect(try ContentTermResolver.classIRIs(in: content) == iris(in: entries, role: .class))
-        #expect(try ContentTermResolver.propertyIRIs(in: content) == iris(in: entries, role: .property))
-        #expect(try ContentTermResolver.datatypeIRIs(in: content) == iris(in: entries, role: .datatype))
-        #expect(try ContentTermResolver.individualIRIs(in: content) == iris(in: entries, role: .individual))
-        #expect(facts.count == entries.count)
+        #expect(graph.terms == expectedTerms)
+        #expect(graph.classes == iris(in: entries, role: .class))
+        #expect(graph.properties == iris(in: entries, role: .property))
+        #expect(graph.datatypes == iris(in: entries, role: .datatype))
+        #expect(graph.individuals == iris(in: entries, role: .individual))
+        #expect(graph.facts.count == entries.count)
 
         for entry in entries {
-            let fact = try #require(facts[entry.iri])
+            let fact = try #require(graph.facts[entry.iri])
 
             #expect(fact.types == Set(entry.directTypes))
             #expect(transitiveObjects(from: entry.iri, in: closureFacts, over: \.superclasses) == Set(entry.subclassChain))
@@ -79,5 +110,27 @@ import Testing
         }
 
         return visited
+    }
+
+    /// A custom ontology authored with the same DSL as the standards.
+    private struct CustomAssetOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/assets#")
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                SubClassOf(RDFS.Resource.self)
+                Label("Asset")
+                IsDefinedBy()
+            }
+
+            Property("name") {
+                Type(RDF.Property.self)
+                Domain(IRI("https://example.com/assets#Asset"))
+                Range(RDF.LangString.self)
+                Label("name")
+                IsDefinedBy()
+            }
+        }
     }
 }
