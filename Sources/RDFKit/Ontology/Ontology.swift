@@ -11,7 +11,7 @@ public protocol Ontology: Identifiable, IRIRepresentable where ID == IRI {
 extension Ontology {
     /// The ontology environment supplied to child content.
     public var environment: OntologyEnvironment {
-        ContentNamespaceResolver.environment(in: content, ownerTypeName: String(describing: Self.self))
+        content.materializedEnvironment(ownerTypeName: String(describing: Self.self))
     }
 
     /// The ontology identity.

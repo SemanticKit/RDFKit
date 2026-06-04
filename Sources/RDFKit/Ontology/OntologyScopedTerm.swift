@@ -11,7 +11,7 @@ public protocol OntologyScopedTerm: VocabularyTerm, OntologyContent {
 public extension OntologyScopedTerm {
     /// The namespace declared by the owning ontology content.
     static var namespace: Namespace {
-        ContentNamespaceResolver.namespace(in: ontology.content)
+        ontology.content.materializedNamespace()
     }
 
     /// The ontology-scoped local name inferred from the generated Swift type name.

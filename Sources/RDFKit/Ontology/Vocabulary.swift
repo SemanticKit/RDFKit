@@ -32,7 +32,7 @@ extension StandardsVocabulary {
 
 public extension Vocabulary {
     /// The vocabulary identity.
-    static var iri: IRI { ContentNamespaceResolver.namespace(in: ontology).iri }
+    static var iri: IRI { ontology.materializedNamespace().iri }
 
     /// The vocabulary identity.
     var iri: IRI { Self.iri }
@@ -41,6 +41,6 @@ public extension Vocabulary {
 extension Vocabulary {
     /// The vocabulary namespace declared by its ontology content.
     static var declaredNamespace: Namespace {
-        ContentNamespaceResolver.namespace(in: ontology)
+        ontology.materializedNamespace()
     }
 }

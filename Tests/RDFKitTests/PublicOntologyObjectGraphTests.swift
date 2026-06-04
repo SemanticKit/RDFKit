@@ -2,6 +2,17 @@ import Testing
 import RDFKit
 
 @Suite struct PublicOntologyObjectGraphTests {
+    @Test func publicOntologyEnvironmentMaterializesFromContent() {
+        let ontology = PublicAssetOntology()
+        let namespace = Namespace("https://example.com/public-assets#")
+        let environment = OntologyEnvironment(content: ontology.content, ownerTypeName: "PublicAssetOntology")
+
+        #expect(environment.namespace == namespace)
+        #expect(environment.id == namespace.iri)
+        #expect(ontology.environment == environment)
+        #expect(ontology.iri == namespace.iri)
+    }
+
     @Test func publicObjectGraphMaterializesCustomOntology() throws {
         let graph = try OntologyObjectGraph(PublicAssetOntology())
         let namespace = Namespace("https://example.com/public-assets#")

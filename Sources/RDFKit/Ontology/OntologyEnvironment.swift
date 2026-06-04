@@ -16,7 +16,7 @@ public struct OntologyEnvironment: Equatable, Hashable, Sendable, Identifiable, 
 
     /// Creates an ontology environment from ontology DSL content.
     public init<ContentValue: Content>(content: ContentValue, ownerTypeName: String? = nil) {
-        self.namespace = ContentNamespaceResolver.namespace(in: content)
+        self.namespace = content.materializedNamespace()
         self.ownerTypeName = ownerTypeName
     }
 

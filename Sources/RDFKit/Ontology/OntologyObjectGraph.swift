@@ -61,7 +61,7 @@ public struct OntologyObjectGraph: Equatable, Sendable {
         maximumDepth: Int,
         ownerTypeName: String? = nil
     ) throws {
-        let environment = ContentNamespaceResolver.environment(in: content, ownerTypeName: ownerTypeName)
+        let environment = content.materializedEnvironment(ownerTypeName: ownerTypeName)
         let declarations = try Self.declarations(in: content, environment: environment, maximumDepth: maximumDepth)
         let facts = Self.facts(in: declarations)
         let transitiveSuperclasses = Self.transitiveObjects(in: facts, over: \.superclasses)
