@@ -94,9 +94,7 @@ extension ContentGroup: OntologyTermContent {
         var iris: [IRI] = []
 
         for element in elements {
-            if let termContent = element as? any OntologyTermContent {
-                iris.append(contentsOf: try termContent.termIRIs(in: environment, role: role))
-            }
+            iris.append(contentsOf: try element.materializedTermIRIs(in: environment, role: role))
         }
 
         return iris

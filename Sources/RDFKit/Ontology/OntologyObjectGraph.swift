@@ -213,28 +213,7 @@ public struct OntologyObjectGraph: Equatable, Sendable {
 
     /// Returns ordered term IRIs declared by content.
     private static func termIRIList(in content: any Content, environment: OntologyEnvironment, role: OntologyDeclarationRole?) throws -> [IRI] {
-        var collected: [IRI] = []
-
-        if let termContent = content as? any OntologyTermContent {
-            collected.append(contentsOf: try termContent.termIRIs(in: environment, role: role))
-        }
-        if let term = content as? any RDFClass, role == nil || role == .class {
-            collected.append(term.iri)
-        }
-        if let term = content as? any RDFProperty, role == nil || role == .property {
-            collected.append(term.iri)
-        }
-        if let term = content as? any RDFDatatype, role == nil || role == .datatype {
-            collected.append(term.iri)
-        }
-        if let term = content as? any RDFIndividual, role == nil || role == .individual {
-            collected.append(term.iri)
-        }
-        if let term = content as? any Term, role == nil {
-            collected.append(term.iri)
-        }
-
-        return collected
+        try content.materializedTermIRIs(in: environment, role: role)
     }
 
     /// Returns declaration facts keyed by declaration IRI.

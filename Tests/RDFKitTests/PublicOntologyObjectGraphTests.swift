@@ -179,6 +179,24 @@ import RDFKit
         #expect(sampleCatalogFacts.types == [catalog])
     }
 
+    @Test func publicObjectGraphMaterializesGroupedDirectStandardTerms() throws {
+        let graph = try OntologyObjectGraph(PublicDirectStandardTermOntology())
+        let namespace = Namespace("https://example.com/public-direct-standard-terms#")
+        let asset = IRI("https://example.com/public-direct-standard-terms#Asset")
+        let rdfProperty = IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property")
+        let rdfLangString = IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#langString")
+        let rdfsLabel = IRI("http://www.w3.org/2000/01/rdf-schema#label")
+        let rdfsResource = IRI("http://www.w3.org/2000/01/rdf-schema#Resource")
+        let owlThing = IRI("http://www.w3.org/2002/07/owl#Thing")
+
+        #expect(graph.environment.namespace == namespace)
+        #expect(graph.declarations.map(\.iri) == [asset])
+        #expect(graph.classes == [asset, rdfProperty, rdfsResource, owlThing])
+        #expect(graph.properties == [rdfsLabel])
+        #expect(graph.datatypes == [rdfLangString])
+        #expect(graph.terms == [asset, rdfProperty, rdfLangString, rdfsLabel, rdfsResource, owlThing])
+    }
+
     @Test func publicObjectGraphResolvesExternalOntologyScopedTerms() throws {
         let graph = try OntologyObjectGraph(PublicExternalUseOntology())
         let taggedAsset = IRI("https://example.com/public-external-use#TaggedAsset")
@@ -325,6 +343,20 @@ import RDFKit
                 SeeAlso("Asset")
                 IsDefinedBy(IRI("https://example.com/public-facts#Asset"))
             }
+        }
+    }
+
+    private struct PublicDirectStandardTermOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/public-direct-standard-terms#")
+
+            RDFS.Resource()
+            RDF.Property()
+            RDFS.Label()
+            RDF.LangString()
+            OWL.Thing()
+
+            Class("Asset")
         }
     }
 
