@@ -56,8 +56,12 @@ public struct OntologyObjectGraph: Equatable, Sendable {
     }
 
     /// Creates an object graph from ontology content with a bounded declaration depth.
-    init<ContentValue: Content>(content: ContentValue, maximumDepth: Int) throws {
-        let environment = ContentNamespaceResolver.environment(in: content)
+    init<ContentValue: Content>(
+        content: ContentValue,
+        maximumDepth: Int,
+        ownerTypeName: String? = nil
+    ) throws {
+        let environment = ContentNamespaceResolver.environment(in: content, ownerTypeName: ownerTypeName)
         let declarations = try Self.declarations(in: content, environment: environment, maximumDepth: maximumDepth)
         let facts = Self.facts(in: declarations)
         let transitiveSuperclasses = Self.transitiveObjects(in: facts, over: \.superclasses)
@@ -118,7 +122,7 @@ public struct OntologyObjectGraph: Equatable, Sendable {
 
     /// Creates an object graph from an ontology value.
     public init<OntologyValue: Ontology>(_ ontology: OntologyValue) throws {
-        try self.init(content: ontology.content)
+        try self.init(content: ontology.content, maximumDepth: 64, ownerTypeName: String(describing: OntologyValue.self))
     }
 
     /// Creates an object graph from a vocabulary value.
@@ -128,7 +132,7 @@ public struct OntologyObjectGraph: Equatable, Sendable {
 
     /// Creates an object graph from a vocabulary type.
     public init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue.Type) throws {
-        try self.init(content: vocabulary.ontology)
+        try self.init(content: vocabulary.ontology, maximumDepth: 64, ownerTypeName: String(describing: VocabularyValue.self))
     }
 
     /// Returns the declaration for an IRI-backed value.

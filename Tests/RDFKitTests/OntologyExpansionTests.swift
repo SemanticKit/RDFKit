@@ -472,6 +472,41 @@ import Testing
                 }
             }
         }
+
+        public struct ConsumerGeneratedOntologyUseOntology: Ontology {
+            public init() {}
+
+            public var content: some Content {
+                Namespace("https://example.com/generated-use#")
+
+                Class("TaggedAsset") {
+                    Type(RDFS.Class.self)
+                    SubClassOf(Asset.self)
+                    SeeAlso(Owner())
+                }
+
+                Property("trackedOwner") {
+                    Type(RDF.Property.self)
+                    SubPropertyOf(Owner.self)
+                    Domain("TaggedAsset")
+                    Range(Asset.self)
+                }
+
+                Datatype("GeneratedSKU") {
+                    Type(RDFS.Datatype.self)
+                    SubClassOf(SKU.self)
+                }
+
+                Individual("exampleTaggedAsset") {
+                    Type("TaggedAsset")
+                    SeeAlso(ExampleAsset.self)
+                }
+            }
+        }
+
+        public func generatedOntologyUseGraph() throws -> OntologyObjectGraph {
+            try OntologyObjectGraph(ConsumerGeneratedOntologyUseOntology())
+        }
         """
     }
 

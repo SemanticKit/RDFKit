@@ -179,6 +179,36 @@ import RDFKit
         #expect(sampleCatalogFacts.types == [catalog])
     }
 
+    @Test func publicObjectGraphResolvesExternalOntologyScopedTerms() throws {
+        let graph = try OntologyObjectGraph(PublicExternalUseOntology())
+        let taggedAsset = IRI("https://example.com/public-external-use#TaggedAsset")
+        let trackedOwner = IRI("https://example.com/public-external-use#trackedOwner")
+        let generatedAssetCode = IRI("https://example.com/public-external-use#GeneratedAssetCode")
+        let taggedSample = IRI("https://example.com/public-external-use#taggedSample")
+        let externalAsset = IRI("https://example.com/public-external#Asset")
+        let externalOwner = IRI("https://example.com/public-external#owner")
+        let externalAssetCode = IRI("https://example.com/public-external#AssetCode")
+        let externalSample = IRI("https://example.com/public-external#sampleAsset")
+
+        #expect(graph.declarations.map(\.iri) == [taggedAsset, trackedOwner, generatedAssetCode, taggedSample])
+
+        let taggedAssetFacts = try #require(graph.facts[taggedAsset])
+        #expect(taggedAssetFacts.superclasses == [externalAsset])
+        #expect(taggedAssetFacts.seeAlso == [externalOwner])
+
+        let trackedOwnerFacts = try #require(graph.facts[trackedOwner])
+        #expect(trackedOwnerFacts.superproperties == [externalOwner])
+        #expect(trackedOwnerFacts.domains == [taggedAsset])
+        #expect(trackedOwnerFacts.ranges == [externalAsset])
+
+        let generatedAssetCodeFacts = try #require(graph.facts[generatedAssetCode])
+        #expect(generatedAssetCodeFacts.superclasses == [externalAssetCode])
+
+        let taggedSampleFacts = try #require(graph.facts[taggedSample])
+        #expect(taggedSampleFacts.types == [taggedAsset])
+        #expect(taggedSampleFacts.seeAlso == [externalSample])
+    }
+
     private struct PublicAssetOntology: Ontology {
         var content: some Content {
             Namespace("https://example.com/public-assets#")
@@ -298,6 +328,62 @@ import RDFKit
         }
     }
 
+    private struct PublicExternalOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/public-external#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+            }
+
+            Property("owner") {
+                Type(RDF.Property.self)
+                Domain("Asset")
+                Range(RDFS.Resource.self)
+            }
+
+            Datatype("AssetCode") {
+                Type(RDFS.Datatype.self)
+            }
+
+            Individual("sampleAsset") {
+                Type("Asset")
+            }
+        }
+    }
+
+    private struct PublicExternalUseOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/public-external-use#")
+            Alias("external", IRI("https://example.com/public-external#"))
+
+            Class("TaggedAsset") {
+                Type(RDFS.Class.self)
+                SubClassOf(PublicExternalAsset.self)
+                SeeAlso(PublicExternalOwner())
+            }
+
+            Property("trackedOwner") {
+                Type(RDF.Property.self)
+                SubPropertyOf(PublicExternalOwner.self)
+                Domain("TaggedAsset")
+                Range(PublicExternalAsset.self)
+            }
+
+            Datatype("GeneratedAssetCode") {
+                Type(RDFS.Datatype.self)
+                SubClassOf(PublicExternalAssetCode.self)
+            }
+
+            Individual("taggedSample") {
+                Type("TaggedAsset")
+                SeeAlso(PublicExternalSampleAsset.self)
+            }
+        }
+    }
+
     private struct PublicCatalogVocabulary: Vocabulary {
         init() {}
 
@@ -346,6 +432,34 @@ import RDFKit
     private struct PublicCompleteFactAsset: OntologyScopedTerm, RDFClass {
         static let ontology = PublicCompleteFactOntology()
         static let localName = LocalName("Asset")
+
+        init() {}
+    }
+
+    private struct PublicExternalAsset: OntologyScopedTerm, RDFClass {
+        static let ontology = PublicExternalOntology()
+        static let localName = LocalName("Asset")
+
+        init() {}
+    }
+
+    private struct PublicExternalOwner: OntologyScopedTerm, RDFProperty {
+        static let ontology = PublicExternalOntology()
+        static let localName = LocalName("owner")
+
+        init() {}
+    }
+
+    private struct PublicExternalAssetCode: OntologyScopedTerm, RDFDatatype {
+        static let ontology = PublicExternalOntology()
+        static let localName = LocalName("AssetCode")
+
+        init() {}
+    }
+
+    private struct PublicExternalSampleAsset: OntologyScopedTerm, RDFIndividual {
+        static let ontology = PublicExternalOntology()
+        static let localName = LocalName("sampleAsset")
 
         init() {}
     }

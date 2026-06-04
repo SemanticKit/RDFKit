@@ -45,7 +45,12 @@ public struct OntologyExpansion: Sendable {
 
     /// Returns Swift source for the ontology terms declared by DSL content.
     public func source<OntologyValue: Ontology>(for ontology: OntologyValue) throws -> String {
-        let declarations = try OntologyObjectGraph(content: ontology.content, maximumDepth: maximumDepth).declarations
+        let declarations = try OntologyObjectGraph(
+            content: ontology.content,
+            maximumDepth: maximumDepth,
+            ownerTypeName: String(describing: OntologyValue.self)
+        )
+            .declarations
         let ontologyExpression = ontologyExpression ?? "\(OntologyValue.self)()"
 
         return try OntologyExpansionSourceRenderer(
@@ -66,7 +71,11 @@ public struct OntologyExpansion: Sendable {
 
     /// Returns Swift source for the terms declared by a vocabulary's ontology content.
     public func source<VocabularyValue: Vocabulary>(for vocabulary: VocabularyValue.Type) throws -> String {
-        let objectGraph = try OntologyObjectGraph(content: VocabularyValue.ontology, maximumDepth: maximumDepth)
+        let objectGraph = try OntologyObjectGraph(
+            content: VocabularyValue.ontology,
+            maximumDepth: maximumDepth,
+            ownerTypeName: String(describing: VocabularyValue.self)
+        )
 
         return try OntologyExpansionSourceRenderer(access: access, ontologyExpression: "", ontologyTypeName: "")
             .vocabularySource(

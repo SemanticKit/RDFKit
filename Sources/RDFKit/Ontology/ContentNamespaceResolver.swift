@@ -10,8 +10,11 @@ enum ContentNamespaceResolver {
     }
 
     /// Returns the ontology environment declared by content.
-    static func environment<ContentValue: Content>(in content: ContentValue) -> OntologyEnvironment {
-        OntologyEnvironment(namespace: namespace(in: content))
+    static func environment<ContentValue: Content>(
+        in content: ContentValue,
+        ownerTypeName: String? = nil
+    ) -> OntologyEnvironment {
+        OntologyEnvironment(namespace: namespace(in: content), ownerTypeName: ownerTypeName)
     }
 
     /// Returns all namespaces declared by content.
