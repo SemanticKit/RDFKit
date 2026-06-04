@@ -139,6 +139,46 @@ import RDFKit
         #expect(sampleAssetFacts.isDefinedBy == [asset])
     }
 
+    @Test func publicObjectGraphMaterializesCustomVocabulary() throws {
+        let valueGraph = try OntologyObjectGraph(PublicCatalogVocabulary())
+        let typeGraph = try OntologyObjectGraph(PublicCatalogVocabulary.self)
+        let namespace = Namespace("https://example.com/public-catalog#")
+        let catalog = IRI("https://example.com/public-catalog#Catalog")
+        let entry = IRI("https://example.com/public-catalog#entry")
+        let entryCode = IRI("https://example.com/public-catalog#EntryCode")
+        let sampleCatalog = IRI("https://example.com/public-catalog#sampleCatalog")
+        let rdfProperty = IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property")
+        let rdfsClass = IRI("http://www.w3.org/2000/01/rdf-schema#Class")
+        let rdfsDatatype = IRI("http://www.w3.org/2000/01/rdf-schema#Datatype")
+
+        #expect(valueGraph == typeGraph)
+        #expect(PublicCatalogVocabulary.iri == namespace.iri)
+        #expect(PublicCatalogVocabulary().iri == namespace.iri)
+        #expect(valueGraph.environment.namespace == namespace)
+        #expect(valueGraph.aliases["catalog"] == namespace.iri)
+        #expect(valueGraph.declarations.map(\.iri) == [catalog, entry, entryCode, sampleCatalog])
+        #expect(valueGraph.classes == [catalog])
+        #expect(valueGraph.properties == [entry])
+        #expect(valueGraph.datatypes == [entryCode])
+        #expect(valueGraph.individuals == [sampleCatalog])
+
+        let catalogFacts = try #require(valueGraph.facts[catalog])
+        #expect(catalogFacts.types == [rdfsClass])
+        #expect(catalogFacts.labels == ["Catalog"])
+        #expect(catalogFacts.isDefinedBy == [namespace.iri])
+
+        let entryFacts = try #require(valueGraph.facts[entry])
+        #expect(entryFacts.types == [rdfProperty])
+        #expect(entryFacts.domains == [catalog])
+        #expect(entryFacts.ranges == [IRI("http://www.w3.org/2000/01/rdf-schema#Resource")])
+
+        let entryCodeFacts = try #require(valueGraph.facts[entryCode])
+        #expect(entryCodeFacts.types == [rdfsDatatype])
+
+        let sampleCatalogFacts = try #require(valueGraph.facts[sampleCatalog])
+        #expect(sampleCatalogFacts.types == [catalog])
+    }
+
     private struct PublicAssetOntology: Ontology {
         var content: some Content {
             Namespace("https://example.com/public-assets#")
@@ -254,6 +294,37 @@ import RDFKit
                 Type("Asset")
                 SeeAlso("Asset")
                 IsDefinedBy(IRI("https://example.com/public-facts#Asset"))
+            }
+        }
+    }
+
+    private struct PublicCatalogVocabulary: Vocabulary {
+        init() {}
+
+        static var ontology: some Content {
+            Namespace("https://example.com/public-catalog#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+            Alias("catalog", Self.self)
+
+            Class("Catalog") {
+                Type(RDFS.Class.self)
+                Label("Catalog")
+                IsDefinedBy()
+            }
+
+            Property("entry") {
+                Type(RDF.Property.self)
+                Domain("Catalog")
+                Range(RDFS.Resource.self)
+            }
+
+            Datatype("EntryCode") {
+                Type(RDFS.Datatype.self)
+            }
+
+            Individual("sampleCatalog") {
+                Type("Catalog")
             }
         }
     }
