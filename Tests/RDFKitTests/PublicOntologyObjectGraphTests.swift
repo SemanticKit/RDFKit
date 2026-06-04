@@ -81,6 +81,64 @@ import RDFKit
         #expect(typedSampleFacts.types == [asset])
     }
 
+    @Test func publicObjectGraphMaterializesCompleteFactOntology() throws {
+        let graph = try OntologyObjectGraph(PublicCompleteFactOntology())
+        let namespace = Namespace("https://example.com/public-facts#")
+        let asset = IRI("https://example.com/public-facts#Asset")
+        let relation = IRI("https://example.com/public-facts#relation")
+        let owner = IRI("https://example.com/public-facts#owner")
+        let assetCode = IRI("https://example.com/public-facts#AssetCode")
+        let sampleAsset = IRI("https://example.com/public-facts#sampleAsset")
+        let rdfProperty = IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property")
+        let rdfsClass = IRI("http://www.w3.org/2000/01/rdf-schema#Class")
+        let rdfsResource = IRI("http://www.w3.org/2000/01/rdf-schema#Resource")
+        let rdfsDatatype = IRI("http://www.w3.org/2000/01/rdf-schema#Datatype")
+        let rdfsLiteral = IRI("http://www.w3.org/2000/01/rdf-schema#Literal")
+        let rdfsOntology = IRI("http://www.w3.org/2000/01/rdf-schema#")
+
+        #expect(graph.environment.namespace == namespace)
+        #expect(graph.declarations.map(\.iri) == [asset, relation, owner, assetCode, sampleAsset])
+        #expect(graph.classes == [asset])
+        #expect(graph.properties == [relation, owner])
+        #expect(graph.datatypes == [assetCode])
+        #expect(graph.individuals == [sampleAsset])
+
+        let assetFacts = try #require(graph.facts[asset])
+        #expect(assetFacts.types == [rdfsClass])
+        #expect(assetFacts.superclasses == [rdfsResource])
+        #expect(assetFacts.labels == ["Asset"])
+        #expect(assetFacts.comments == ["A fact-rich public asset."])
+        #expect(assetFacts.seeAlso == [rdfsResource])
+        #expect(assetFacts.isDefinedBy == [namespace.iri])
+        #expect(assetFacts.deprecated == false)
+
+        let relationFacts = try #require(graph.facts[relation])
+        #expect(relationFacts.types == [rdfProperty])
+        #expect(relationFacts.domains == [asset])
+        #expect(relationFacts.ranges == [rdfsResource])
+        #expect(relationFacts.labels == ["relation"])
+
+        let ownerFacts = try #require(graph.facts[owner])
+        #expect(ownerFacts.types == [rdfProperty])
+        #expect(ownerFacts.superproperties == [relation])
+        #expect(ownerFacts.domains == [asset])
+        #expect(ownerFacts.ranges == [rdfsResource])
+        #expect(ownerFacts.labels == ["owner"])
+        #expect(ownerFacts.comments == ["The owning resource."])
+        #expect(ownerFacts.seeAlso == [asset])
+        #expect(ownerFacts.isDefinedBy == [rdfsOntology])
+
+        let assetCodeFacts = try #require(graph.facts[assetCode])
+        #expect(assetCodeFacts.types == [rdfsDatatype])
+        #expect(assetCodeFacts.superclasses == [rdfsLiteral])
+        #expect(assetCodeFacts.deprecated == true)
+
+        let sampleAssetFacts = try #require(graph.facts[sampleAsset])
+        #expect(sampleAssetFacts.types == [asset])
+        #expect(sampleAssetFacts.seeAlso == [asset])
+        #expect(sampleAssetFacts.isDefinedBy == [asset])
+    }
+
     private struct PublicAssetOntology: Ontology {
         var content: some Content {
             Namespace("https://example.com/public-assets#")
@@ -147,6 +205,59 @@ import RDFKit
         }
     }
 
+    private struct PublicCompleteFactOntology: Ontology {
+        var content: some Content {
+            Namespace("https://example.com/public-facts#")
+            Alias("rdf", RDF.self)
+            Alias("rdfs", RDFS.self)
+            Alias("owl", OWL.self)
+
+            Class("Asset") {
+                Type(RDFS.Class.self)
+                SubClassOf(RDFS.Resource.self)
+                Annotation {
+                    Label("Asset")
+                    Comment("A fact-rich public asset.")
+                    SeeAlso(RDFS.Resource.self)
+                    IsDefinedBy()
+                    OWLDeprecated(false)
+                }
+            }
+
+            Property("relation") {
+                Type(RDF.Property.self)
+                Domain("Asset")
+                Range(RDFS.Resource.self)
+                Label("relation")
+            }
+
+            Property("owner") {
+                Type(RDF.Property.self)
+                SubPropertyOf("relation")
+                Domain(PublicCompleteFactAsset.self)
+                Range(RDFS.Resource.self)
+                Annotation {
+                    Label("owner")
+                    Comment("The owning resource.")
+                    SeeAlso(PublicCompleteFactAsset())
+                    IsDefinedBy(RDFS())
+                }
+            }
+
+            Datatype("AssetCode") {
+                Type(RDFS.Datatype.self)
+                SubClassOf(RDFS.Literal.self)
+                OWLDeprecated()
+            }
+
+            Individual("sampleAsset") {
+                Type("Asset")
+                SeeAlso("Asset")
+                IsDefinedBy(IRI("https://example.com/public-facts#Asset"))
+            }
+        }
+    }
+
     private struct PublicAsset: OntologyScopedTerm, RDFClass {
         static let ontology = PublicControlFlowOntology()
         static let localName = LocalName("Asset")
@@ -157,6 +268,13 @@ import RDFKit
     private struct PublicSampleAsset: OntologyScopedTerm, RDFIndividual {
         static let ontology = PublicControlFlowOntology()
         static let localName = LocalName("sampleAsset")
+
+        init() {}
+    }
+
+    private struct PublicCompleteFactAsset: OntologyScopedTerm, RDFClass {
+        static let ontology = PublicCompleteFactOntology()
+        static let localName = LocalName("Asset")
 
         init() {}
     }

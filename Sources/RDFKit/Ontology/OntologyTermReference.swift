@@ -9,6 +9,11 @@ public struct OntologyTermReference: Equatable, Hashable, Sendable {
         self.reference = .localName(LocalName(localName))
     }
 
+    /// Creates a term reference from an ontology-scoped value in the enclosing ontology namespace.
+    public init<TermValue: OntologyScopedTerm>(_ term: TermValue) {
+        self.reference = .localName(TermValue.localName)
+    }
+
     /// Creates a term reference from an IRI-backed value.
     public init<TermValue: IRIRepresentable>(_ term: TermValue) {
         self.reference = .term(TermReference(term))
@@ -22,6 +27,11 @@ public struct OntologyTermReference: Equatable, Hashable, Sendable {
     /// Creates a term reference from an IRI-backed type.
     public init<TermType: TypeIRIRepresentable>(_ term: TermType.Type) {
         self.reference = .term(TermReference(term))
+    }
+
+    /// Creates a term reference from an ontology-scoped type in the enclosing ontology namespace.
+    public init<TermType: OntologyScopedTerm>(_ term: TermType.Type) {
+        self.reference = .localName(TermType.localName)
     }
 
     /// Returns the referenced term IRI in an ontology environment.

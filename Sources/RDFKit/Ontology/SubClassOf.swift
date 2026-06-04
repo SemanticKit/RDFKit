@@ -10,8 +10,18 @@ public struct SubClassOf: ClassContent, DatatypeContent {
         self.value = OntologyTermReference(localName)
     }
 
+    /// Creates a superclass declaration from an ontology-scoped value in the enclosing ontology namespace.
+    public init<TermValue: OntologyScopedTerm>(_ value: TermValue) {
+        self.value = OntologyTermReference(value)
+    }
+
     /// Creates a superclass declaration from an IRI-backed value.
     public init<TermValue: IRIRepresentable>(_ value: TermValue) {
+        self.value = OntologyTermReference(value)
+    }
+
+    /// Creates a superclass declaration from an ontology-scoped type in the enclosing ontology namespace.
+    public init<TermType: OntologyScopedTerm>(_ value: TermType.Type) {
         self.value = OntologyTermReference(value)
     }
 

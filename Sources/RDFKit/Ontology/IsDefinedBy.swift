@@ -15,8 +15,18 @@ public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, Indiv
         self.value = OntologyTermReference(localName)
     }
 
+    /// Creates an isDefinedBy declaration from an ontology-scoped value in the enclosing ontology namespace.
+    public init<TermValue: OntologyScopedTerm>(_ value: TermValue) {
+        self.value = OntologyTermReference(value)
+    }
+
     /// Creates an isDefinedBy declaration from an IRI-backed value.
     public init<TermValue: IRIRepresentable>(_ value: TermValue) {
+        self.value = OntologyTermReference(value)
+    }
+
+    /// Creates an isDefinedBy declaration from an ontology-scoped type in the enclosing ontology namespace.
+    public init<TermType: OntologyScopedTerm>(_ value: TermType.Type) {
         self.value = OntologyTermReference(value)
     }
 
