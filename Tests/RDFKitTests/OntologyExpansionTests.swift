@@ -512,6 +512,42 @@ import Testing
                 }
             }
         }
+
+        public struct ConsumerGeneratedVocabularyUseOntology: Ontology {
+            public init() {}
+
+            public var content: some Content {
+                Namespace("https://example.com/vocabulary-use#")
+                Alias("vocab", ConsumerVocabulary.self)
+
+                Class("TaggedAsset") {
+                    Type(ConsumerVocabulary.Asset.self)
+                    SubClassOf(ConsumerVocabulary.Asset.self)
+                    SeeAlso(ConsumerVocabulary.owner)
+                }
+
+                Property("catalogOwner") {
+                    Type(RDF.Property.self)
+                    SubPropertyOf(ConsumerVocabulary.owner)
+                    Domain("TaggedAsset")
+                    Range(ConsumerVocabulary.Asset.self)
+                }
+
+                Datatype("GeneratedSKU") {
+                    Type(ConsumerVocabulary.SKU.self)
+                    SubClassOf(ConsumerVocabulary.SKU.self)
+                }
+
+                Individual("exampleTaggedAsset") {
+                    Type("TaggedAsset")
+                    SeeAlso(ConsumerVocabulary.exampleAsset)
+                }
+            }
+        }
+
+        public func generatedVocabularyUseGraph() throws -> OntologyObjectGraph {
+            try OntologyObjectGraph(ConsumerGeneratedVocabularyUseOntology())
+        }
         """
     }
 
