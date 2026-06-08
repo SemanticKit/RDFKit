@@ -1,7 +1,7 @@
 import Foundation
 
 /// An RDF blank node identified by a document-local label.
-public struct BlankNode: RDFSubject, RDFObject, RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, CustomStringConvertible, CustomDebugStringConvertible {
+public struct BlankNode: Subject, Object, RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, CustomStringConvertible, CustomDebugStringConvertible {
     /// The blank node label without the `_:` prefix.
     public let identifier: String
 

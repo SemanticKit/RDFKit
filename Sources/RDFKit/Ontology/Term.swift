@@ -1,7 +1,7 @@
 import Foundation
 
 /// A declared ontology term with RDF identity.
-public protocol Term: IRIRepresentable, Identifiable, RDFSubject, RDFObject where ID == IRI {}
+public protocol Term: IRIRepresentable, Identifiable, Subject, Object where ID == IRI {}
 
 extension Term {
     /// The term identity.

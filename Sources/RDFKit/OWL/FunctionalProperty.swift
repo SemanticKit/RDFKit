@@ -2,8 +2,5 @@ import Foundation
 
 public extension OWL {
     /// owl:FunctionalProperty.
-    struct FunctionalProperty: RDFKit.RDFClass, OWLTerm {
-        /// Creates an owl:FunctionalProperty term value.
-        public init() {}
-    }
+    struct FunctionalProperty: Content {}
 }

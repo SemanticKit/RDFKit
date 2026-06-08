@@ -1,198 +1,198 @@
 import Foundation
 
 public extension OWL {
-    /// The OWL vocabulary expressed as Turtle-like Swift ontology DSL content.
+    /// The OWL standard ontology authored as Swift content.
     static var ontology: some Content {
         OWLOntology().content
     }
 }
 
-/// OWL vocabulary content authored in the ontology declaration DSL.
+/// OWL standard ontology content authored with ontology declarations.
 private struct OWLOntology: Ontology {
     var content: some Content {
         Namespace("http://www.w3.org/2002/07/owl#")
-        Alias("rdf", RDF.self)
-        Alias("rdfs", RDFS.self)
-        Alias("owl", OWL.self)
+        Alias("rdf", Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#"))
+        Alias("rdfs", Namespace("http://www.w3.org/2000/01/rdf-schema#"))
+        Alias("owl", Namespace("http://www.w3.org/2002/07/owl#"))
 
         Class("AllDifferent") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("AllDifferent")
             Comment("The class of collections of pairwise different individuals.")
         }
         Class("AllDisjointClasses") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("AllDisjointClasses")
             Comment("The class of collections of pairwise disjoint classes.")
         }
         Class("AllDisjointProperties") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("AllDisjointProperties")
             Comment("The class of collections of pairwise disjoint properties.")
         }
         Class("Annotation") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Annotation")
             Comment("The class of annotated annotations for which the RDF serialization consists of an annotated subject, predicate and object.")
         }
         Class("AnnotationProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("AnnotationProperty")
             Comment("The class of annotation properties.")
         }
         Class("AsymmetricProperty") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("AsymmetricProperty")
             Comment("The class of asymmetric properties.")
         }
         Class("Axiom") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Axiom")
             Comment("The class of annotated axioms for which the RDF serialization consists of an annotated subject, predicate and object.")
         }
         Class("Class") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Class")
             Comment("The class of OWL classes.")
         }
         Class("DataRange") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Datatype.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("DataRange")
             Comment("The class of OWL data ranges, which are special kinds of datatypes. Note: The use of the IRI owl:DataRange has been deprecated as of OWL 2. The IRI rdfs:Datatype SHOULD be used instead.")
         }
         Class("DatatypeProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("DatatypeProperty")
             Comment("The class of data properties.")
         }
         Class("DeprecatedClass") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("DeprecatedClass")
             Comment("The class of deprecated classes.")
         }
         Class("DeprecatedProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("DeprecatedProperty")
             Comment("The class of deprecated properties.")
         }
         Class("FunctionalProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("FunctionalProperty")
             Comment("The class of functional properties.")
         }
         Class("InverseFunctionalProperty") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("InverseFunctionalProperty")
             Comment("The class of inverse-functional properties.")
         }
         Class("IrreflexiveProperty") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("IrreflexiveProperty")
             Comment("The class of irreflexive properties.")
         }
         Class("NamedIndividual") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("NamedIndividual")
             Comment("The class of named individuals.")
         }
         Class("NegativePropertyAssertion") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("NegativePropertyAssertion")
             Comment("The class of negative property assertions.")
         }
         Class("Nothing") {
             Type(OWL.Class.self)
             SubClassOf(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Nothing")
             Comment("This is the empty class.")
         }
         Class("ObjectProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("ObjectProperty")
             Comment("The class of object properties.")
         }
         Class("Ontology") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Ontology")
             Comment("The class of ontologies.")
         }
         Class("OntologyProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("OntologyProperty")
             Comment("The class of ontology properties.")
         }
         Class("ReflexiveProperty") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("ReflexiveProperty")
             Comment("The class of reflexive properties.")
         }
         Class("Restriction") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Restriction")
             Comment("The class of property restrictions.")
         }
         Class("SymmetricProperty") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("SymmetricProperty")
             Comment("The class of symmetric properties.")
         }
         Class("TransitiveProperty") {
             Type(RDFS.Class.self)
             SubClassOf(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("TransitiveProperty")
             Comment("The class of transitive properties.")
         }
         Class("Thing") {
             Type(OWL.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("Thing")
             Comment("The class of OWL individuals.")
         }
@@ -201,7 +201,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDFS.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("allValuesFrom")
             Comment("The property that determines the class that a universal property restriction refers to.")
         }
@@ -209,7 +209,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("annotatedProperty")
             Comment("The property that determines the predicate of an annotated axiom or annotated annotation.")
         }
@@ -217,7 +217,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("annotatedSource")
             Comment("The property that determines the subject of an annotated axiom or annotated annotation.")
         }
@@ -225,7 +225,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("annotatedTarget")
             Comment("The property that determines the object of an annotated axiom or annotated annotation.")
         }
@@ -233,7 +233,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.NegativePropertyAssertion.self)
             Range(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("assertionProperty")
             Comment("The property that determines the predicate of a negative property assertion.")
         }
@@ -242,7 +242,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.OntologyProperty.self)
             Domain(OWL.Ontology.self)
             Range(OWL.Ontology.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("backwardCompatibleWith")
             Comment("The annotation property that indicates that a given ontology is backward compatible with another ontology.")
         }
@@ -250,7 +250,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.DatatypeProperty.self)
             Domain(OWL.Thing.self)
             Range(RDFS.Literal.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("bottomDataProperty")
             Comment("The data property that does not relate any individual to any data value.")
         }
@@ -258,7 +258,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.ObjectProperty.self)
             Domain(OWL.Thing.self)
             Range(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("bottomObjectProperty")
             Comment("The object property that does not relate any two individuals.")
         }
@@ -266,7 +266,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("cardinality")
             Comment("The property that determines the cardinality of an exact cardinality restriction.")
         }
@@ -274,7 +274,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Class.self)
             Range(OWL.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("complementOf")
             Comment("The property that determines that a given class is the complement of another class.")
         }
@@ -282,7 +282,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Datatype.self)
             Range(RDFS.Datatype.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("datatypeComplementOf")
             Comment("The property that determines that a given data range is the complement of another data range with respect to the data domain.")
         }
@@ -290,7 +290,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.AnnotationProperty.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("deprecated")
             Comment("The annotation property that indicates that a given entity has been deprecated.")
         }
@@ -298,7 +298,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Thing.self)
             Range(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("differentFrom")
             Comment("The property that determines that two given individuals are different.")
         }
@@ -306,7 +306,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Class.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("disjointUnionOf")
             Comment("The property that determines that a given class is equivalent to the disjoint union of a collection of other classes.")
         }
@@ -314,7 +314,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Class.self)
             Range(OWL.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("disjointWith")
             Comment("The property that determines that two given classes are disjoint.")
         }
@@ -322,7 +322,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.AllDifferent.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("distinctMembers")
             Comment("The property that determines the collection of pairwise different individuals in a owl:AllDifferent axiom.")
         }
@@ -330,7 +330,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Class.self)
             Range(RDFS.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("equivalentClass")
             Comment("The property that determines that two given classes are equivalent, and that is used to specify datatype definitions.")
         }
@@ -338,7 +338,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDF.Property.self)
             Range(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("equivalentProperty")
             Comment("The property that determines that two given properties are equivalent.")
         }
@@ -346,7 +346,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Class.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("hasKey")
             Comment("The property that determines the collection of properties that jointly build a key.")
         }
@@ -354,7 +354,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("hasSelf")
             Comment("The property that determines the property that a self restriction refers to.")
         }
@@ -362,7 +362,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("hasValue")
             Comment("The property that determines the individual that a has-value restriction refers to.")
         }
@@ -370,7 +370,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.OntologyProperty.self)
             Domain(OWL.Ontology.self)
             Range(OWL.Ontology.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("imports")
             Comment("The property that is used for importing other ontologies into a given ontology.")
         }
@@ -379,7 +379,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.OntologyProperty.self)
             Domain(OWL.Ontology.self)
             Range(OWL.Ontology.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("incompatibleWith")
             Comment("The annotation property that indicates that a given ontology is incompatible with another ontology.")
         }
@@ -387,7 +387,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Class.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("intersectionOf")
             Comment("The property that determines the collection of classes or data ranges that build an intersection.")
         }
@@ -395,7 +395,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.ObjectProperty.self)
             Range(OWL.ObjectProperty.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("inverseOf")
             Comment("The property that determines that two given properties are inverse.")
         }
@@ -403,7 +403,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("maxCardinality")
             Comment("The property that determines the cardinality of a maximum cardinality restriction.")
         }
@@ -411,7 +411,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("maxQualifiedCardinality")
             Comment("The property that determines the cardinality of a maximum qualified cardinality restriction.")
         }
@@ -419,7 +419,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("members")
             Comment("The property that determines the collection of members in either a owl:AllDifferent, owl:AllDisjointClasses or owl:AllDisjointProperties axiom.")
         }
@@ -427,7 +427,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("minCardinality")
             Comment("The property that determines the cardinality of a minimum cardinality restriction.")
         }
@@ -435,7 +435,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("minQualifiedCardinality")
             Comment("The property that determines the cardinality of a minimum qualified cardinality restriction.")
         }
@@ -443,7 +443,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(OWL.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("onClass")
             Comment("The property that determines the class that a qualified object cardinality restriction refers to.")
         }
@@ -451,7 +451,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDFS.Datatype.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("onDataRange")
             Comment("The property that determines the data range that a qualified data cardinality restriction refers to.")
         }
@@ -459,7 +459,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Datatype.self)
             Range(RDFS.Datatype.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("onDatatype")
             Comment("The property that determines the datatype that a datatype restriction refers to.")
         }
@@ -467,7 +467,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Class.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("oneOf")
             Comment("The property that determines the collection of individuals or data values that build an enumeration.")
         }
@@ -475,7 +475,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("onProperties")
             Comment("The property that determines the n-tuple of properties that a property restriction on an n-ary data range refers to.")
         }
@@ -483,7 +483,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("onProperty")
             Comment("The property that determines the property that a property restriction refers to.")
         }
@@ -492,7 +492,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.OntologyProperty.self)
             Domain(OWL.Ontology.self)
             Range(OWL.Ontology.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("priorVersion")
             Comment("The annotation property that indicates the predecessor ontology of a given ontology.")
         }
@@ -500,7 +500,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.ObjectProperty.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("propertyChainAxiom")
             Comment("The property that determines the n-tuple of properties that build a sub property chain of a given property.")
         }
@@ -508,7 +508,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDF.Property.self)
             Range(RDF.Property.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("propertyDisjointWith")
             Comment("The property that determines that two given properties are disjoint.")
         }
@@ -516,7 +516,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("qualifiedCardinality")
             Comment("The property that determines the cardinality of an exact qualified cardinality restriction.")
         }
@@ -524,7 +524,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Thing.self)
             Range(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("sameAs")
             Comment("The property that determines that two given individuals are equal.")
         }
@@ -532,7 +532,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.Restriction.self)
             Range(RDFS.Class.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("someValuesFrom")
             Comment("The property that determines the class that an existential property restriction refers to.")
         }
@@ -540,7 +540,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.NegativePropertyAssertion.self)
             Range(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("sourceIndividual")
             Comment("The property that determines the subject of a negative property assertion.")
         }
@@ -548,7 +548,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.NegativePropertyAssertion.self)
             Range(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("targetIndividual")
             Comment("The property that determines the object of a negative object property assertion.")
         }
@@ -556,7 +556,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(OWL.NegativePropertyAssertion.self)
             Range(RDFS.Literal.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("targetValue")
             Comment("The property that determines the value of a negative data property assertion.")
         }
@@ -564,7 +564,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.DatatypeProperty.self)
             Domain(OWL.Thing.self)
             Range(RDFS.Literal.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("topDataProperty")
             Comment("The data property that relates every individual to every data value.")
         }
@@ -572,7 +572,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.ObjectProperty.self)
             Domain(OWL.Thing.self)
             Range(OWL.Thing.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("topObjectProperty")
             Comment("The object property that relates every two individuals.")
         }
@@ -580,7 +580,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Class.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("unionOf")
             Comment("The property that determines the collection of classes or data ranges that build a union.")
         }
@@ -588,7 +588,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.OntologyProperty.self)
             Domain(OWL.Ontology.self)
             Range(OWL.Ontology.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("versionIRI")
             Comment("The property that identifies the version IRI of an ontology.")
         }
@@ -596,7 +596,7 @@ private struct OWLOntology: Ontology {
             Type(OWL.AnnotationProperty.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("versionInfo")
             Comment("The annotation property that provides version information for an ontology or another OWL construct.")
         }
@@ -604,7 +604,7 @@ private struct OWLOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Datatype.self)
             Range(RDF.List.self)
-            IsDefinedBy(OWL())
+            IsDefinedBy()
             Label("withRestrictions")
             Comment("The property that determines the collection of facet-value pairs that define a datatype restriction.")
         }

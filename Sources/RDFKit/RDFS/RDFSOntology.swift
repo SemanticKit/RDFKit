@@ -1,37 +1,37 @@
 import Foundation
 
 public extension RDFS {
-    /// The RDFS vocabulary expressed as Turtle-like Swift ontology DSL content.
+    /// The RDFS standard ontology authored as Swift content.
     static var ontology: some Content {
         RDFSOntology().content
     }
 }
 
-/// RDFS vocabulary content authored in the ontology declaration DSL.
+/// RDFS standard ontology content authored with ontology declarations.
 private struct RDFSOntology: Ontology {
     var content: some Content {
         Namespace("http://www.w3.org/2000/01/rdf-schema#")
-        Alias("rdf", RDF.self)
-        Alias("rdfs", RDFS.self)
-        Alias("owl", OWL.self)
+        Alias("rdf", Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#"))
+        Alias("rdfs", Namespace("http://www.w3.org/2000/01/rdf-schema#"))
+        Alias("owl", Namespace("http://www.w3.org/2002/07/owl#"))
 
         Class("Resource") {
             Type(RDFS.Class.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("Resource")
             Comment("The class resource, everything.")
         }
         Class("Proposition") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("Proposition")
             Comment("The class of propositions, simple logical expressions describing a relationship between two entities.")
         }
         Class("Class") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("Class")
             Comment("The class of classes.")
         }
@@ -39,7 +39,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Class.self)
             Range(RDFS.Class.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("subClassOf")
             Comment("The subject is a subclass of a class.")
         }
@@ -47,7 +47,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDF.Property.self)
             Range(RDF.Property.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("subPropertyOf")
             Comment("The subject is a subproperty of a property.")
         }
@@ -55,7 +55,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Literal.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("comment")
             Comment("A description of the subject resource.")
         }
@@ -63,7 +63,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Literal.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("label")
             Comment("A human-readable name for the subject.")
         }
@@ -71,7 +71,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDF.Property.self)
             Range(RDFS.Class.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("domain")
             Comment("A domain of the subject property.")
         }
@@ -79,7 +79,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDF.Property.self)
             Range(RDFS.Class.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("range")
             Comment("A range of the subject property.")
         }
@@ -87,7 +87,7 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("seeAlso")
             Comment("Further information about the subject resource.")
         }
@@ -96,28 +96,28 @@ private struct RDFSOntology: Ontology {
             SubPropertyOf(RDFS.SeeAlso.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("isDefinedBy")
             Comment("The definition of the subject resource.")
         }
         Class("Literal") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("Literal")
             Comment("The class of literal values, eg. textual strings and integers.")
         }
         Class("Container") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("Container")
             Comment("The class of RDF containers.")
         }
         Class("ContainerMembershipProperty") {
             Type(RDFS.Class.self)
             SubClassOf(RDF.Property.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("ContainerMembershipProperty")
             Comment("The class of container membership properties, rdf:_1, rdf:_2, ..., all of which are sub-properties of 'member'.")
         }
@@ -125,14 +125,14 @@ private struct RDFSOntology: Ontology {
             Type(RDF.Property.self)
             Domain(RDFS.Resource.self)
             Range(RDFS.Resource.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("member")
             Comment("A member of the subject resource.")
         }
         Class("Datatype") {
             Type(RDFS.Class.self)
             SubClassOf(RDFS.Class.self)
-            IsDefinedBy(RDFS())
+            IsDefinedBy()
             Label("Datatype")
             Comment("The class of RDF datatypes.")
         }

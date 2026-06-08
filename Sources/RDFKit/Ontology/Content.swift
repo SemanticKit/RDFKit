@@ -3,23 +3,6 @@ import Foundation
 /// Authored RDF content.
 public protocol Content: Sendable {}
 
-/// Content whose term identity is scoped by the enclosing ontology namespace.
-protocol NamespaceScopedDeclaration: Content {
-    /// The local name declared inside the enclosing ontology namespace.
-    var localName: LocalName { get }
-
-    /// The declaration body content.
-    var bodyContent: any Content { get }
-}
-
-extension NamespaceScopedDeclaration {
-    /// Returns the declaration IRI inside an ontology environment.
-    func iri(in environment: OntologyEnvironment) -> IRI {
-        QualifiedName(namespace: environment.namespace, localName: localName).iri
-    }
-
-}
-
 /// Empty authored RDF content.
 public struct EmptyContent: Content {
     /// Creates empty content.
@@ -29,26 +12,11 @@ public struct EmptyContent: Content {
 /// A group of authored RDF content values.
 public struct ContentGroup: Content {
     /// The grouped content values.
-    public let elements: [any Content]
+    let elements: [any Content]
 
     /// Creates a content group.
-    public init(_ elements: [any Content]) {
+    init(_ elements: [any Content]) {
         self.elements = elements
-    }
-}
-
-extension ContentGroup: OntologyNamespaceContent {
-    /// The namespace declarations contributed by grouped content.
-    var declaredNamespaces: [Namespace] {
-        var namespaces: [Namespace] = []
-
-        for element in elements {
-            if let namespaceContent = element as? any OntologyNamespaceContent {
-                namespaces.append(contentsOf: namespaceContent.declaredNamespaces)
-            }
-        }
-
-        return namespaces
     }
 }
 

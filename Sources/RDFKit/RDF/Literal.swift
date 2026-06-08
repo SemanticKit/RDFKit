@@ -1,7 +1,7 @@
 import Foundation
 
 /// An RDF literal with lexical form, optional language tag, text direction, and datatype.
-public struct Literal: RDFObject, Equatable, Hashable, Sendable, Codable, Comparable, CustomStringConvertible, CustomDebugStringConvertible {
+public struct Literal: Object, Equatable, Hashable, Sendable, Codable, Comparable, CustomStringConvertible, CustomDebugStringConvertible {
     /// The literal lexical form.
     public let lexicalForm: String
 

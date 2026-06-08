@@ -1,7 +1,7 @@
 import Foundation
 
 /// An RDF namespace IRI used to qualify local vocabulary names.
-public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, CustomDebugStringConvertible, IRIRepresentable, AliasTarget, Content {
+public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, CustomDebugStringConvertible, IRIRepresentable, Content {
     /// The namespace IRI text.
     public let rawValue: String
 
@@ -24,15 +24,7 @@ public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codabl
     /// A debugging representation that includes the type name.
     public var debugDescription: String { "Namespace(\(rawValue.debugDescription))" }
 
-    /// Returns this namespace as an alias target.
-    public func aliasNamespace() throws -> Namespace { self }
-
     public static func < (lhs: Namespace, rhs: Namespace) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
-}
-
-extension Namespace: OntologyNamespaceContent {
-    /// The namespace declaration represented by this value.
-    var declaredNamespaces: [Namespace] { [self] }
 }

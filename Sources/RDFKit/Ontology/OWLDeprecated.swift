@@ -3,7 +3,7 @@ import Foundation
 /// Declares OWL deprecation metadata inside ontology declaration content.
 public struct OWLDeprecated: Content {
     /// Whether the declaration is deprecated.
-    public let value: Bool
+    let value: Bool
 
     /// Creates a deprecation declaration.
     public init(_ value: Bool = true) {

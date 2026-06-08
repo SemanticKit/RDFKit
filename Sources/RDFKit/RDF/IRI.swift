@@ -5,7 +5,7 @@ import CoreTransferable
 #endif
 
 /// An RDF Internationalized Resource Identifier value.
-public struct IRI: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, Identifiable, LosslessStringConvertible, CustomStringConvertible, CustomDebugStringConvertible, RDFSubject, RDFPredicate, RDFObject, IRIRepresentable {
+public struct IRI: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, Identifiable, LosslessStringConvertible, CustomStringConvertible, CustomDebugStringConvertible, Subject, Predicate, Object, IRIRepresentable {
     /// The canonical IRI text used for equality and hashing.
     public let rawValue: String
 
