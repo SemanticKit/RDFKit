@@ -5,7 +5,7 @@ public struct IsDefinedBy: Content {
     /// The defining resource.
     private let value: OntologyTermReference?
 
-    /// Creates an isDefinedBy declaration for the enclosing ontology.
+    /// Creates an isDefinedBy declaration without an explicit resource.
     public init() {
         self.value = nil
     }
