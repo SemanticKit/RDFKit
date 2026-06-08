@@ -14,19 +14,29 @@ let package = Package(
             targets: ["RDFKit"]
         )
     ],
-    dependencies: [
-        .package(url: "https://github.com/SemanticKit/SemanticKit.git", branch: "main")
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "RDFKit",
-            dependencies: ["SemanticKit"],
-            resources: [.copy("Turtle")]
+            dependencies: [],
+            exclude: [
+                "OWL/AGENTS.md",
+                "RDF/AGENTS.md",
+                "RDF/rdf.ttl",
+                "RDFS/AGENTS.md",
+                "RDFS/rdfs.ttl",
+                "Turtle/owl.ttl",
+                "Turtle/rdf.ttl",
+                "Turtle/rdfs.ttl"
+            ]
         ),
         .testTarget(
             name: "RDFKitTests",
-            dependencies: ["RDFKit", "SemanticKit"],
-            resources: [.copy("Data")]
+            dependencies: ["RDFKit"],
+            exclude: [
+                "Data/shacl.rdf",
+                "Data/shacl.ttl"
+            ]
         )
     ]
 )
