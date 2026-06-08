@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDF datatype.
+/// Declares an authored datatype.
 public struct Datatype<Body: Content>: Content {
     /// The local datatype name.
     let localName: LocalName

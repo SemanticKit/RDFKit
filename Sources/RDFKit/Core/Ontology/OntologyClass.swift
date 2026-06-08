@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDF class.
+/// Declares an authored class.
 public struct Class<Body: Content>: Content {
     /// The local class name.
     let localName: LocalName

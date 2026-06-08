@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDF individual.
+/// Declares an authored individual.
 public struct Individual<Body: Content>: Content {
     /// The local individual name.
     let localName: LocalName

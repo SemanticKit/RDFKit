@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDF property.
+/// Declares an authored property.
 public struct Property<Body: Content>: Content {
     /// The local property name.
     let localName: LocalName
