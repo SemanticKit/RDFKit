@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS superproperty inside property declaration content.
+/// Declares an RDFS superproperty as authored content.
 public struct SubPropertyOf: Content {
     /// The referenced superproperty.
     let value: OntologyTermReference

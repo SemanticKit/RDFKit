@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS range inside property declaration content.
+/// Declares an RDFS range as authored content.
 public struct Range: Content {
     /// The referenced range class or datatype.
     let value: OntologyTermReference

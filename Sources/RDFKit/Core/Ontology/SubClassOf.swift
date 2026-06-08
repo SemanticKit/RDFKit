@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS superclass inside class declaration content.
+/// Declares an RDFS superclass as authored content.
 public struct SubClassOf: Content {
     /// The referenced superclass.
     let value: OntologyTermReference

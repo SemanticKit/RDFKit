@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS seeAlso reference inside ontology declaration content.
+/// Declares an RDFS seeAlso reference as authored content.
 public struct SeeAlso: Content {
     /// The referenced resource.
     let value: OntologyTermReference

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDF type relationship inside ontology declaration content.
+/// Declares an RDF type relationship as authored content.
 public struct Type: Content {
     /// The referenced RDF type.
     let value: OntologyTermReference

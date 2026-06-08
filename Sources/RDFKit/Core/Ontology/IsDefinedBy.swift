@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS isDefinedBy reference inside ontology declaration content.
+/// Declares an RDFS isDefinedBy reference as authored content.
 public struct IsDefinedBy: Content {
     /// The defining resource.
     private let value: OntologyTermReference?

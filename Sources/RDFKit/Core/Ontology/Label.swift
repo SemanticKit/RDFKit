@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS label inside ontology declaration content.
+/// Declares an RDFS label as authored content.
 public struct Label: Content {
     /// The label text.
     let value: String

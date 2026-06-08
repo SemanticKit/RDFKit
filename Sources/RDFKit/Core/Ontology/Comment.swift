@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS comment inside ontology declaration content.
+/// Declares an RDFS comment as authored content.
 public struct Comment: Content {
     /// The comment text.
     let value: String

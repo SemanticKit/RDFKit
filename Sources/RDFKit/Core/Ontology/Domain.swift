@@ -1,6 +1,6 @@
 import Foundation
 
-/// Declares an RDFS domain inside property declaration content.
+/// Declares an RDFS domain as authored content.
 public struct Domain: Content {
     /// The referenced domain class.
     let value: OntologyTermReference
