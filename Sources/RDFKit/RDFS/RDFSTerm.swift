@@ -1,12 +1,9 @@
 import Foundation
 
-/// A type-level term from the RDFS vocabulary.
-public protocol RDFSTerm: VocabularyTerm, OntologyContent {}
+/// A type-level term from the RDFS namespace.
+public protocol RDFSTerm: NamespaceTerm, Content {}
 
 public extension RDFSTerm {
-    /// The standards vocabulary label.
-    static var vocabulary: String { "RDFS" }
-
     /// The RDFS namespace.
     static var namespace: Namespace { RDFS.declaredNamespace }
 

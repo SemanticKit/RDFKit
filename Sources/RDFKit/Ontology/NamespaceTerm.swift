@@ -1,18 +1,18 @@
 import Foundation
 
-/// A type-level term from a vocabulary namespace.
-public protocol VocabularyTerm: Term, TypeIRIRepresentable {
-    /// The vocabulary namespace.
+/// A type-level term from a namespace.
+public protocol NamespaceTerm: Term, TypeIRIRepresentable {
+    /// The term namespace.
     static var namespace: Namespace { get }
 
-    /// The vocabulary local name.
+    /// The term local name.
     static var localName: LocalName { get }
 
-    /// Creates the vocabulary term value.
+    /// Creates the term value.
     init()
 }
 
-extension VocabularyTerm {
+extension NamespaceTerm {
     /// The term namespace-qualified name.
     public static var qualifiedName: QualifiedName {
         QualifiedName(namespace: namespace, localName: localName)
@@ -27,5 +27,4 @@ extension VocabularyTerm {
     public var iri: IRI {
         Self.iri
     }
-
 }

@@ -1,19 +1,12 @@
 import Foundation
 
 /// Groups annotation facts inside an ontology declaration.
-public struct Annotation<Body: AnnotationContent>: ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent {
+public struct Annotation<Body: Content>: Content {
     /// The grouped annotation content.
     let content: Body
 
     /// Creates an annotation block.
-    public init(@AnnotationContentBuilder content: () -> Body) {
+    public init(@ContentBuilder content: () -> Body) {
         self.content = content()
-    }
-}
-
-extension Annotation: OntologyFactContent {
-    /// Adds this annotation block's facts to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
-        facts.addFacts(in: content, environment: environment)
     }
 }

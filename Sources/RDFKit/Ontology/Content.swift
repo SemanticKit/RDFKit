@@ -1,31 +1,10 @@
 import Foundation
 
-/// General ontology DSL content.
+/// Authored RDF content.
 public protocol Content: Sendable {}
 
-/// Top-level ontology content.
-public protocol OntologyContent: Content {}
-
-/// Content accepted by class declarations.
-public protocol ClassContent: Content {}
-
-/// Content accepted by property declarations.
-public protocol PropertyContent: Content {}
-
-/// Content accepted by datatype declarations.
-public protocol DatatypeContent: Content {}
-
-/// Content accepted by individual declarations.
-public protocol IndividualContent: Content {}
-
-/// Content accepted by annotation blocks.
-public protocol AnnotationContent: Content {}
-
 /// Content whose term identity is scoped by the enclosing ontology namespace.
-protocol NamespaceScopedDeclaration: OntologyTermContent, OntologyDeclarationFactContent, OntologyDeclarationContent {
-    /// The declaration role.
-    var role: OntologyDeclarationRole { get }
-
+protocol NamespaceScopedDeclaration: Content {
     /// The local name declared inside the enclosing ontology namespace.
     var localName: LocalName { get }
 
@@ -38,32 +17,17 @@ extension NamespaceScopedDeclaration {
     func iri(in environment: OntologyEnvironment) -> IRI {
         QualifiedName(namespace: environment.namespace, localName: localName).iri
     }
+
 }
 
-extension NamespaceScopedDeclaration {
-    /// Returns the scoped declaration IRI when it matches the requested role.
-    func termIRIs(in environment: OntologyEnvironment, role requestedRole: OntologyDeclarationRole?) throws -> [IRI] {
-        guard requestedRole == nil || role == requestedRole else {
-            return []
-        }
-
-        return [iri(in: environment)]
-    }
-
-    /// Adds this scoped declaration's facts to the declaration fact map.
-    func addDeclarationFacts(to facts: inout [IRI: OntologyDeclarationFacts], in environment: OntologyEnvironment) {
-        facts[iri(in: environment)] = OntologyDeclarationFacts(content: bodyContent, environment: environment)
-    }
-}
-
-/// Empty DSL content.
-public struct EmptyContent: OntologyContent, ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent {
+/// Empty authored RDF content.
+public struct EmptyContent: Content {
     /// Creates empty content.
     public init() {}
 }
 
-/// A group of DSL content values.
-public struct ContentGroup: OntologyContent, ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent {
+/// A group of authored RDF content values.
+public struct ContentGroup: Content {
     /// The grouped content values.
     public let elements: [any Content]
 
@@ -88,53 +52,46 @@ extension ContentGroup: OntologyNamespaceContent {
     }
 }
 
-extension ContentGroup: OntologyTermContent {
-    /// Returns term IRIs contributed by grouped content.
-    func termIRIs(in environment: OntologyEnvironment, role: OntologyDeclarationRole?) throws -> [IRI] {
-        var iris: [IRI] = []
-
-        for element in elements {
-            iris.append(contentsOf: try element.materializedTermIRIs(in: environment, role: role))
-        }
-
-        return iris
-    }
-}
-
-extension ContentGroup: OntologyFactContent {
-    /// Adds declaration facts contributed by grouped content.
-    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
-        for element in elements {
-            if let factContent = element as? any OntologyFactContent {
-                factContent.addFacts(to: &facts, in: environment)
-            }
-        }
-    }
-}
-
-extension ContentGroup: OntologyDeclarationFactContent {
-    /// Adds declaration facts contributed by grouped content.
-    func addDeclarationFacts(to facts: inout [IRI: OntologyDeclarationFacts], in environment: OntologyEnvironment) {
-        for element in elements {
-            if let declarationContent = element as? any OntologyDeclarationFactContent {
-                declarationContent.addDeclarationFacts(to: &facts, in: environment)
-            }
-        }
-    }
-}
-
-/// Builds protocol-based ontology content.
+/// Builds recursive authored RDF content.
 @resultBuilder
 public enum ContentBuilder {
+    /// Builds an empty content block.
     public static func buildBlock() -> EmptyContent {
         EmptyContent()
     }
 
+    /// Builds one content value without wrapping it.
     public static func buildBlock<ContentValue: Content>(_ content: ContentValue) -> ContentValue {
         content
     }
 
+    /// Builds a group of content values.
     public static func buildBlock(_ content: any Content...) -> ContentGroup {
         ContentGroup(content)
+    }
+
+    /// Builds optional content.
+    public static func buildOptional(_ content: (any Content)?) -> ContentGroup {
+        content.map { ContentGroup([$0]) } ?? ContentGroup([])
+    }
+
+    /// Builds the first branch of conditional content.
+    public static func buildEither(first content: any Content) -> ContentGroup {
+        ContentGroup([content])
+    }
+
+    /// Builds the second branch of conditional content.
+    public static func buildEither(second content: any Content) -> ContentGroup {
+        ContentGroup([content])
+    }
+
+    /// Builds repeated content.
+    public static func buildArray<ContentValue: Content>(_ components: [ContentValue]) -> ContentGroup {
+        ContentGroup(components.map { $0 as any Content })
+    }
+
+    /// Builds content guarded by availability checks.
+    public static func buildLimitedAvailability<ContentValue: Content>(_ content: ContentValue) -> ContentGroup {
+        ContentGroup([content])
     }
 }

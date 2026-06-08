@@ -1,7 +1,7 @@
 import Foundation
 
 /// An IRI-backed reference to a term used inside ontology declaration content.
-public struct TermReference: ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent, IRIRepresentable, Identifiable, Equatable, Hashable, Sendable {
+public struct TermReference: Content, IRIRepresentable, Identifiable, Equatable, Hashable, Sendable {
     private let reference: any IRIReference
 
     /// The referenced term IRI.
@@ -10,11 +10,6 @@ public struct TermReference: ClassContent, PropertyContent, DatatypeContent, Ind
     /// Creates a term reference from an IRI-backed value.
     public init<TermValue: IRIRepresentable>(_ term: TermValue) {
         self.reference = ValueIRIReference(iri: term.iri)
-    }
-
-    /// Creates a term reference from a vocabulary value.
-    public init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue) {
-        self.reference = TypeIRIReference<VocabularyValue>()
     }
 
     /// Creates a term reference from an IRI-backed type.

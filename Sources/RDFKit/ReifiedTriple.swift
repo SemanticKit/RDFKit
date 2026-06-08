@@ -1,12 +1,12 @@
 import Foundation
 
-/// Represents a reified triple term with optional assertion and annotations.
+/// Represents RDF reification content for a triple with optional assertion and annotations.
 public struct ReifiedTriple: Hashable, Sendable, GraphContent {
-    /// The resource that reifies the triple term.
+    /// The resource that reifies the triple.
     public let reifier: AnyRDFSubject
 
-    /// The reified triple term.
-    public let tripleTerm: TripleTerm
+    /// The RDF triple being reified.
+    public let triple: Graph.TripleType
 
     /// Whether the reified triple is also asserted in the graph.
     public let asserted: Bool
@@ -14,32 +14,17 @@ public struct ReifiedTriple: Hashable, Sendable, GraphContent {
     /// Additional predicate/object content attached to the reifier.
     public let annotations: [PredicateObjectPair]
 
-    /// Creates reified RDF statement content from a triple term.
-    public init(
-        reifier: AnyRDFSubject,
-        tripleTerm: TripleTerm,
-        asserted: Bool = false,
-        annotations: [PredicateObjectPair] = []
-    ) {
-        self.reifier = reifier
-        self.tripleTerm = tripleTerm
-        self.asserted = asserted
-        self.annotations = annotations
-    }
-
-    /// Creates reified RDF statement content from a graph triple.
+    /// Creates RDF reification content from a stored graph triple.
     public init(
         reifier: AnyRDFSubject,
         triple: Graph.TripleType,
         asserted: Bool = false,
         annotations: [PredicateObjectPair] = []
     ) {
-        self.init(
-            reifier: reifier,
-            tripleTerm: TripleTerm(subject: triple.subject, predicate: triple.predicate, object: triple.object),
-            asserted: asserted,
-            annotations: annotations
-        )
+        self.reifier = reifier
+        self.triple = triple
+        self.asserted = asserted
+        self.annotations = annotations
     }
 
     /// Writes this reified statement content into a graph.
@@ -55,9 +40,9 @@ public struct ReifiedTriple: Hashable, Sendable, GraphContent {
         if asserted {
             result.append(
                 Graph.TripleType(
-                    subject: tripleTerm.subject,
-                    predicate: tripleTerm.predicate,
-                    object: tripleTerm.object
+                    subject: triple.subject,
+                    predicate: triple.predicate,
+                    object: triple.object
                 )
             )
         }
@@ -66,7 +51,7 @@ public struct ReifiedTriple: Hashable, Sendable, GraphContent {
             Graph.TripleType(
                 subject: reifier,
                 predicate: RDF.reifies,
-                object: AnyRDFObject(tripleTerm)
+                object: AnyRDFObject(triple)
             )
         )
 

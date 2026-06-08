@@ -19,11 +19,6 @@ public struct OntologyTermReference: Equatable, Hashable, Sendable {
         self.reference = .term(TermReference(term))
     }
 
-    /// Creates a term reference from a vocabulary value.
-    public init<VocabularyValue: Vocabulary>(_ vocabulary: VocabularyValue) {
-        self.reference = .term(TermReference(vocabulary))
-    }
-
     /// Creates a term reference from an IRI-backed type.
     public init<TermType: TypeIRIRepresentable>(_ term: TermType.Type) {
         self.reference = .term(TermReference(term))

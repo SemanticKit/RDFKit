@@ -1,12 +1,9 @@
 import Foundation
 
-/// A type-level term from the RDF vocabulary.
-public protocol RDFTerm: VocabularyTerm, OntologyContent {}
+/// A type-level term from the RDF namespace.
+public protocol RDFTerm: NamespaceTerm, Content {}
 
 public extension RDFTerm {
-    /// The standards vocabulary label.
-    static var vocabulary: String { "RDF" }
-
     /// The RDF namespace.
     static var namespace: Namespace { RDF.declaredNamespace }
 

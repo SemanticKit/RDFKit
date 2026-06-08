@@ -1,12 +1,9 @@
 import Foundation
 
-/// A type-level term from the OWL vocabulary.
-public protocol OWLTerm: VocabularyTerm, OntologyContent {}
+/// A type-level term from the OWL namespace.
+public protocol OWLTerm: NamespaceTerm, Content {}
 
 public extension OWLTerm {
-    /// The standards vocabulary label.
-    static var vocabulary: String { "OWL" }
-
     /// The OWL namespace.
     static var namespace: Namespace { OWL.declaredNamespace }
 

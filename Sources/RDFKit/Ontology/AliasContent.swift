@@ -1,7 +1,7 @@
 import Foundation
 
 /// Ontology alias content.
-public protocol AliasContent: OntologyContent {}
+public protocol AliasContent: Content {}
 
 /// An empty alias content value.
 public struct EmptyAliasContent: AliasContent {
@@ -28,10 +28,22 @@ public struct Alias<Target: AliasTarget>: AliasContent {
         self.target = target
     }
 
-    /// Creates a prefix alias bound to a vocabulary type.
-    public init<VocabularyValue: Vocabulary>(_ prefix: String, _ target: VocabularyValue.Type) where Target == VocabularyAliasTarget<VocabularyValue> {
+    /// Creates a prefix alias bound to a namespace type.
+    public init<NamespaceValue: TypeIRIRepresentable>(_ prefix: String, _ target: NamespaceValue.Type) where Target == NamespaceTypeAliasTarget<NamespaceValue> {
         self.prefix = prefix
-        self.target = VocabularyAliasTarget(target)
+        self.target = NamespaceTypeAliasTarget(target)
+    }
+}
+
+/// An alias target resolved through a namespace type.
+public struct NamespaceTypeAliasTarget<NamespaceValue: TypeIRIRepresentable>: AliasTarget {
+    /// Creates a namespace alias target.
+    public init(_ namespace: NamespaceValue.Type) {
+    }
+
+    /// Returns the namespace represented by the namespace type.
+    public func aliasNamespace() throws -> Namespace {
+        Namespace(NamespaceValue.iri.rawValue)
     }
 }
 

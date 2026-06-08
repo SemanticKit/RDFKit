@@ -1,7 +1,7 @@
 import Foundation
 
 /// Declares an RDFS isDefinedBy reference inside ontology declaration content.
-public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, IndividualContent, AnnotationContent {
+public struct IsDefinedBy: Content {
     /// The defining resource.
     private let value: OntologyTermReference?
 
@@ -33,17 +33,5 @@ public struct IsDefinedBy: ClassContent, PropertyContent, DatatypeContent, Indiv
     /// Creates an isDefinedBy declaration from an IRI-backed type.
     public init<TermType: TypeIRIRepresentable>(_ value: TermType.Type) {
         self.value = OntologyTermReference(value)
-    }
-
-    /// Creates an isDefinedBy declaration from a vocabulary value.
-    public init<VocabularyValue: Vocabulary>(_ value: VocabularyValue) {
-        self.value = OntologyTermReference(value)
-    }
-}
-
-extension IsDefinedBy: OntologyFactContent {
-    /// Adds this defining resource reference to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
-        facts.isDefinedBy.insert(value?.iri(in: environment) ?? environment.iri)
     }
 }

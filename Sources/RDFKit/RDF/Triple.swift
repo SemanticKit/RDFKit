@@ -1,7 +1,11 @@
 import Foundation
 
-/// An RDF triple with subject, predicate, and object terms.
-public protocol RDFTriple: Hashable, CustomStringConvertible, Sendable {
+/// An RDF triple with subject, predicate, and object components.
+///
+/// RDF 1.2 defines triples recursively: a triple may be used as the object of
+/// another triple. Conforming to `RDFObject` exposes that participation through
+/// protocol conformance instead of a separate wrapper type.
+public protocol RDFTriple: RDFObject {
     associatedtype Subject: RDFSubject
     associatedtype Predicate: RDFPredicate
     associatedtype Object: RDFObject
@@ -23,7 +27,10 @@ extension RDFTriple {
     }
 }
 
-/// The default RDFKit triple value.
+/// A concrete RDF triple value.
+///
+/// Use this value when the caller needs a stored triple. APIs that only need
+/// triple behavior should constrain on `RDFTriple`.
 public struct Triple<Subject: RDFSubject, Object: RDFObject>: RDFTriple {
     public typealias Predicate = IRI
 

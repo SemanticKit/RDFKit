@@ -1,7 +1,7 @@
 import Foundation
 
 /// Declares an RDFS domain inside property declaration content.
-public struct Domain: PropertyContent {
+public struct Domain: Content {
     /// The referenced domain class.
     public let value: OntologyTermReference
 
@@ -28,12 +28,5 @@ public struct Domain: PropertyContent {
     /// Creates a domain declaration from an IRI-backed type.
     public init<TermType: TypeIRIRepresentable>(_ value: TermType.Type) {
         self.value = OntologyTermReference(value)
-    }
-}
-
-extension Domain: OntologyFactContent {
-    /// Adds this domain relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
-        facts.domains.insert(value.iri(in: environment))
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Declares an RDFS superclass inside class declaration content.
-public struct SubClassOf: ClassContent, DatatypeContent {
+public struct SubClassOf: Content {
     /// The referenced superclass.
     public let value: OntologyTermReference
 
@@ -28,12 +28,5 @@ public struct SubClassOf: ClassContent, DatatypeContent {
     /// Creates a superclass declaration from an IRI-backed type.
     public init<TermType: TypeIRIRepresentable>(_ value: TermType.Type) {
         self.value = OntologyTermReference(value)
-    }
-}
-
-extension SubClassOf: OntologyFactContent {
-    /// Adds this superclass relationship to the enclosing declaration facts.
-    func addFacts(to facts: inout OntologyDeclarationFacts, in environment: OntologyEnvironment) {
-        facts.superclasses.insert(value.iri(in: environment))
     }
 }

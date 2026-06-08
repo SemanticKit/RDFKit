@@ -1,12 +1,19 @@
 import Foundation
 
-/// The RDF vocabulary namespace.
-public struct RDF: Equatable, Hashable, Sendable {
-    /// Creates an RDF vocabulary DSL value.
-    public init() {}
-}
+/// The RDF namespace.
+public struct RDF: Equatable, Hashable, Sendable, IRIRepresentable, TypeIRIRepresentable, AliasTarget {
+    /// The RDF namespace IRI.
+    public static var iri: IRI { declaredNamespace.iri }
 
-extension RDF: StandardsVocabulary {
-    /// The standards matrix label for RDF.
-    static var standardsLabel: String { "RDF" }
+    /// The RDF namespace.
+    public static var declaredNamespace: Namespace { Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#") }
+
+    /// The RDF namespace IRI.
+    public var iri: IRI { Self.iri }
+
+    /// Creates an RDF namespace DSL value.
+    public init() {}
+
+    /// Returns the RDF namespace.
+    public func aliasNamespace() throws -> Namespace { Self.declaredNamespace }
 }

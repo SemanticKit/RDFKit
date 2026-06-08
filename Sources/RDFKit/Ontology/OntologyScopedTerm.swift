@@ -1,7 +1,7 @@
 import Foundation
 
 /// A term whose namespace is inferred from an ontology's DSL content.
-public protocol OntologyScopedTerm: VocabularyTerm, OntologyContent {
+public protocol OntologyScopedTerm: NamespaceTerm, Content {
     associatedtype OntologyValue: Ontology
 
     /// The ontology that supplies this term's namespace.
