@@ -14,11 +14,13 @@ let package = Package(
             targets: ["RDFKit"]
         )
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main")
+    ],
     targets: [
         .target(
             name: "RDFKit",
-            dependencies: [],
+            dependencies: ["IRIKit"],
             exclude: [
                 "OWL/AGENTS.md",
                 "RDF/AGENTS.md",

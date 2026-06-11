@@ -1,77 +1,70 @@
 import Testing
 @testable import RDFKit
+@testable import IRIKit
 
 @Suite struct RDFContentTests {
     private struct RDFOntology: Ontology {
         var content: some Content {
-            Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-            Alias("rdf", Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#"))
-            Alias("rdfs", Namespace("http://www.w3.org/2000/01/rdf-schema#"))
-            Alias("owl", Namespace("http://www.w3.org/2002/07/owl#"))
+//            Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+            Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+            Prefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+            Prefix("owl", "http://www.w3.org/2002/07/owl#")
 
             Class("Statement") {
-                Type(RDFS.Class.self)
-                SubClassOf(RDFS.Resource.self)
-                IsDefinedBy()
+                Type(RDFS.Class)
+                SubClassOf(RDFS.Resource)
                 Label("Statement")
                 Comment("The class of RDF statements.")
             }
 
             Datatype("langString") {
-                Type(RDFS.Datatype.self)
-                SubClassOf(RDFS.Literal.self)
-                IsDefinedBy()
+                Type(RDFS.Datatype)
+                SubClassOf(RDFS.Literal)
                 Label("langString")
                 Comment("The datatype of language-tagged string values.")
             }
 
             Individual("nil") {
-                Type(RDF.List.self)
-                IsDefinedBy()
+                Type(RDF.List)
                 Label("nil")
                 Comment("The empty list.")
             }
 
             Property("type") {
-                Type(RDF.Property.self)
-                Domain(RDFS.Resource.self)
-                Range(RDFS.Class.self)
-                IsDefinedBy()
+                Type(RDF.Property)
+                Domain(RDFS.Resource)
+                Range(RDFS.Class)
                 Label("type")
                 Comment("The subject is an instance of a class.")
             }
 
             Class("CompoundLiteral") {
-                Type(RDFS.Class.self)
-                SubClassOf(RDFS.Resource.self)
-                IsDefinedBy()
-                SeeAlso(IRI("https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties"))
+                Type(RDFS.Class)
+                SubClassOf(RDFS.Resource)
+                SeeAlso("https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties")
                 Label("CompoundLiteral")
                 Comment("A class representing a compound literal.")
             }
 
             Datatype("PlainLiteral") {
-                Type(RDFS.Datatype.self)
-                SubClassOf(RDFS.Literal.self)
-                IsDefinedBy()
-                SeeAlso(IRI("http://www.w3.org/TR/rdf-plain-literal/"))
+                Type(RDFS.Datatype)
+                SubClassOf(RDFS.Literal)
+                SeeAlso("http://www.w3.org/TR/rdf-plain-literal/")
                 Label("PlainLiteral")
                 Comment("The class of plain literal values.")
                 OWLDeprecated()
             }
 
             Property("first") {
-                Type(RDF.Property.self)
-                Domain(RDF.List.self)
-                Range(RDFS.Resource.self)
-                IsDefinedBy()
+                Type(RDF.Property)
+                Domain(RDF.List)
+                Range(RDFS.Resource)
                 Label("first")
                 Comment("The first item in the subject RDF list.")
             }
 
             Individual("version-1.2") {
-                Type(RDFS.Resource.self)
-                IsDefinedBy()
+                Type(RDFS.Resource)
                 Label("1.2")
                 Comment("Version 1.2.")
             }
@@ -86,9 +79,8 @@ import Testing
 
     @Test func rdfClassDeclarationConstructsAuthoredContent() {
         let content = Class("Statement") {
-            Type(RDFS.Class.self)
-            SubClassOf(RDFS.Resource.self)
-            IsDefinedBy()
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             Label("Statement")
             Comment("The class of RDF statements.")
         }
@@ -98,10 +90,9 @@ import Testing
 
     @Test func rdfClassDeclarationConstructsAuthoredContentWithSeeAlso() {
         let content = Class("CompoundLiteral") {
-            Type(RDFS.Class.self)
-            SubClassOf(RDFS.Resource.self)
-            IsDefinedBy()
-            SeeAlso(IRI("https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties"))
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            SeeAlso("https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties")
             Label("CompoundLiteral")
             Comment("A class representing a compound literal.")
         }
@@ -111,9 +102,8 @@ import Testing
 
     @Test func rdfDatatypeDeclarationConstructsAuthoredContent() {
         let content = Datatype("langString") {
-            Type(RDFS.Datatype.self)
-            SubClassOf(RDFS.Literal.self)
-            IsDefinedBy()
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             Label("langString")
             Comment("The datatype of language-tagged string values.")
         }
@@ -123,10 +113,9 @@ import Testing
 
     @Test func rdfDatatypeDeclarationConstructsAuthoredContentWithDeprecation() {
         let content = Datatype("PlainLiteral") {
-            Type(RDFS.Datatype.self)
-            SubClassOf(RDFS.Literal.self)
-            IsDefinedBy()
-            SeeAlso(IRI("http://www.w3.org/TR/rdf-plain-literal/"))
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
+            SeeAlso("http://www.w3.org/TR/rdf-plain-literal/")
             Label("PlainLiteral")
             Comment("The class of plain literal values.")
             OWLDeprecated()
@@ -137,8 +126,7 @@ import Testing
 
     @Test func rdfIndividualDeclarationConstructsAuthoredContent() {
         let content = Individual("nil") {
-            Type(RDF.List.self)
-            IsDefinedBy()
+            Type(RDF.List)
             Label("nil")
             Comment("The empty list.")
         }
@@ -148,8 +136,7 @@ import Testing
 
     @Test func rdfVersionIndividualConstructsAuthoredContent() {
         let content = Individual("version-1.2") {
-            Type(RDFS.Resource.self)
-            IsDefinedBy()
+            Type(RDFS.Resource)
             Label("1.2")
             Comment("Version 1.2.")
         }
@@ -159,10 +146,9 @@ import Testing
 
     @Test func rdfPropertyDeclarationConstructsAuthoredContent() {
         let content = Property("type") {
-            Type(RDF.Property.self)
-            Domain(RDFS.Resource.self)
-            Range(RDFS.Class.self)
-            IsDefinedBy()
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Class)
             Label("type")
             Comment("The subject is an instance of a class.")
         }
@@ -172,10 +158,9 @@ import Testing
 
     @Test func rdfListPropertyDeclarationConstructsAuthoredContent() {
         let content = Property("first") {
-            Type(RDF.Property.self)
-            Domain(RDF.List.self)
-            Range(RDFS.Resource.self)
-            IsDefinedBy()
+            Type(RDF.Property)
+            Domain(RDF.List)
+            Range(RDFS.Resource)
             Label("first")
             Comment("The first item in the subject RDF list.")
         }

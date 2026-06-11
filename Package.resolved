@@ -1,4 +1,15 @@
 {
-  "pins" : [],
+  "originHash" : "c60a7278a5cb19e2b9517418b4579bd6f0a0288f16b16da2d2910e26204eee38",
+  "pins" : [
+    {
+      "identity" : "irikit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SemanticKit/IRIKit.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "2beed642c20fbd3bd0c8802e2f989d85380cac34"
+      }
+    }
+  ],
   "version" : 3
 }
