@@ -1,15 +1,15 @@
 import Foundation
 
 /// A prefix alias bound to a namespace.
-public struct Prefix: Content {
+public struct Prefix: Sendable {
     /// The alias prefix.
     public let prefix: String
 
     /// The target namespace.
-    public let namespace: Namespace
+    public let namespace: String
 
     /// Creates a prefix alias.
-    public init(_ prefix: String, _ namespace: Namespace) {
+    public init(_ prefix: String, _ namespace: String) {
         self.prefix = prefix
         self.namespace = namespace
     }
@@ -17,7 +17,7 @@ public struct Prefix: Content {
 
 public extension Prefix {
     /// @prefix dc: <http://purl.org/dc/elements/1.1/> .
-    static var dc: some Content {
+    static var dc: Prefix {
         Prefix(
             "dc",
             "http://purl.org/dc/elements/1.1/"

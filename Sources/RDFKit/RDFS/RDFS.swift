@@ -3,6 +3,8 @@ import RDFCore
 
 /// The RDF Schema ontology.
 public struct RDFS: Ontology {
+    public typealias Content = Node
+
     public var content: some Content {
 //        Namespace("http://www.w3.org/2000/01/rdf-schema#")
         

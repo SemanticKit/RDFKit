@@ -3,6 +3,8 @@ import RDFCore
 
 /// The OWL ontology.
 public struct OWL: Ontology {
+    public typealias Content = Node
+
     public var content: some Content {
         Prefix("dc", "http://purl.org/dc/elements/1.1/")
         Prefix("grddl", "http://www.w3.org/2003/g/data-view#")

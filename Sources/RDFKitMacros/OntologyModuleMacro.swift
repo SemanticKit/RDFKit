@@ -30,9 +30,8 @@ public struct OntologyModuleMacro: PeerMacro {
 
         var declarations: [DeclSyntax] = []
         var diagnosedEmissionError = false
-        let rolePrefix = roleNamePrefix(for: declaration)
 
-        for (index, term) in terms.enumerated() {
+        for term in terms {
             guard let identifier = swiftIdentifier(for: term.name) else {
                 context.diagnose(
                     Diagnostic(
@@ -44,26 +43,13 @@ public struct OntologyModuleMacro: PeerMacro {
                 continue
             }
 
-            let roleName = "\(rolePrefix)\(index)"
             let documentedName = documentationText(for: term.name)
 
             declarations.append(
                 DeclSyntax(
                     stringLiteral: """
-                    /// Role metadata for the `\(documentedName)` ontology term.
-                    enum \(roleName): DeclaredOntologyTerm {
-                        /// The term name exactly as authored in the ontology declaration.
-                        static let ontologyTermName = \(term.name.debugDescription)
-                    }
-                    """
-                )
-            )
-
-            declarations.append(
-                DeclSyntax(
-                    stringLiteral: """
-                    /// Direct content declaration bound to the `\(documentedName)` ontology term.
-                    typealias \(identifier)<Body: Content> = NamedDeclaration<\(roleName), Body>
+                    /// Direct authored identifier for the `\(documentedName)` ontology term.
+                    let \(identifier) = \(term.name.debugDescription)
                     """
                 )
             )
@@ -74,27 +60,6 @@ public struct OntologyModuleMacro: PeerMacro {
         }
 
         return declarations
-    }
-
-    /// Returns the attached ontology root type name when one exists.
-    private static func ontologyRootName(for declaration: some DeclSyntaxProtocol) -> String? {
-        if let structDeclaration = declaration.as(StructDeclSyntax.self) {
-            return structDeclaration.name.text
-        }
-
-        if let classDeclaration = declaration.as(ClassDeclSyntax.self) {
-            return classDeclaration.name.text
-        }
-
-        if let actorDeclaration = declaration.as(ActorDeclSyntax.self) {
-            return actorDeclaration.name.text
-        }
-
-        if let enumDeclaration = declaration.as(EnumDeclSyntax.self) {
-            return enumDeclaration.name.text
-        }
-
-        return nil
     }
 
     /// Finds the computed `content: some Content` body on the attached root.
@@ -134,13 +99,6 @@ public struct OntologyModuleMacro: PeerMacro {
         }
 
         return nil
-    }
-
-    /// Returns the generated role-name prefix for the attached declaration.
-    private static func roleNamePrefix(for declaration: some DeclSyntaxProtocol) -> String {
-        let declarationName = ontologyRootName(for: declaration) ?? "Root"
-
-        return "__RDFKitOntologyTerm_\(declarationName)_"
     }
 
     /// Returns the member block for declarations that can contain members.

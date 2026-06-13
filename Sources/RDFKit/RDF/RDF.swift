@@ -3,6 +3,8 @@ import RDFCore
 
 /// The RDF ontology.
 public struct RDF: Ontology {
+    public typealias Content = Node
+
     public var content: some Content {
         Prefix.rdf
         Prefix.rdfs

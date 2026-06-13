@@ -1,7 +1,7 @@
 import Foundation
 
 /// The most general RDF node protocol.
-public protocol Node: Content, Hashable, Sendable {}
+public protocol Node: Sendable {}
 
 /// A node that may appear in the subject position of a triple.
 public protocol Subject: Node {}

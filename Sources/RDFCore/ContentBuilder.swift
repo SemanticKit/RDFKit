@@ -7,31 +7,31 @@ public enum ContentBuilder {
         EmptyContent()
     }
 
-    public static func buildBlock<ContentValue: Content>(_ content: ContentValue) -> ContentValue {
+    public static func buildBlock<Content: Node>(_ content: Content) -> Content {
         content
     }
 
-    public static func buildBlock(_ content: any Content...) -> ContentGroup {
+    public static func buildBlock(_ content: any Node...) -> ContentGroup {
         ContentGroup(content)
     }
 
-    public static func buildOptional(_ content: (any Content)?) -> ContentGroup {
+    public static func buildOptional(_ content: (any Node)?) -> ContentGroup {
         content.map { ContentGroup([$0]) } ?? ContentGroup([])
     }
 
-    public static func buildEither(first content: any Content) -> ContentGroup {
+    public static func buildEither(first content: any Node) -> ContentGroup {
         ContentGroup([content])
     }
 
-    public static func buildEither(second content: any Content) -> ContentGroup {
+    public static func buildEither(second content: any Node) -> ContentGroup {
         ContentGroup([content])
     }
 
-    public static func buildArray<ContentValue: Content>(_ components: [ContentValue]) -> ContentGroup {
-        ContentGroup(components.map { $0 as any Content })
+    public static func buildArray<Content: Node>(_ components: [Content]) -> ContentGroup {
+        ContentGroup(components.map { $0 as any Node })
     }
 
-    public static func buildLimitedAvailability<ContentValue: Content>(_ content: ContentValue) -> ContentGroup {
+    public static func buildLimitedAvailability<Content: Node>(_ content: Content) -> ContentGroup {
         ContentGroup([content])
     }
 }
