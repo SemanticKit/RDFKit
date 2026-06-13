@@ -1,3 +1,3 @@
 import IRIKit
 
-extension IRI: Term {}
+extension IRI: Subject, Predicate, Object {}
