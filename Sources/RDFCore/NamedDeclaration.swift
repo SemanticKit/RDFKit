@@ -2,8 +2,11 @@ import Foundation
 
 /// A named declaration authored inside an ontology.
 public struct NamedDeclaration<Role, Body: Content>: Content {
-    let name: String
-    let content: Body
+    /// The authored declaration name.
+    public let name: String
+
+    /// The declaration's nested authored content.
+    public let content: Body
 
     public init(_ name: String) where Body == EmptyContent {
         self.name = name

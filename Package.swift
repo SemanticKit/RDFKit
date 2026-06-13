@@ -1,26 +1,39 @@
-// swift-tools-version: 6.3
+// swift-tools-version: 6.4
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
     name: "RDFKit",
     platforms: [
-        .macOS(.v26),
-        .iOS(.v26),
-        .visionOS(.v26)
+        .macOS(.v27),
+        .iOS(.v27),
+        .visionOS(.v27)
     ],
     products: [
         .library(
             name: "RDFKit",
             targets: ["RDFKit"]
+        ),
+        .library(
+            name: "RDFCore",
+            targets: ["RDFCore"]
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main")
+        .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "603.0.2")
     ],
     targets: [
         .target(
+            name: "RDFCore",
+            dependencies: ["IRIKit"]
+        ),
+        .target(
             name: "RDFKit",
-            dependencies: ["IRIKit"],
+            dependencies: [
+                "RDFCore",
+                "RDFKitMacros"
+            ],
             exclude: [
                 "OWL/AGENTS.md",
                 "RDF/AGENTS.md",
@@ -30,6 +43,15 @@ let package = Package(
                 "Turtle/owl.ttl",
                 "Turtle/rdf.ttl",
                 "Turtle/rdfs.ttl"
+            ]
+        ),
+        .macro(
+            name: "RDFKitMacros",
+            dependencies: [
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax")
             ]
         ),
         .testTarget(

@@ -1,4 +1,5 @@
 import Foundation
+import RDFCore
 
 /// The RDF Schema ontology.
 public struct RDFS: Ontology {

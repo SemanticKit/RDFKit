@@ -3,7 +3,8 @@ import IRIKit
 
 /// A declaration whose value is an authored IRI reference.
 public struct IRIAssertion<Role>: Content {
-    let value: String
+    /// The authored IRI reference text.
+    public let value: String
 
     public init(_ value: IRI) {
         self.value = value.description

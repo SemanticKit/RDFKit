@@ -3,10 +3,10 @@ import Foundation
 /// A prefix alias bound to a namespace.
 public struct Prefix: Content {
     /// The alias prefix.
-    let prefix: String
+    public let prefix: String
 
     /// The target namespace.
-    let namespace: Namespace
+    public let namespace: Namespace
 
     /// Creates a prefix alias.
     public init(_ prefix: String, _ namespace: Namespace) {
@@ -15,7 +15,7 @@ public struct Prefix: Content {
     }
 }
 
-extension Prefix {
+public extension Prefix {
     /// @prefix dc: <http://purl.org/dc/elements/1.1/> .
     static var dc: some Content {
         Prefix(
