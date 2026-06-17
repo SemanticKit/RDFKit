@@ -1,37 +1,69 @@
 import Foundation
 
-/// Builds recursive authored RDF content.
+/// Builds ontology-level content (declarations: Class, Property, Prefix, etc.).
 @resultBuilder
 public enum ContentBuilder {
-    public static func buildBlock() -> EmptyContent {
-        EmptyContent()
+    public static func buildBlock() -> [any Node] {
+        []
     }
 
-    public static func buildBlock<Content: Node>(_ content: Content) -> Content {
-        content
+    public static func buildBlock<each T: Node>(_ content: repeat each T) -> [any Node] {
+        var result: [any Node] = []
+        repeat result.append(each content)
+        return result
     }
 
-    public static func buildBlock(_ content: any Node...) -> ContentGroup {
-        ContentGroup(content)
+    public static func buildOptional(_ content: (any Node)?) -> [any Node] {
+        content.map { [$0] } ?? []
     }
 
-    public static func buildOptional(_ content: (any Node)?) -> ContentGroup {
-        content.map { ContentGroup([$0]) } ?? ContentGroup([])
+    public static func buildEither(first content: any Node) -> [any Node] {
+        [content]
     }
 
-    public static func buildEither(first content: any Node) -> ContentGroup {
-        ContentGroup([content])
+    public static func buildEither(second content: any Node) -> [any Node] {
+        [content]
     }
 
-    public static func buildEither(second content: any Node) -> ContentGroup {
-        ContentGroup([content])
+    public static func buildArray(_ components: [any Node]) -> [any Node] {
+        components
     }
 
-    public static func buildArray<Content: Node>(_ components: [Content]) -> ContentGroup {
-        ContentGroup(components.map { $0 as any Node })
+    public static func buildLimitedAvailability(_ content: any Node) -> [any Node] {
+        [content]
+    }
+}
+
+/// Builds term-level content (annotations: Type, SubClassOf, Label, etc.).
+@resultBuilder
+public enum TermContentBuilder {
+    public static func buildBlock() -> [any Node] {
+        []
     }
 
-    public static func buildLimitedAvailability<Content: Node>(_ content: Content) -> ContentGroup {
-        ContentGroup([content])
+    public static func buildBlock<each T: Node>(_ content: repeat each T) -> [any Node] {
+        var result: [any Node] = []
+        repeat result.append(each content)
+        return result
+    }
+
+    public static func buildOptional(_ content: (any Node)?) -> [any Node] {
+        content.map { [$0] } ?? []
+    }
+
+    public static func buildEither(first content: any Node) -> [any Node] {
+        [content]
+    }
+
+    public static func buildEither(second content: any Node) -> [any Node] {
+        [content]
+    }
+
+    public static func buildArray(_ components: [any Node]) -> [any Node] {
+        components
+    }
+
+    public static func buildLimitedAvailability(_ content: any Node) -> [any Node] {
+        [content]
     }
 }

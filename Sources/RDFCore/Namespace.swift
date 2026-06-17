@@ -2,7 +2,7 @@ import Foundation
 import IRIKit
 
 /// An RDF namespace IRI used to qualify vocabulary terms.
-public struct Namespace: RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, ExpressibleByStringLiteral {
+public struct Namespace: Node, RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, ExpressibleByStringLiteral {
     /// The namespace IRI text.
     public let rawValue: String
 

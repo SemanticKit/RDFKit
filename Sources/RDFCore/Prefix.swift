@@ -1,7 +1,7 @@
 import Foundation
 
 /// A prefix alias bound to a namespace.
-public struct Prefix: Sendable {
+public struct Prefix: Node {
     /// The alias prefix.
     public let prefix: String
 
