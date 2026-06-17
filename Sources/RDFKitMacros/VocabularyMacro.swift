@@ -72,20 +72,25 @@ public struct VocabularyMacro: MemberMacro {
             results.append("""
             public struct \(raw: termStructName): \(raw: conformanceList) {
                 public let name: String = \(raw: "\"\(term.name)\"")
-                public let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
+                public let iri: IRIKit.IRI
                 public let kind: RDFCore.TermKind = \(raw: term.kindEnum)
-                public let children: [any RDFCore.Node]
 
-                public init() {
-                    self.children = [
+                public init(_ iri: IRIKit.IRI) {
+                    self.iri = iri
+                }
+
+                public var children: [any RDFCore.Node] {
+                    [
             \(raw: childrenBody)
                     ]
                 }
+
+                public func callAsFunction() -> \(raw: termStructName) { self }
             }
             """)
 
             results.append("""
-            public static let \(raw: staticName) = \(raw: termStructName)()
+            public static let \(raw: staticName) = \(raw: termStructName)(\(raw: "\"\(iriString)\""))
             """)
         }
 
