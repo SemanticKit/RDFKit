@@ -6,33 +6,31 @@ import Fauna
 @Suite("Fauna ontology")
 struct FaunaTests {
 
-    @Test("Classes are real types you can use")
-    func classes() {
-        let animal = Fauna.Animal
-        let habitat = Fauna.Habitat
-        let diet = Fauna.Diet
-        #expect(animal.name == "Animal")
-        #expect(habitat.name == "Habitat")
-        #expect(diet.name == "Diet")
+    @Test("Create an animal")
+    func createAnimal() {
+        let animal = Fauna.Animal()
+        #expect(animal.habitat.name == "Habitat")
+        #expect(animal.diet.name == "Diet")
+        #expect(animal.commonName == "")
+        #expect(animal.scientificName == "")
     }
 
-    @Test("Properties are real types you can use")
-    func properties() {
-        let hasHabitat = Fauna.hasHabitat
-        let hasDiet = Fauna.hasDiet
-        let commonName = Fauna.commonName
-        let scientificName = Fauna.scientificName
-        #expect(hasHabitat.name == "hasHabitat")
-        #expect(hasDiet.name == "hasDiet")
-        #expect(commonName.name == "commonName")
-        #expect(scientificName.name == "scientificName")
+    @Test("Create an animal with values")
+    func createAnimalWithValues() {
+        let lion = Fauna.Animal(
+            habitat: Fauna.Habitat(),
+            diet: Fauna.Diet(),
+            commonName: "Lion",
+            scientificName: "Panthera leo"
+        )
+        #expect(lion.commonName == "Lion")
+        #expect(lion.scientificName == "Panthera leo")
     }
 
-    @Test("Terms have stable identity")
-    func identity() {
-        let a1 = Fauna.Animal
-        let a2 = Fauna.Animal
-        #expect(a1 == a2)
-        #expect(a1.id == a1.iri)
+    @Test("callAsFunction creates new instances")
+    func callAsFunction() {
+        let a1 = Fauna.Animal()
+        let a2 = Fauna.Animal()()
+        #expect(a1.commonName == a2.commonName)
     }
 }

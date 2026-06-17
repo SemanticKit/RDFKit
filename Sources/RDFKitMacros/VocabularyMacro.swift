@@ -2,15 +2,10 @@ import Foundation
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// A macro that reads the ontology content tree and generates typed term structs.
+/// A macro that reads the ontology content tree and generates real Swift types.
 ///
-/// Attached to an ontology struct, this macro:
-/// 1. Finds the `content` computed property body
-/// 2. Extracts the namespace string from `Namespace("...")`
-/// 3. For each `Class("Name")`, `Property("Name")`, `Individual("Name")`, `Datatype("Name")`:
-///    a. Reads the trailing closure to discover annotations
-///    b. Generates a `{Name}Term` struct conforming to `OntologyTerm` + contribution protocols
-///    c. Generates a `static let {Name} = {Name}Term()` property
+/// Class-level concerns (static): name, iri, kind
+/// Instance-level concerns: id, children, domain properties
 public struct VocabularyMacro: MemberMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -18,7 +13,7 @@ public struct VocabularyMacro: MemberMacro {
         conformingTo types: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        guard let structDecl = declaration.as(StructDeclSyntax.self) else {
+        guard declaration.is(StructDeclSyntax.self) else {
             throw VocabularyError("@Vocabulary can only be applied to structs")
         }
 
@@ -32,12 +27,43 @@ public struct VocabularyMacro: MemberMacro {
         }
 
         let body = CodeBlockSyntax(statements: codeBlock)
+        let ontologyName = declaration.as(StructDeclSyntax.self)?.name.text ?? ""
+
+        // Meta-ontologies define vocabulary, not domain types — skip consumer structs
+        let metaOntologies: Set<String> = ["RDF", "RDFS", "OWL"]
+        let generateConsumerTypes = !metaOntologies.contains(ontologyName)
 
         guard let namespace = extractNamespace(from: body) else {
             throw VocabularyError("Content must include a Namespace(\"...\") declaration")
         }
 
         let terms = extractTerms(from: body)
+
+        // Collect class names defined in THIS ontology
+        let localClassNames: Set<String> = Set(
+            terms.filter { $0.kind == .class }.map { sanitizeTypeName($0.name) }
+        )
+
+        // Build property mapping: className -> [(propName, rangeType)]
+        var classProperties: [String: [(propertyName: String, rangeType: String)]] = [:]
+
+        for term in terms where term.kind == .property {
+            guard let domain = term.annotations.first(where: { $0.name == "Domain" })?.argumentText,
+                  let range = term.annotations.first(where: { $0.name == "Range" })?.argumentText else {
+                continue
+            }
+
+            let className = sanitizeTypeName(lastComponent(of: domain))
+            guard localClassNames.contains(className) else { continue }
+
+            let rangeTypeName = lastComponent(of: range.trimmingCharacters(in: .whitespaces))
+            guard className != rangeTypeName else { continue }
+
+            let propName = derivePropertyName(from: term.name)
+            let swiftType = mapRangeToSwiftType(range, currentOntology: ontologyName)
+
+            classProperties[className, default: []].append((propName, swiftType))
+        }
 
         var results: [DeclSyntax] = []
 
@@ -47,7 +73,7 @@ public struct VocabularyMacro: MemberMacro {
             let termStructName = "\(swiftName)Term"
             let staticName = sanitizePropertyName(term.name)
 
-            // Build contribution protocol conformances (deduplicated)
+            // Build contribution protocol conformances
             var conformances: [String] = ["RDFCore.OntologyTerm"]
             var seenProtocols: Set<String> = ["OntologyTerm"]
             for annotation in term.annotations {
@@ -59,39 +85,64 @@ public struct VocabularyMacro: MemberMacro {
             }
             let conformanceList = conformances.joined(separator: ", ")
 
-            // Build children array from annotations
+            // Build children from annotations
             var childrenElements: [String] = []
             for annotation in term.annotations {
                 if let initializer = annotation.childrenInitializer {
-                    childrenElements.append("                \(initializer)")
+                    childrenElements.append("                    \(initializer)")
                 }
             }
             let childrenBody = childrenElements.joined(separator: ",\n")
 
-            // Generate the term struct
-            results.append("""
-            public struct \(raw: termStructName): \(raw: conformanceList) {
-                public let name: String = \(raw: "\"\(term.name)\"")
-                public let iri: IRIKit.IRI
-                public let kind: RDFCore.TermKind = \(raw: term.kindEnum)
+            let props = classProperties[swiftName] ?? []
 
-                public init(_ iri: IRIKit.IRI) {
-                    self.iri = iri
+            if generateConsumerTypes && term.kind == .class {
+                // --- Consumer type: the real type users interact with ---
+                var storedProps: [String] = []
+                var initParams: [String] = []
+
+                for prop in props {
+                    storedProps.append("        public let \(prop.propertyName): \(prop.rangeType)")
+                    initParams.append("\(prop.propertyName): \(prop.rangeType) = \(prop.rangeType)()")
                 }
 
-                public var children: [any RDFCore.Node] {
-                    [
-            \(raw: childrenBody)
-                    ]
-                }
+                let storedBlock = storedProps.isEmpty ? "" : "\n\(storedProps.joined(separator: "\n"))\n"
+                let initBlock = initParams.isEmpty ? "" : "\n                    \(initParams.joined(separator: ",\n                    "))\n"
 
-                public func callAsFunction() -> \(raw: termStructName) { self }
+                results.append("""
+                public struct \(raw: swiftName) {\(raw: storedBlock)
+                    public init() {\(raw: initBlock)    }
+
+                    public func callAsFunction() -> \(raw: swiftName) { self }
+                }
+                """)
+
+                // Static property for DSL references: Fauna.Animal
+                results.append("""
+                public static let \(raw: staticName) = \(raw: swiftName)()
+                """)
+            } else {
+                // --- Backing type: internal DSL plumbing for properties/individuals ---
+                results.append("""
+                public struct \(raw: termStructName): \(raw: conformanceList) {
+                    public static let name: String = \(raw: "\"\(term.name)\"")
+                    public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
+                    public static let kind: RDFCore.TermKind = \(raw: term.kindEnum)
+
+                    public let id: IRIKit.IRI
+
+                    public init(id: IRIKit.IRI = \(raw: "\"\(iriString)\"")) {
+                        self.id = id
+                    }
+
+                    public var children: [any RDFCore.Node] {
+                        [
+                        \(raw: childrenBody)
+                        ]
+                    }
+                }
+                """)
             }
-            """)
-
-            results.append("""
-            public static let \(raw: staticName) = \(raw: termStructName)(\(raw: "\"\(iriString)\""))
-            """)
         }
 
         return results
@@ -124,21 +175,8 @@ enum TermKindValue {
 
 struct ParsedAnnotation {
     let name: String
-    /// The raw argument text from the DSL call, e.g. "RDFS.Class" or "\"Class\""
     let argumentText: String
 
-    /// The ContributionAnnotation type name, derived from the function name.
-    /// Convention: `{FunctionName}AnnotationValue`
-    var contributionTypeName: String? {
-        switch name {
-        case "isDeclaredBy": return "IsDeclaredByAnnotation"
-        case "OWLDeprecated": return "OWLDeprecatedAnnotationValue"
-        default: return "\(name)AnnotationValue"
-        }
-    }
-
-    /// The contribution protocol name, derived from the function name.
-    /// Convention matches what ContributionAnnotation provides on value types.
     var contributionProtocol: String? {
         switch name {
         case "Type": return "TypedTerm"
@@ -155,6 +193,14 @@ struct ParsedAnnotation {
         }
     }
 
+    var contributionTypeName: String? {
+        switch name {
+        case "isDeclaredBy": return "IsDeclaredByAnnotation"
+        case "OWLDeprecated": return "OWLDeprecatedAnnotationValue"
+        default: return "\(name)AnnotationValue"
+        }
+    }
+
     var childrenInitializer: String? {
         guard let typeName = contributionTypeName else { return nil }
         if name == "OWLDeprecated" {
@@ -164,7 +210,7 @@ struct ParsedAnnotation {
     }
 }
 
-// MARK: - Helpers
+// MARK: - Parsing Helpers
 
 private func findContentProperty(in declaration: some DeclGroupSyntax) -> PatternBindingSyntax? {
     for member in declaration.memberBlock.members {
@@ -182,17 +228,12 @@ private func findContentProperty(in declaration: some DeclGroupSyntax) -> Patter
 
 private func extractNamespace(from body: CodeBlockSyntax) -> String? {
     for statement in body.statements {
-        guard let expr = statement.item.as(ExprSyntax.self)?.as(FunctionCallExprSyntax.self) else {
-            continue
-        }
+        guard let expr = statement.item.as(ExprSyntax.self)?.as(FunctionCallExprSyntax.self) else { continue }
         let calledName = expr.calledExpression.as(DeclReferenceExprSyntax.self)?.baseName.text
         guard calledName == "Namespace" else { continue }
-
         guard let firstArg = expr.arguments.first,
               let stringLiteral = firstArg.expression.as(StringLiteralExprSyntax.self),
-              let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self) else {
-            continue
-        }
+              let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self) else { continue }
         return segment.content.text
     }
     return nil
@@ -200,22 +241,12 @@ private func extractNamespace(from body: CodeBlockSyntax) -> String? {
 
 private func extractTerms(from body: CodeBlockSyntax) -> [ParsedTerm] {
     var terms: [ParsedTerm] = []
-
     for statement in body.statements {
-        guard let expr = statement.item.as(ExprSyntax.self) else {
-            continue
-        }
-
+        guard let expr = statement.item.as(ExprSyntax.self) else { continue }
         let (termCall, _) = unwrapChainedCalls(expr)
-
-        guard let termCall, let calledExpr = termCall.as(FunctionCallExprSyntax.self) else {
-            continue
-        }
-
+        guard let termCall, let calledExpr = termCall.as(FunctionCallExprSyntax.self) else { continue }
         let calledName = calledExpr.calledExpression.as(DeclReferenceExprSyntax.self)?.baseName.text
-
         guard let calledName else { continue }
-
         let kind: TermKindValue
         switch calledName {
         case "Class": kind = .class
@@ -223,54 +254,30 @@ private func extractTerms(from body: CodeBlockSyntax) -> [ParsedTerm] {
         case "Datatype": kind = .datatype
         default: continue
         }
-
         guard let firstArg = calledExpr.arguments.first,
               let nameLiteral = firstArg.expression.as(StringLiteralExprSyntax.self),
-              let nameSegment = nameLiteral.segments.first?.as(StringSegmentSyntax.self) else {
-            continue
-        }
-
+              let nameSegment = nameLiteral.segments.first?.as(StringSegmentSyntax.self) else { continue }
         let name = nameSegment.content.text
-
-        // Parse annotations from the trailing closure
         let annotations = extractAnnotations(from: calledExpr)
-
         terms.append(ParsedTerm(name: name, kind: kind, annotations: annotations))
     }
-
     return terms
 }
 
 private func extractAnnotations(from call: FunctionCallExprSyntax) -> [ParsedAnnotation] {
-    guard let trailingClosure = call.trailingClosure else {
-        return []
-    }
-
-    let codeBlock = trailingClosure.statements
-
+    guard let trailingClosure = call.trailingClosure else { return [] }
     var annotations: [ParsedAnnotation] = []
-
-    for statement in codeBlock {
-        guard let expr = statement.item.as(ExprSyntax.self) else {
-            continue
-        }
-
+    for statement in trailingClosure.statements {
+        guard let expr = statement.item.as(ExprSyntax.self) else { continue }
         let (baseExpr, _) = unwrapChainedCalls(expr)
-
-        guard let baseExpr, let innerCall = baseExpr.as(FunctionCallExprSyntax.self) else {
-            continue
-        }
-
+        guard let baseExpr, let innerCall = baseExpr.as(FunctionCallExprSyntax.self) else { continue }
         let funcName = innerCall.calledExpression.as(DeclReferenceExprSyntax.self)?.baseName.text
         guard let funcName else { continue }
-
         let knownAnnotations: Set<String> = [
             "Type", "SubClassOf", "SubPropertyOf", "Domain", "Range",
             "Label", "Comment", "SeeAlso", "OWLDeprecated", "isDeclaredBy"
         ]
-
         guard knownAnnotations.contains(funcName) else { continue }
-
         let argumentText: String
         if funcName == "OWLDeprecated" || funcName == "isDeclaredBy" {
             argumentText = innerCall.arguments.description.trimmingCharacters(in: .whitespaces)
@@ -279,17 +286,13 @@ private func extractAnnotations(from call: FunctionCallExprSyntax) -> [ParsedAnn
         } else {
             argumentText = ""
         }
-
         annotations.append(ParsedAnnotation(name: funcName, argumentText: argumentText))
     }
-
     return annotations
 }
 
-/// Unwraps chained method calls like `.isDeclaredBy(namespace: X)` or `.deprecated()`.
 private func unwrapChainedCalls(_ expr: ExprSyntax) -> (ExprSyntax?, [String]) {
     var current = expr
-
     while let callExpr = current.as(FunctionCallExprSyntax.self),
           let memberAccess = callExpr.calledExpression.as(MemberAccessExprSyntax.self) {
         if let base = memberAccess.base {
@@ -298,57 +301,84 @@ private func unwrapChainedCalls(_ expr: ExprSyntax) -> (ExprSyntax?, [String]) {
             break
         }
     }
-
     return (current, [])
+}
+
+// MARK: - Name Helpers
+
+private func lastComponent(of dottedName: String) -> String {
+    dottedName.components(separatedBy: ".").last ?? dottedName
+}
+
+private func derivePropertyName(from rdfName: String) -> String {
+    var result: String
+    if rdfName.hasPrefix("has") && rdfName.count > 3 {
+        let stripped = rdfName.dropFirst(3)
+        result = stripped.prefix(1).lowercased() + stripped.dropFirst()
+    } else {
+        result = rdfName.prefix(1).lowercased() + rdfName.dropFirst()
+    }
+    // Sanitize Swift keywords
+    if swiftKeywords.contains(result) {
+        result = result + "Value"
+    }
+    return result
+}
+
+private let swiftKeywords: Set<String> = [
+    "self", "super", "class", "return", "if", "else", "switch",
+    "case", "default", "for", "while", "repeat", "break",
+    "continue", "import", "let", "var", "func", "type",
+    "protocol", "extension", "operator", "nil", "true", "false",
+    "Any", "Self", "Void", "Type", "associatedtype", "where"
+]
+
+private func mapRangeToSwiftType(_ range: String, currentOntology: String) -> String {
+    let trimmed = range.trimmingCharacters(in: .whitespaces)
+
+    // IRI literals are string values
+    if trimmed.hasPrefix("IRI(") {
+        return "String"
+    }
+
+    // Literal maps to String
+    if trimmed.contains("Literal") || trimmed.contains("string") {
+        return "String"
+    }
+
+    let parts = trimmed.components(separatedBy: ".")
+    if parts.count == 2 {
+        let prefix = parts[0]
+        let name = sanitizeTypeName(parts[1])
+        if prefix == currentOntology {
+            // Local reference — use consumer type name (no Term suffix)
+            return name
+        } else {
+            // Cross-ontology — use term struct (backing layer)
+            return "\(prefix).\(name)Term"
+        }
+    }
+    return "\(sanitizeTypeName(trimmed))Term"
 }
 
 // MARK: - Identifier Sanitization
 
-private let swiftKeywords: Set<String> = [
-    "nil", "self", "true", "false", "class", "struct", "enum",
-    "protocol", "func", "let", "var", "if", "else", "switch",
-    "case", "default", "for", "while", "repeat", "return",
-    "break", "continue", "import", "public", "private",
-    "internal", "fileprivate", "static", "final", "lazy",
-    "weak", "unowned", "required", "convenience", "override",
-    "mutating", "nonmutating", "throws", "rethrows", "try",
-    "catch", "guard", "defer", "where", "associatedtype",
-    "typealias", "extension", "subscript", "operator",
-    "Type", "Protocol", "Self", "Any", "Void"
-]
-
-/// Sanitizes a term name for use as a Swift property identifier.
-/// Replaces hyphens with underscores. Capitalizes leading lowercase
-/// letters that would clash with Swift keywords.
 func sanitizePropertyName(_ name: String) -> String {
     var result = name.replacingOccurrences(of: "-", with: "_")
     result = result.replacingOccurrences(of: ".", with: "_")
-    if swiftKeywords.contains(result) {
-        result = result.prefix(1).uppercased() + result.dropFirst()
-    }
     return result
 }
 
-/// Sanitizes a term name for use as a Swift type identifier (struct name).
-/// Replaces hyphens and dots with underscores. Capitalizes leading lowercase
-/// letters that would clash with Swift keywords.
 func sanitizeTypeName(_ name: String) -> String {
     var result = name.replacingOccurrences(of: "-", with: "_")
     result = result.replacingOccurrences(of: ".", with: "_")
-    if swiftKeywords.contains(result.lowercased()) {
-        result = result.prefix(1).uppercased() + result.dropFirst()
-    }
-    return result
+    return result.prefix(1).uppercased() + result.dropFirst()
 }
 
 // MARK: - Errors
 
 struct VocabularyError: Error, CustomStringConvertible {
     let message: String
-
     var description: String { message }
-
-    init(_ message: String) {
-        self.message = message
-    }
+    init(_ message: String) { self.message = message }
 }
