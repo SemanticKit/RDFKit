@@ -21,7 +21,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
-        .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.0")
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "603.0.0")
     ],
     targets: [
         .target(
@@ -66,7 +66,12 @@ let package = Package(
         ),
         .testTarget(
             name: "FaunaTests",
-            dependencies: ["Fauna"]
+            dependencies: [
+                "Fauna",
+                "RDFKit",
+                "RDFCore",
+                .product(name: "IRIKit", package: "IRIKit")
+            ]
         )
     ]
 )
