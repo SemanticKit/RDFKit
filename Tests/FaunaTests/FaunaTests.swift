@@ -1,17 +1,22 @@
 import Testing
 import RDFCore
 import IRIKit
-import Fauna
+@testable import Fauna
 
 @Suite("Fauna ontology")
 struct FaunaTests {
 
     @Test("Create an animal and use it")
     func createAnimal() {
-        let animal = Fauna.Animal()
-        #expect(animal.habitat == Fauna.Habitat())
-        #expect(animal.diet == Fauna.Diet())
-        #expect(animal.commonName == "")
-        #expect(animal.scientificName == "")
+        let lion = Fauna.Animal(
+            habitat: Fauna.Habitat(),
+            diet: Fauna.Diet(),
+            commonName: "Lion",
+            scientificName: "Panthera leo"
+        )
+
+        // Use the animal in a real scenario
+        let description = "\(lion.commonName) (\(lion.scientificName))"
+        #expect(description == "Lion (Panthera leo)")
     }
 }

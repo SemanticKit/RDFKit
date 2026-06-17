@@ -117,12 +117,12 @@ public struct VocabularyMacro: MemberMacro {
                 let joinedParams = allParams.joined(separator: ",\n                        ")
 
                 results.append("""
-                public struct \(raw: swiftName): Equatable {
-                    public static let name: String = \(raw: "\"\(term.name)\"")
-                    public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
+                struct \(raw: swiftName): RDFCore.Node, Sendable, Equatable {
+                    static let name: String = \(raw: "\"\(term.name)\"")
+                    static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
 
-                    public let id: IRIKit.IRI
-                    public var children: [any RDFCore.Node]
+                    let id: IRIKit.IRI
+                    var children: [any RDFCore.Node]
                 \(raw: storedBlock)
                     public init(
                         \(raw: joinedParams)
