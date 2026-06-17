@@ -59,6 +59,14 @@ let package = Package(
                 "Data/shacl.rdf",
                 "Data/shacl.ttl"
             ]
+        ),
+        .target(
+            name: "Fauna",
+            dependencies: ["RDFKit"]
+        ),
+        .testTarget(
+            name: "FaunaTests",
+            dependencies: ["Fauna"]
         )
     ]
 )
