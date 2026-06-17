@@ -1,5 +1,5 @@
 {
-  "originHash" : "7712ab97222de70ee7d3d9f60171cd9ddc3a74dfc1f59fa768ee81a687b92f31",
+  "originHash" : "3339d69a6f0ad099cb330490e3acb4d03325c1325dbda70d837202524aeb6b9d",
   "pins" : [
     {
       "identity" : "irikit",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
-        "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
-        "version" : "603.0.2"
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
       }
     }
   ],

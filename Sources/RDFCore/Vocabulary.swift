@@ -1,5 +1,4 @@
 import Foundation
-import IRIKit
 
 // MARK: - Term Content Protocol
 
@@ -109,6 +108,15 @@ public protocol SeeAlsoProtocol: TermContent {
 /// Marks a term as deprecated.
 public protocol OWLDeprecatedProtocol: TermContent {}
 
+/// Declares which ontology namespace a term belongs to.
+///
+/// When absent or set to `nil`, the term belongs to the parent ontology.
+/// When set to a different namespace, the term is imported from that ontology.
+public protocol IsDeclaredByProtocol: TermContent {
+    /// The namespace the term is declared in, or `nil` for the parent ontology.
+    var namespace: Namespace? { get }
+}
+
 // MARK: - Term Kind
 
 /// The kind of an RDF term declaration.
@@ -137,20 +145,6 @@ public struct TermDeclaration: ClassDeclaration, PropertyDeclaration,
         self.kind = kind
         self.name = name
         self.children = children
-    }
-
-    /// Resolves this term's full IRI using the given namespace.
-    ///
-    ///     let decl = Class("Foo") { ... }
-    ///     let iri = decl.iri(using: Namespace("http://example.com#"))
-    ///     // IRI("http://example.com#Foo")
-    public func iri(using namespace: Namespace) -> IRI {
-        IRIResolver(namespace).resolve(name)
-    }
-
-    /// Resolves this term's full IRI using an ontology's namespace.
-    public func iri(using ontology: some Ontology) -> IRI {
-        iri(using: ontology.namespace)
     }
 }
 
@@ -231,6 +225,18 @@ public struct SeeAlsoAnnotationValue: SeeAlsoProtocol {
 /// Marks a term as deprecated.
 public struct OWLDeprecatedAnnotationValue: OWLDeprecatedProtocol {
     public init() {}
+}
+
+/// Declares which ontology namespace a term belongs to.
+///
+/// When `namespace` is `nil`, the term belongs to the parent ontology.
+/// When set to a different namespace, the term is imported from that ontology.
+public struct IsDeclaredByAnnotation: IsDeclaredByProtocol {
+    public let namespace: Namespace?
+
+    public init(_ namespace: Namespace?) {
+        self.namespace = namespace
+    }
 }
 
 // MARK: - DSL Entry Points: Declarations
@@ -359,4 +365,44 @@ public func SeeAlso(_ url: String) -> SeeAlsoAnnotationValue {
 ///     OWLDeprecated()
 public func OWLDeprecated() -> OWLDeprecatedAnnotationValue {
     OWLDeprecatedAnnotationValue()
+}
+
+// MARK: - Term Declaration Modifiers
+//
+// Domain-specific convenience methods on TermDeclaration.
+// These replace the generic `.modifier(DeprecatedModifier())` pattern
+// with idiomatic DSL syntax: `.deprecated()`, `.typed(...)`, etc.
+
+extension TermDeclaration {
+
+    /// Marks this term as deprecated.
+    ///
+    ///     Class("PlainLiteral") {
+    ///         Type(RDFSTerm.Datatype)
+    ///         Label("PlainLiteral")
+    ///     }.deprecated()
+    public func deprecated() -> TermDeclaration {
+        TermDeclaration(
+            kind: kind,
+            name: name,
+            children: children + [OWLDeprecatedAnnotationValue()]
+        )
+    }
+
+    /// Declares which ontology namespace this term belongs to.
+    ///
+    /// Without this modifier, the term automatically belongs to the parent ontology.
+    /// When passed a different namespace, the term is imported from that ontology.
+    ///
+    ///     Class("Thing") {
+    ///         Type(OWL.Class)
+    ///         Label("Thing")
+    ///     }.isDeclaredBy(namespace: OWL.namespace)
+    public func isDeclaredBy(namespace: Namespace? = nil) -> TermDeclaration {
+        TermDeclaration(
+            kind: kind,
+            name: name,
+            children: children + [IsDeclaredByAnnotation(namespace)]
+        )
+    }
 }

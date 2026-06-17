@@ -1,7 +1,9 @@
 import Foundation
 import RDFCore
+import IRIKit
 
 /// The RDF ontology.
+@Vocabulary
 public struct RDF: Ontology {
     public var content: Content {
         Prefix.rdf
@@ -12,20 +14,20 @@ public struct RDF: Ontology {
         Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
         Class("Alt") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Container)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Container)
             Label("Alt")
             Comment("The class of containers of alternatives.")
         }
         Class("Bag") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Container)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Container)
             Label("Bag")
             Comment("The class of unordered containers.")
         }
         Class("CompoundLiteral") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Resource)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             SeeAlso(
                 "https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties"
             )
@@ -33,8 +35,8 @@ public struct RDF: Ontology {
             Comment("A class representing a compound literal.")
         }
         Datatype("HTML") {
-            Type(RDFSTerm.Datatype)
-            SubClassOf(RDFSTerm.Literal)
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             SeeAlso("http://www.w3.org/TR/rdf11-concepts/#section-html")
             Label("HTML")
             Comment(
@@ -42,23 +44,23 @@ public struct RDF: Ontology {
             )
         }
         Datatype("JSON") {
-            Type(RDFSTerm.Datatype)
-            SubClassOf(RDFSTerm.Literal)
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             SeeAlso("https://www.w3.org/TR/rdf-concepts/#section-json")
             Label("JSON")
             Comment("The datatype of RDF literals storing JSON content.")
         }
         Datatype("dirLangString") {
-            Type(RDFSTerm.Datatype)
-            SubClassOf(RDFSTerm.Literal)
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             Label("dirLangString")
             Comment(
                 "The datatype of directional language-tagged string values, which includes a language tag and a base direction (either 'ltr' or 'rtl')"
             )
         }
         Datatype("langString") {
-            Type(RDFSTerm.Datatype)
-            SubClassOf(RDFSTerm.Literal)
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             SeeAlso(
                 "http://www.w3.org/TR/rdf11-concepts/#section-Graph-Literal"
             )
@@ -66,13 +68,13 @@ public struct RDF: Ontology {
             Comment("The datatype of language-tagged string values")
         }
         Class("List") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Resource)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             Label("List")
             Comment("The class of RDF Lists.")
         }
         Individual("nil") {
-            Type(RDFTerm.List)
+            Type(RDF.List)
             Label("nil")
             Comment(
                 "The empty list, with no items in it. If the rest of a list is nil then the list has no more items in it."
@@ -80,8 +82,8 @@ public struct RDF: Ontology {
         }
 
         Datatype("PlainLiteral") {
-            Type(RDFSTerm.Datatype)
-            SubClassOf(RDFSTerm.Literal)
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             SeeAlso("http://www.w3.org/TR/rdf-plain-literal/")
             Label("PlainLiteral")
             Comment(
@@ -90,14 +92,14 @@ public struct RDF: Ontology {
             OWLDeprecated()
         }
         Class("Property") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Resource)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             Label("Property")
             Comment("The class of RDF properties.")
         }
         Class("PropositionForm") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Resource)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             SeeAlso("https://www.w3.org/TR/rdf12-interop/")
             Label("PropositionForm")
             Comment(
@@ -105,20 +107,20 @@ public struct RDF: Ontology {
             )
         }
         Class("Seq") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Container)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Container)
             Label("Seq")
             Comment("The class of ordered containers.")
         }
         Class("Statement") {
-            Type(RDFSTerm.Class)
-            SubClassOf(RDFSTerm.Resource)
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             Label("Statement")
             Comment("The class of RDF statements.")
         }
         Property("direction") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.CompoundLiteral)
+            Type(RDF.Property)
+            Domain(RDF.CompoundLiteral)
             SeeAlso(
                 "https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties"
             )
@@ -126,15 +128,15 @@ public struct RDF: Ontology {
             Comment("The base direction component of a CompoundLiteral.")
         }
         Property("first") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.List)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDF.List)
+            Range(RDFS.Resource)
             Label("first")
             Comment("The first item in the subject RDF list.")
         }
         Property("language") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.CompoundLiteral)
+            Type(RDF.Property)
+            Domain(RDF.CompoundLiteral)
             SeeAlso(
                 "https://www.w3.org/TR/json-ld11/#the-rdf-compoundliteral-class-and-the-rdf-language-and-rdf-direction-properties"
             )
@@ -142,23 +144,23 @@ public struct RDF: Ontology {
             Comment("The language component of a CompoundLiteral.")
         }
         Property("object") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.Statement)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDF.Statement)
+            Range(RDFS.Resource)
             Label("object")
             Comment("The object of the subject RDF statement.")
         }
         Property("predicate") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.Statement)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDF.Statement)
+            Range(RDFS.Resource)
             Label("predicate")
             Comment("The predicate of the subject RDF statement.")
         }
         Property("propositionFormObject") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.PropositionForm)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDF.PropositionForm)
+            Range(RDFS.Resource)
             SeeAlso("https://www.w3.org/TR/rdf12-interop/")
             Label("propositionFormObject")
             Comment(
@@ -166,9 +168,9 @@ public struct RDF: Ontology {
             )
         }
         Property("propositionFormPredicate") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.PropositionForm)
-            Range(RDFTerm.Property)
+            Type(RDF.Property)
+            Domain(RDF.PropositionForm)
+            Range(RDF.Property)
             SeeAlso("https://www.w3.org/TR/rdf12-interop/")
             Label("propositionFormPredicate")
             Comment(
@@ -176,9 +178,9 @@ public struct RDF: Ontology {
             )
         }
         Property("propositionFormSubject") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.PropositionForm)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDF.PropositionForm)
+            Range(RDFS.Resource)
             SeeAlso("https://www.w3.org/TR/rdf12-interop/")
             Label("propositionFormSubject")
             Comment(
@@ -186,63 +188,63 @@ public struct RDF: Ontology {
             )
         }
         Property("reifies") {
-            Type(RDFTerm.Property)
-            Domain(RDFSTerm.Resource)
-            Range(RDFSTerm.Proposition)
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Proposition)
             Label("reifies")
             Comment("The abstract proposition of a more concrete circumstance.")
         }
         Property("rest") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.List)
-            Range(RDFTerm.List)
+            Type(RDF.Property)
+            Domain(RDF.List)
+            Range(RDF.List)
             Label("rest")
             Comment("The rest of the subject RDF list after the first item.")
         }
         Property("subject") {
-            Type(RDFTerm.Property)
-            Domain(RDFTerm.Statement)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDF.Statement)
+            Range(RDFS.Resource)
             Label("subject")
             Comment("The subject of the subject RDF statement.")
         }
         Property("type") {
-            Type(RDFTerm.Property)
-            Domain(RDFSTerm.Resource)
-            Range(RDFSTerm.Class)
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Class)
             Label("type")
             Comment("The subject is an instance of a class.")
         }
         Property("value") {
-            Type(RDFTerm.Property)
-            Domain(RDFSTerm.Resource)
-            Range(RDFSTerm.Resource)
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Resource)
             Label("value")
             Comment("Idiomatic property used for structured values.")
         }
         Datatype("XMLLiteral") {
-            Type(RDFSTerm.Datatype)
-            SubClassOf(RDFSTerm.Literal)
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
             Label("XMLLiteral")
             Comment("The datatype of XML literal values.")
         }
         Individual("version-1.0") {
-            Type(RDFSTerm.Resource)
+            Type(RDFS.Resource)
             Label("1.0")
             Comment("Version 1.0")
         }
         Individual("version-1.1") {
-            Type(RDFSTerm.Resource)
+            Type(RDFS.Resource)
             Label("1.1")
             Comment("Version 1.1")
         }
         Individual("version-1.2") {
-            Type(RDFSTerm.Resource)
+            Type(RDFS.Resource)
             Label("1.2")
             Comment("Version 1.2.")
         }
         Individual("version-1.2-basic") {
-            Type(RDFSTerm.Resource)
+            Type(RDFS.Resource)
             Label("1.2-basic")
             Comment("Version 1.2-basic")
         }

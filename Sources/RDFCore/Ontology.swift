@@ -27,15 +27,6 @@ extension Ontology {
         }
         preconditionFailure("Expected a Namespace declaration in content.")
     }
-
-    /// An IRI resolver that can resolve term names to full IRIs
-    /// using this ontology's namespace.
-    ///
-    ///     let resolver = OWL().iriResolver
-    ///     let classIRI = resolver.resolve("Class")
-    public var iriResolver: IRIResolver {
-        IRIResolver(namespace)
-    }
 }
 
 // MARK: - DSL Declaration Methods
@@ -43,22 +34,22 @@ extension Ontology {
 extension Ontology {
 
     /// Declares an RDF class.
-    func `Class`(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
+    public func `Class`(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
         TermDeclaration(kind: .class, name: name, children: children())
     }
 
     /// Declares an RDF property.
-    func Property(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
+    public func Property(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
         TermDeclaration(kind: .property, name: name, children: children())
     }
 
     /// Declares an RDF individual.
-    func Individual(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
+    public func Individual(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
         TermDeclaration(kind: .individual, name: name, children: children())
     }
 
     /// Declares an RDF datatype.
-    func Datatype(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
+    public func Datatype(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
         TermDeclaration(kind: .datatype, name: name, children: children())
     }
 }

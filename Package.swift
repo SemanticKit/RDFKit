@@ -1,6 +1,6 @@
 // swift-tools-version: 6.4
-import CompilerPluginSupport
 import PackageDescription
+import CompilerPluginSupport
 
 let package = Package(
     name: "RDFKit",
@@ -21,7 +21,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "603.0.2")
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.0")
     ],
     targets: [
         .target(
@@ -48,11 +48,8 @@ let package = Package(
         .macro(
             name: "RDFKitMacros",
             dependencies: [
-                "RDFCore",
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
-                .product(name: "SwiftSyntax", package: "swift-syntax"),
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax")
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
             ]
         ),
         .testTarget(
