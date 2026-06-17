@@ -122,6 +122,27 @@ struct ParsedAnnotation {
     /// The raw argument text from the DSL call, e.g. "RDFS.Class" or "\"Class\""
     let argumentText: String
 
+    /// Maps DSL function names to their ContributionAnnotation type names.
+    /// This is the ONLY hardcoded mapping — it tells the macro which concrete
+    /// type to construct so it can read the protocol properties.
+    private static let functionToTypeName: [String: String] = [
+        "Type": "TypeAnnotationValue",
+        "SubClassOf": "SubClassOfAnnotationValue",
+        "SubPropertyOf": "SubPropertyOfAnnotationValue",
+        "Domain": "DomainAnnotationValue",
+        "Range": "RangeAnnotationValue",
+        "Label": "LabelAnnotationValue",
+        "Comment": "CommentAnnotationValue",
+        "SeeAlso": "SeeAlsoAnnotationValue",
+        "OWLDeprecated": "OWLDeprecatedAnnotationValue",
+        "isDeclaredBy": "IsDeclaredByAnnotation",
+    ]
+
+    /// The ContributionAnnotation type name for this annotation.
+    var typeName: String? {
+        Self.functionToTypeName[name]
+    }
+
     var contributionProtocol: String? {
         switch name {
         case "Type": return "TypedTerm"
@@ -139,19 +160,11 @@ struct ParsedAnnotation {
     }
 
     var childrenInitializer: String? {
-        switch name {
-        case "Type": return "TypeAnnotationValue(\(argumentText))"
-        case "SubClassOf": return "SubClassOfAnnotationValue(\(argumentText))"
-        case "SubPropertyOf": return "SubPropertyOfAnnotationValue(\(argumentText))"
-        case "Domain": return "DomainAnnotationValue(\(argumentText))"
-        case "Range": return "RangeAnnotationValue(\(argumentText))"
-        case "Label": return "LabelAnnotationValue(\(argumentText))"
-        case "Comment": return "CommentAnnotationValue(\(argumentText))"
-        case "SeeAlso": return "SeeAlsoAnnotationValue(\(argumentText))"
-        case "OWLDeprecated": return "OWLDeprecatedAnnotationValue()"
-        case "isDeclaredBy": return "IsDeclaredByAnnotation(\(argumentText))"
-        default: return nil
+        guard let typeName else { return nil }
+        if name == "OWLDeprecated" {
+            return "\(typeName)()"
         }
+        return "\(typeName)(\(argumentText))"
     }
 }
 

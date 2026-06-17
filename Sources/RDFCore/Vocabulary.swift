@@ -55,6 +55,30 @@ public protocol DatatypeDeclaration: TermContent {
     var children: [any Node] { get }
 }
 
+// MARK: - Code Generation Protocol
+
+/// Drives code generation from the DSL side.
+///
+/// Each annotation value type conforms to this protocol and provides
+/// the behavior the macro needs — what contribution protocol to add
+/// to the generated struct, and what type name to use in children
+/// initializer expressions.
+///
+/// Adding a new annotation type = create a struct conforming to this
+/// protocol, write a free function returning it. Zero macro changes.
+public protocol ContributionAnnotation: TermContent {
+    /// The contribution protocol name to add to the generated struct.
+    ///
+    /// e.g., "TypedTerm", "LabeledTerm", "CommentedTerm"
+    var contributionProtocolName: String { get }
+
+    /// The type name for the children initializer expression.
+    ///
+    /// e.g., "TypeAnnotationValue", "LabelAnnotationValue"
+    /// The macro emits: `{contributionTypeName}({argumentText})`
+    var contributionTypeName: String { get }
+}
+
 // MARK: - Annotation Protocols
 
 /// Assigns an RDF type to a term.
@@ -151,8 +175,10 @@ public struct TermDeclaration: ClassDeclaration, PropertyDeclaration,
 // MARK: - Concrete Annotation Types
 
 /// Assigns an RDF type to a term.
-public struct TypeAnnotationValue: TypeAnnotation {
+public struct TypeAnnotationValue: TypeAnnotation, ContributionAnnotation {
     public let term: any Node
+    public let contributionProtocolName: String = "TypedTerm"
+    public let contributionTypeName: String = "TypeAnnotationValue"
 
     public init(_ term: any Node) {
         self.term = term
@@ -160,8 +186,10 @@ public struct TypeAnnotationValue: TypeAnnotation {
 }
 
 /// Declares a superclass relationship.
-public struct SubClassOfAnnotationValue: SubClassOfAnnotation {
+public struct SubClassOfAnnotationValue: SubClassOfAnnotation, ContributionAnnotation {
     public let term: any Node
+    public let contributionProtocolName: String = "SubClassedTerm"
+    public let contributionTypeName: String = "SubClassOfAnnotationValue"
 
     public init(_ term: any Node) {
         self.term = term
@@ -169,8 +197,10 @@ public struct SubClassOfAnnotationValue: SubClassOfAnnotation {
 }
 
 /// Declares a superproperty relationship.
-public struct SubPropertyOfAnnotationValue: SubPropertyOfAnnotation {
+public struct SubPropertyOfAnnotationValue: SubPropertyOfAnnotation, ContributionAnnotation {
     public let term: any Node
+    public let contributionProtocolName: String = "SubPropertyOfTerm"
+    public let contributionTypeName: String = "SubPropertyOfAnnotationValue"
 
     public init(_ term: any Node) {
         self.term = term
@@ -178,8 +208,10 @@ public struct SubPropertyOfAnnotationValue: SubPropertyOfAnnotation {
 }
 
 /// Declares the domain of a property.
-public struct DomainAnnotationValue: DomainAnnotation {
+public struct DomainAnnotationValue: DomainAnnotation, ContributionAnnotation {
     public let term: any Node
+    public let contributionProtocolName: String = "DomainTerm"
+    public let contributionTypeName: String = "DomainAnnotationValue"
 
     public init(_ term: any Node) {
         self.term = term
@@ -187,8 +219,10 @@ public struct DomainAnnotationValue: DomainAnnotation {
 }
 
 /// Declares the range of a property.
-public struct RangeAnnotationValue: RangeAnnotation {
+public struct RangeAnnotationValue: RangeAnnotation, ContributionAnnotation {
     public let term: any Node
+    public let contributionProtocolName: String = "RangeTerm"
+    public let contributionTypeName: String = "RangeAnnotationValue"
 
     public init(_ term: any Node) {
         self.term = term
@@ -196,8 +230,10 @@ public struct RangeAnnotationValue: RangeAnnotation {
 }
 
 /// A human-readable label.
-public struct LabelAnnotationValue: LabelProtocol {
+public struct LabelAnnotationValue: LabelProtocol, ContributionAnnotation {
     public let text: String
+    public let contributionProtocolName: String = "LabeledTerm"
+    public let contributionTypeName: String = "LabelAnnotationValue"
 
     public init(_ text: String) {
         self.text = text
@@ -205,8 +241,10 @@ public struct LabelAnnotationValue: LabelProtocol {
 }
 
 /// A descriptive comment.
-public struct CommentAnnotationValue: CommentProtocol {
+public struct CommentAnnotationValue: CommentProtocol, ContributionAnnotation {
     public let text: String
+    public let contributionProtocolName: String = "CommentedTerm"
+    public let contributionTypeName: String = "CommentAnnotationValue"
 
     public init(_ text: String) {
         self.text = text
@@ -214,8 +252,10 @@ public struct CommentAnnotationValue: CommentProtocol {
 }
 
 /// A reference to related information.
-public struct SeeAlsoAnnotationValue: SeeAlsoProtocol {
+public struct SeeAlsoAnnotationValue: SeeAlsoProtocol, ContributionAnnotation {
     public let url: String
+    public let contributionProtocolName: String = "SeeAlsoTerm"
+    public let contributionTypeName: String = "SeeAlsoAnnotationValue"
 
     public init(_ url: String) {
         self.url = url
@@ -223,7 +263,10 @@ public struct SeeAlsoAnnotationValue: SeeAlsoProtocol {
 }
 
 /// Marks a term as deprecated.
-public struct OWLDeprecatedAnnotationValue: OWLDeprecatedProtocol {
+public struct OWLDeprecatedAnnotationValue: OWLDeprecatedProtocol, ContributionAnnotation {
+    public let contributionProtocolName: String = "DeprecatedTerm"
+    public let contributionTypeName: String = "OWLDeprecatedAnnotationValue"
+
     public init() {}
 }
 
@@ -231,8 +274,10 @@ public struct OWLDeprecatedAnnotationValue: OWLDeprecatedProtocol {
 ///
 /// When `namespace` is `nil`, the term belongs to the parent ontology.
 /// When set to a different namespace, the term is imported from that ontology.
-public struct IsDeclaredByAnnotation: IsDeclaredByProtocol {
+public struct IsDeclaredByAnnotation: IsDeclaredByProtocol, ContributionAnnotation {
     public let namespace: Namespace?
+    public let contributionProtocolName: String = "DeclaredByTerm"
+    public let contributionTypeName: String = "IsDeclaredByAnnotation"
 
     public init(_ namespace: Namespace?) {
         self.namespace = namespace
