@@ -1,4 +1,5 @@
 import Foundation
+import IRIKit
 
 // MARK: - Term Content Protocol
 
@@ -136,6 +137,20 @@ public struct TermDeclaration: ClassDeclaration, PropertyDeclaration,
         self.kind = kind
         self.name = name
         self.children = children
+    }
+
+    /// Resolves this term's full IRI using the given namespace.
+    ///
+    ///     let decl = Class("Foo") { ... }
+    ///     let iri = decl.iri(using: Namespace("http://example.com#"))
+    ///     // IRI("http://example.com#Foo")
+    public func iri(using namespace: Namespace) -> IRI {
+        IRIResolver(namespace).resolve(name)
+    }
+
+    /// Resolves this term's full IRI using an ontology's namespace.
+    public func iri(using ontology: some Ontology) -> IRI {
+        iri(using: ontology.namespace)
     }
 }
 

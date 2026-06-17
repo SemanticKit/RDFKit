@@ -27,6 +27,15 @@ extension Ontology {
         }
         preconditionFailure("Expected a Namespace declaration in content.")
     }
+
+    /// An IRI resolver that can resolve term names to full IRIs
+    /// using this ontology's namespace.
+    ///
+    ///     let resolver = OWL().iriResolver
+    ///     let classIRI = resolver.resolve("Class")
+    public var iriResolver: IRIResolver {
+        IRIResolver(namespace)
+    }
 }
 
 // MARK: - DSL Declaration Methods
