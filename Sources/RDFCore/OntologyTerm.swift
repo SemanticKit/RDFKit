@@ -10,7 +10,6 @@ import IRIKit
 /// Instance-level concerns:
 ///   - `id` — instance identity (typically the class IRI)
 ///   - `children` — raw annotation data
-///   - domain-specific properties (habitat, diet, etc.)
 ///
 /// Kind is determined by protocol conformance:
 ///   - `ClassDeclaration` — class terms
