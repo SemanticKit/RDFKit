@@ -122,27 +122,18 @@ struct ParsedAnnotation {
     /// The raw argument text from the DSL call, e.g. "RDFS.Class" or "\"Class\""
     let argumentText: String
 
-    /// Maps DSL function names to their ContributionAnnotation type names.
-    /// This is the ONLY hardcoded mapping — it tells the macro which concrete
-    /// type to construct so it can read the protocol properties.
-    private static let functionToTypeName: [String: String] = [
-        "Type": "TypeAnnotationValue",
-        "SubClassOf": "SubClassOfAnnotationValue",
-        "SubPropertyOf": "SubPropertyOfAnnotationValue",
-        "Domain": "DomainAnnotationValue",
-        "Range": "RangeAnnotationValue",
-        "Label": "LabelAnnotationValue",
-        "Comment": "CommentAnnotationValue",
-        "SeeAlso": "SeeAlsoAnnotationValue",
-        "OWLDeprecated": "OWLDeprecatedAnnotationValue",
-        "isDeclaredBy": "IsDeclaredByAnnotation",
-    ]
-
-    /// The ContributionAnnotation type name for this annotation.
-    var typeName: String? {
-        Self.functionToTypeName[name]
+    /// The ContributionAnnotation type name, derived from the function name.
+    /// Convention: `{FunctionName}AnnotationValue`
+    var contributionTypeName: String? {
+        switch name {
+        case "isDeclaredBy": return "IsDeclaredByAnnotation"
+        case "OWLDeprecated": return "OWLDeprecatedAnnotationValue"
+        default: return "\(name)AnnotationValue"
+        }
     }
 
+    /// The contribution protocol name, derived from the function name.
+    /// Convention matches what ContributionAnnotation provides on value types.
     var contributionProtocol: String? {
         switch name {
         case "Type": return "TypedTerm"
@@ -160,7 +151,7 @@ struct ParsedAnnotation {
     }
 
     var childrenInitializer: String? {
-        guard let typeName else { return nil }
+        guard let typeName = contributionTypeName else { return nil }
         if name == "OWLDeprecated" {
             return "\(typeName)()"
         }
