@@ -357,8 +357,8 @@ public func SubPropertyOf(_ term: any Node) -> SubPropertyOfAnnotationValue {
 /// Declares the domain of a property.
 ///
 ///     Domain(RDFS.Resource)
-public func Domain(_ termType: any Node.Type) -> DomainAnnotationValue {
-    DomainAnnotationValue(termType)
+public func Domain(_ term: any Node) -> DomainAnnotationValue {
+    DomainAnnotationValue(term)
 }
 
 /// Declares the range of a property.
