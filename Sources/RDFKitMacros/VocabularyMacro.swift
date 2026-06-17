@@ -96,53 +96,33 @@ public struct VocabularyMacro: MemberMacro {
 
             let props = classProperties[swiftName] ?? []
 
-            if generateConsumerTypes && term.kind == .class {
-                // --- Consumer type: the real type users interact with ---
-                var storedProps: [String] = []
-                var initParams: [String] = []
+            // For now, all classes use backing types
+            // Consumer types need naming conflict resolution first
+            results.append("""
+            public struct \(raw: termStructName): \(raw: conformanceList) {
+                public static let name: String = \(raw: "\"\(term.name)\"")
+                public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
+                public static let kind: RDFCore.TermKind = \(raw: term.kindEnum)
 
-                for prop in props {
-                    storedProps.append("        public let \(prop.propertyName): \(prop.rangeType)")
-                    initParams.append("\(prop.propertyName): \(prop.rangeType) = \(prop.rangeType)()")
+                public let id: IRIKit.IRI
+
+                public init(id: IRIKit.IRI = \(raw: "\"\(iriString)\"")) {
+                    self.id = id
                 }
 
-                let storedBlock = storedProps.isEmpty ? "" : "\n\(storedProps.joined(separator: "\n"))\n"
-                let initBlock = initParams.isEmpty ? "" : "\n                    \(initParams.joined(separator: ",\n                    "))\n"
-
-                results.append("""
-                public struct \(raw: swiftName) {\(raw: storedBlock)
-                    public init() {\(raw: initBlock)    }
-
-                    public func callAsFunction() -> \(raw: swiftName) { self }
+                public var children: [any RDFCore.Node] {
+                    [
+                    \(raw: childrenBody)
+                    ]
                 }
-                """)
 
-                // Static property for DSL references: Fauna.Animal
-                results.append("""
-                public static let \(raw: staticName) = \(raw: swiftName)()
-                """)
-            } else {
-                // --- Backing type: internal DSL plumbing for properties/individuals ---
-                results.append("""
-                public struct \(raw: termStructName): \(raw: conformanceList) {
-                    public static let name: String = \(raw: "\"\(term.name)\"")
-                    public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
-                    public static let kind: RDFCore.TermKind = \(raw: term.kindEnum)
-
-                    public let id: IRIKit.IRI
-
-                    public init(id: IRIKit.IRI = \(raw: "\"\(iriString)\"")) {
-                        self.id = id
-                    }
-
-                    public var children: [any RDFCore.Node] {
-                        [
-                        \(raw: childrenBody)
-                        ]
-                    }
-                }
-                """)
+                public func callAsFunction() -> \(raw: termStructName) { self }
             }
+            """)
+
+            results.append("""
+            public static let \(raw: staticName) = \(raw: termStructName)()
+            """)
         }
 
         return results
