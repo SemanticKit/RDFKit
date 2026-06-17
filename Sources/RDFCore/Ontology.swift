@@ -35,22 +35,22 @@ extension Ontology {
 
     /// Declares an RDF class.
     public func `Class`(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
-        TermDeclaration(kind: .class, name: name, children: children())
+        TermDeclaration(name: name, children: children())
     }
 
     /// Declares an RDF property.
     public func Property(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
-        TermDeclaration(kind: .property, name: name, children: children())
+        TermDeclaration(name: name, children: children())
     }
 
     /// Declares an RDF individual.
     public func Individual(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
-        TermDeclaration(kind: .individual, name: name, children: children())
+        TermDeclaration(name: name, children: children())
     }
 
     /// Declares an RDF datatype.
     public func Datatype(_ name: String, @TermContentBuilder children: () -> [any Node]) -> TermDeclaration {
-        TermDeclaration(kind: .datatype, name: name, children: children())
+        TermDeclaration(name: name, children: children())
     }
 }
 

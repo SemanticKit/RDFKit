@@ -100,7 +100,7 @@ extension ContentModifier {
 
         if let decl = modified as? TermDeclaration {
             let newChildren = decl.children.map { walk($0, modifier: modifier) }
-            modified = TermDeclaration(kind: decl.kind, name: decl.name, children: newChildren)
+            modified = TermDeclaration(name: decl.name, children: newChildren)
         }
 
         return modified

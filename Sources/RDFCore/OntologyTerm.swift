@@ -6,12 +6,17 @@ import IRIKit
 /// Class-level concerns (static):
 ///   - `name` — the declared term name
 ///   - `iri` — the IRI identity
-///   - `kind` — class, property, individual, datatype
 ///
 /// Instance-level concerns:
 ///   - `id` — instance identity (typically the class IRI)
 ///   - `children` — raw annotation data
 ///   - domain-specific properties (habitat, diet, etc.)
+///
+/// Kind is determined by protocol conformance:
+///   - `ClassDeclaration` — class terms
+///   - `PropertyDeclaration` — property terms
+///   - `IndividualDeclaration` — individual terms
+///   - `DatatypeDeclaration` — datatype terms
 public protocol OntologyTerm: Sendable, Identifiable, Equatable, Subject, Predicate, Object {
 
     /// The declared term name (e.g., "Animal", "hasHabitat").
@@ -19,9 +24,6 @@ public protocol OntologyTerm: Sendable, Identifiable, Equatable, Subject, Predic
 
     /// The IRI for this term type.
     static var iri: IRI { get }
-
-    /// The kind of term (class, property, individual, datatype).
-    static var kind: TermKind { get }
 
     /// Instance identity — the IRI that identifies this specific instance.
     var id: IRI { get }
@@ -36,13 +38,4 @@ extension OntologyTerm {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.id == rhs.id
     }
-}
-
-// MARK: - Convenience
-
-extension OntologyTerm {
-    public var isClass: Bool { Self.kind == .class }
-    public var isProperty: Bool { Self.kind == .property }
-    public var isIndividual: Bool { Self.kind == .individual }
-    public var isDatatype: Bool { Self.kind == .datatype }
 }

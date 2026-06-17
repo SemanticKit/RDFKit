@@ -141,16 +141,6 @@ public protocol IsDeclaredByProtocol: TermContent {
     var namespace: Namespace? { get }
 }
 
-// MARK: - Term Kind
-
-/// The kind of an RDF term declaration.
-public enum TermKind: Sendable {
-    case `class`
-    case property
-    case individual
-    case datatype
-}
-
 // MARK: - Concrete Declaration Type
 
 /// A concrete RDF term declaration.
@@ -161,12 +151,10 @@ public enum TermKind: Sendable {
 public struct TermDeclaration: ClassDeclaration, PropertyDeclaration,
     IndividualDeclaration, DatatypeDeclaration
 {
-    public let kind: TermKind
     public let name: String
     public let children: [any Node]
 
-    public init(kind: TermKind, name: String, children: [any Node]) {
-        self.kind = kind
+    public init(name: String, children: [any Node]) {
         self.name = name
         self.children = children
     }
@@ -297,7 +285,7 @@ public func Class(
     _ name: String,
     @TermContentBuilder children: () -> [any Node]
 ) -> TermDeclaration {
-    TermDeclaration(kind: .class, name: name, children: children())
+    TermDeclaration(name: name, children: children())
 }
 
 /// Declares an RDF property.
@@ -312,7 +300,7 @@ public func Property(
     _ name: String,
     @TermContentBuilder children: () -> [any Node]
 ) -> TermDeclaration {
-    TermDeclaration(kind: .property, name: name, children: children())
+    TermDeclaration(name: name, children: children())
 }
 
 /// Declares an RDF individual.
@@ -325,7 +313,7 @@ public func Individual(
     _ name: String,
     @TermContentBuilder children: () -> [any Node]
 ) -> TermDeclaration {
-    TermDeclaration(kind: .individual, name: name, children: children())
+    TermDeclaration(name: name, children: children())
 }
 
 /// Declares an RDF datatype.
@@ -339,7 +327,7 @@ public func Datatype(
     _ name: String,
     @TermContentBuilder children: () -> [any Node]
 ) -> TermDeclaration {
-    TermDeclaration(kind: .datatype, name: name, children: children())
+    TermDeclaration(name: name, children: children())
 }
 
 // MARK: - DSL Entry Points: Term Reference Annotations
@@ -369,8 +357,8 @@ public func SubPropertyOf(_ term: any Node) -> SubPropertyOfAnnotationValue {
 /// Declares the domain of a property.
 ///
 ///     Domain(RDFS.Resource)
-public func Domain(_ term: any Node) -> DomainAnnotationValue {
-    DomainAnnotationValue(term)
+public func Domain(_ termType: any Node.Type) -> DomainAnnotationValue {
+    DomainAnnotationValue(termType)
 }
 
 /// Declares the range of a property.
@@ -428,7 +416,6 @@ extension TermDeclaration {
     ///     }.deprecated()
     public func deprecated() -> TermDeclaration {
         TermDeclaration(
-            kind: kind,
             name: name,
             children: children + [OWLDeprecatedAnnotationValue()]
         )
@@ -445,7 +432,6 @@ extension TermDeclaration {
     ///     }.isDeclaredBy(namespace: OWL.namespace)
     public func isDeclaredBy(namespace: Namespace? = nil) -> TermDeclaration {
         TermDeclaration(
-            kind: kind,
             name: name,
             children: children + [IsDeclaredByAnnotation(namespace)]
         )

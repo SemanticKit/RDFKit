@@ -96,33 +96,74 @@ public struct VocabularyMacro: MemberMacro {
 
             let props = classProperties[swiftName] ?? []
 
-            // For now, all classes use backing types
-            // Consumer types need naming conflict resolution first
-            results.append("""
-            public struct \(raw: termStructName): \(raw: conformanceList) {
-                public static let name: String = \(raw: "\"\(term.name)\"")
-                public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
-                public static let kind: RDFCore.TermKind = \(raw: term.kindEnum)
+            if generateConsumerTypes && term.kind == .class {
+                // --- Class type: metadata + domain properties embedded ---
+                var storedProps: [String] = []
+                var initParams: [String] = []
 
-                public let id: IRIKit.IRI
-
-                public init(id: IRIKit.IRI = \(raw: "\"\(iriString)\"")) {
-                    self.id = id
+                for prop in props {
+                    storedProps.append("        public let \(prop.propertyName): \(prop.rangeType)")
+                    initParams.append("\(prop.propertyName): \(prop.rangeType) = \(prop.rangeType)()")
                 }
 
-                public var children: [any RDFCore.Node] {
-                    [
-                    \(raw: childrenBody)
-                    ]
-                }
+                let storedBlock = storedProps.isEmpty ? "" : "\n\(storedProps.joined(separator: "\n"))\n"
 
-                public func callAsFunction() -> \(raw: termStructName) { self }
+                // Build init parameters
+                var allParams: [String] = []
+                allParams.append("id: IRIKit.IRI = \"\(iriString)\"")
+                allParams.append(contentsOf: initParams)
+                allParams.append("children: [any RDFCore.Node] = []")
+
+                let joinedParams = allParams.joined(separator: ",\n                        ")
+
+                results.append("""
+                public struct \(raw: swiftName): Equatable {
+                    public static let name: String = \(raw: "\"\(term.name)\"")
+                    public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
+
+                    public let id: IRIKit.IRI
+                    public var children: [any RDFCore.Node]
+                \(raw: storedBlock)
+                    public init(
+                        \(raw: joinedParams)
+                    ) {
+                        self.id = id
+                        self.children = children
+                    }
+
+                    public static func == (lhs: Self, rhs: Self) -> Bool {
+                        lhs.id == rhs.id
+                    }
+                }
+                """)
+
+                // No static property — the type IS the thing
+                // DSL references use Animal() to create instances
+            } else {
+                // --- Property/individual/datatype: backing type with OntologyTerm ---
+                results.append("""
+                public struct \(raw: termStructName): \(raw: conformanceList) {
+                    public static let name: String = \(raw: "\"\(term.name)\"")
+                    public static let iri: IRIKit.IRI = \(raw: "\"\(iriString)\"")
+
+                    public let id: IRIKit.IRI
+
+                    public init(id: IRIKit.IRI = \(raw: "\"\(iriString)\"")) {
+                        self.id = id
+                    }
+
+                    public var children: [any RDFCore.Node] {
+                        [
+                        \(raw: childrenBody)
+                        ]
+                    }
+                }
+                """)
+
+                results.append("""
+                public static let \(raw: staticName) = \(raw: termStructName)()
+                """)
             }
-            """)
-
-            results.append("""
-            public static let \(raw: staticName) = \(raw: termStructName)()
-            """)
         }
 
         return results
