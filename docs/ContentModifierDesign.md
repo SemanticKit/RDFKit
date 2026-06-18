@@ -1,26 +1,41 @@
-# ContentModifier API
+# ContentModifier Design
 
-Implemented in `Sources/RDFCore/ContentModifier.swift`.
+## Pattern (like SwiftUI's ViewModifier)
+
+In SwiftUI:
+```swift
+Text("Hello")
+    .padding()
+    .foregroundColor(.red)
+    .background(.blue)
+```
+
+Each modifier is a method on the view that returns a modified view.
+
+For RDFKit, modifiers are methods on the target that return modified targets:
+```swift
+Class("Foo")
+    .addLabel("Foo")
+    .addComment("Bar")
+    .deprecated()
+    .isDeclaredBy(namespace: OWL.namespace)
+```
 
 ## Protocol
 
-`ContentModifier<ContentType>` — associated type constrains target node type. `shouldApply(to:)` for selective dispatch (default: true). `apply(to:)` returns same concrete type.
+`ContentModifier` — defines how NEW modifiers can be created externally.
 
-Content modifiers are type-safe: they only decorate things they can apply to, and they bring something TO their target. They have zero knowledge of aggregation mechanics.
-
-## Composition-Time
-
-- `.modifier(M)` — trailing syntax on any `Node`
-- `.with(A(), B(), C())` — variadic multi-modifier application
-
-## Post-Processing
-
-- `applyRecursively(to:)` — walks content tree depth-first (recurse into `TermDeclaration.children`)
-- `applyModifier(_:to:)` — free function entry point
+```swift
+protocol ContentModifier {
+    associatedtype Target
+    func apply(to target: Target) -> Target
+}
+```
 
 ## Rules
 
-- Modifiers must be type-safe via protocols/conformances
-- Modifiers must only decorate things they can apply to (associated type constraint)
-- Modifiers must bring something TO their target (like SwiftUI `ViewModifier`)
-- Modifiers must have zero knowledge of aggregation mechanics
+- Modifiers are methods on the target type (like SwiftUI)
+- `ContentModifier` protocol allows external code to define new modifiers
+- Modifiers return modified targets (not void)
+- Modifiers have zero knowledge of aggregation mechanics
+- Modifiers only decorate things they can apply to

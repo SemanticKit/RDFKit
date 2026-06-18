@@ -152,6 +152,85 @@ These are metadata about the types. They should be generated as DocC comments on
 - DSL functions (that's RDFKit)
 - Concrete implementations (that's the generated code)
 
+### Type Conformances
+
+All types should conform to standard Swift protocols where applicable. This makes them work everywhere — in collections, as dictionary keys, for serialization, etc.
+
+**Minimum conformance set:**
+- `Sendable` — for concurrency
+- `Equatable` — for comparison
+- `Hashable` — for collections
+- `Codable` — for serialization
+- `CustomStringConvertible` — for display
+
+**Example from `Namespace`:**
+```swift
+public struct Namespace: Node, RawRepresentable, Equatable, Hashable,
+    Sendable, Codable, Comparable, LosslessStringConvertible,
+    CustomStringConvertible, ExpressibleByStringLiteral {
+    // ...
+}
+```
+
+### Swift API Design Guidelines
+
+Follow Swift API Design Guidelines strictly:
+
+- **Clarity at point of use** — APIs should be clear where they're used
+- **Clarity over brevity** — Don't sacrifice clarity for shorter code
+- **Fluent usage** — Methods should read naturally in context
+- **Proper naming** — Use Swift naming conventions (lowerCamelCase for methods/properties, UpperCamelCase for types)
+- **Documentation** — Begin with a summary, describe what it does and returns
+
+**Naming examples:**
+- `func domain() -> Node?` — not `func getDomain() -> Node?`
+- `var label: String?` — not `func getLabel() -> String?`
+- `func subClassOf() -> Node?` — not `func getSuperclass() -> Node?`
+
+### Swift Language Features
+
+Leverage modern Swift features for clean, expressive code:
+
+**Protocol-Oriented Design:**
+- Protocols define behaviors, not implementations
+- Protocol extensions provide default implementations
+- Protocol conformance drives code generation
+
+**Value Types:**
+- Structs for immutable data (terms, annotations)
+- Enums for fixed sets (term kinds, if needed)
+- Avoid classes unless reference semantics are required
+
+**Result Builders:**
+- `@ContentBuilder` for composing ontology content
+- `@TermContentBuilder` for composing term annotations
+- Parameter packs for variadic content
+
+**Opaque Return Types:**
+- `some Node` for type-safe return values
+- Preserve type information through the call chain
+
+**Property Wrappers:**
+- Consider for computed properties that need storage control
+
+**Macros:**
+- `@Vocabulary` for code generation
+- Compile-time processing of DSL declarations
+
+**Sendable/Concurrency:**
+- All types should be `Sendable` for safe concurrent access
+- Immutable value types are naturally sendable
+
+**Pattern Matching:**
+- `switch` statements for handling different term types
+- `if let` for optional unwrapping
+
+**Extensions:**
+- Add functionality to existing types without modification
+- Protocol extensions for shared behavior
+
+**Rule:** If a type can reasonably conform to a standard Swift protocol, it should. This makes the type usable everywhere without extra work.
+
 ### File Organization
 
 Each protocol gets its own clean file. Special protocols carry conforming types in the same file. Each protocol gets its own test file.
