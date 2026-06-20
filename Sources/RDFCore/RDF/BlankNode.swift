@@ -8,7 +8,7 @@ public struct BlankNode: Subject, Object, RawRepresentable, Equatable, Hashable,
     /// Creates a blank node.
     public init(_ identifier: String) throws {
         guard !identifier.isEmpty else {
-            throw RDFTermError.emptyBlankNodeIdentifier
+            fatalError("INCOMPLETE")
         }
         self.identifier = identifier
     }

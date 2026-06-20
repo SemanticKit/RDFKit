@@ -3,8 +3,7 @@ import RDFCore
 import IRIKit
 
 /// The RDF Schema ontology.
-@Vocabulary
-public struct RDFS: Ontology {
+@Ontology public struct RDFS: Ontology {
     public var content: Content {
         Prefix.rdf
         Prefix.rdfs
@@ -20,19 +19,6 @@ public struct RDFS: Ontology {
             Comment("The class of classes.")
         }
 
-        Class("Resource") {
-            Type(RDFS.Class)
-            Label("Resource")
-            Comment("The class resource, everything.")
-        }
-        Class("Proposition") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Proposition")
-            Comment(
-                "The class of propositions, simple logical expressions describing a relationship between two entities."
-            )
-        }
         Property("subClassOf") {
             Type(RDF.Property)
             Domain(RDFS.Class)
@@ -40,6 +26,7 @@ public struct RDFS: Ontology {
             Label("subClassOf")
             Comment("The subject is a subclass of a class.")
         }
+
         Property("subPropertyOf") {
             Type(RDF.Property)
             Domain(RDF.Property)
@@ -90,40 +77,12 @@ public struct RDFS: Ontology {
             Label("isDefinedBy")
             Comment("The definition of the subject resource.")
         }
-        Class("Literal") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Literal")
-            Comment(
-                "The class of literal values, eg. textual strings and integers."
-            )
-        }
-        Class("Container") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Container")
-            Comment("The class of RDF containers.")
-        }
-        Class("ContainerMembershipProperty") {
-            Type(RDFS.Class)
-            SubClassOf(RDF.Property)
-            Label("ContainerMembershipProperty")
-            Comment(
-                "The class of container membership properties, rdf:_1, rdf:_2, ..., all of which are sub-properties of 'member'."
-            )
-        }
         Property("member") {
             Type(RDF.Property)
             Domain(RDFS.Resource)
             Range(RDFS.Resource)
             Label("member")
             Comment("A member of the subject resource.")
-        }
-        Class("Datatype") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Class)
-            Label("Datatype")
-            Comment("The class of RDF datatypes.")
         }
     }
 }

@@ -29,14 +29,14 @@ public struct Literal: Object, Equatable, Hashable, Sendable, Codable, Comparabl
 
         if let languageTag = self.languageTag {
             guard !languageTag.isEmpty else {
-                throw RDFTermError.emptyLanguageTag
+                fatalError("INCOMPLETE")
             }
             guard datatype == nil else {
-                throw RDFTermError.languageTagWithDatatype
+                fatalError("INCOMPLETE")
             }
         } else {
             guard textDirection == nil else {
-                throw RDFTermError.textDirectionRequiresLanguageTag
+                fatalError("INCOMPLETE")
             }
         }
     }

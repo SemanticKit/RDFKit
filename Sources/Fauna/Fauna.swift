@@ -3,7 +3,7 @@ import RDFKit
 import IRIKit
 
 /// An animal kingdom ontology.
-@Vocabulary
+@Ontology
 public struct Fauna: Ontology {
     public var content: Content {
         Namespace("https://fauna.example.org/ontology#")

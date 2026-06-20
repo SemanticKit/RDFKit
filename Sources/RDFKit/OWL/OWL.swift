@@ -3,7 +3,7 @@ import IRIKit
 import RDFCore
 
 /// The OWL ontology.
-@Vocabulary
+@Ontology
 public struct OWL: Ontology {
     public var content: Content {
         Prefix("dc", "http://purl.org/dc/elements/1.1/")

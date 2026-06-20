@@ -3,8 +3,10 @@ import RDFCore
 import IRIKit
 
 /// The RDF ontology.
-@Vocabulary
+@Ontology
 public struct RDF: Ontology {
+    typealias `Class` = RDFS.Class
+
     public var content: Content {
         Prefix.rdf
         Prefix.rdfs
@@ -14,7 +16,7 @@ public struct RDF: Ontology {
         Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
         Class("Alt") {
-            Type(RDFS.Class)
+            Type(Class)
             SubClassOf(RDFS.Container)
             Label("Alt")
             Comment("The class of containers of alternatives.")
@@ -91,12 +93,12 @@ public struct RDF: Ontology {
             )
             OWLDeprecated()
         }
-        Class("Property") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Property")
-            Comment("The class of RDF properties.")
-        }
+//        Class("Property") {
+//            Type(RDFS.Class)
+//            SubClassOf(RDFS.Resource)
+//            Label("Property")
+//            Comment("The class of RDF properties.")
+//        }
         Class("PropositionForm") {
             Type(RDFS.Class)
             SubClassOf(RDFS.Resource)
@@ -247,6 +249,71 @@ public struct RDF: Ontology {
             Type(RDFS.Resource)
             Label("1.2-basic")
             Comment("Version 1.2-basic")
+        }
+    }
+
+    public struct Property: Entity, IRIIdentifiable, Sendable {
+        public typealias ID = IRI
+
+        public struct Metadata: Codable, Identifiable, Sendable {
+            public typealias ID = IRI
+
+            public enum CodingKeys: String, CodingKey, CaseIterable {
+                case id = "id"
+                case name = "name"
+                case type = "type"
+                case comment = "comment"
+            }
+            public let id: IRI
+            public let name: String
+            public let type: IRI
+            public let comment: String
+        }
+
+        public static let metadata = Metadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#Resource",
+            name: "Resource",
+            type: "RDFS.Class",
+            comment: "The class resource, everything."
+        )
+
+        public var id: ID
+
+        
+        public static func callAsFunction(_ name: String, @TermContentBuilder _ children: () -> [any Node]) -> TermDeclaration {
+            TermDeclaration(name: name, children: children())
+        }
+    }
+
+    public struct `Type`: Entity, IRIIdentifiable, Sendable {
+        public typealias ID = IRI
+
+        public struct Metadata: Codable, Identifiable, Sendable {
+            public typealias ID = IRI
+
+            public enum CodingKeys: String, CodingKey, CaseIterable {
+                case id = "id"
+                case name = "name"
+                case type = "type"
+                case comment = "comment"
+            }
+            public let id: IRI
+            public let name: String
+            public let type: IRI
+            public let comment: String
+        }
+
+        public static let metadata = Metadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#Resource",
+            name: "Resource",
+            type: "RDFS.Class",
+            comment: "The class resource, everything."
+        )
+
+        public var id: ID
+
+        public static func callAsFunction(_ name: String, @TermContentBuilder _ children: () -> [any Node]) -> TermDeclaration {
+            TermDeclaration(name: name, children: children())
         }
     }
 }
