@@ -42,38 +42,46 @@ struct EntityGenerator {
         let callAsFunctionArgs = metadataProperties.map { prop -> String in
             switch prop.name {
             case "id":
-                return "                id: IRI(rawValue: \"\\(Self.metadata.type)\\(name)\") ?? \"\""
+                return "                    id: IRI(rawValue: \"\\(Self.metadata.type)\\(name)\") ?? \"\""
             case "name":
-                return "                name: name"
+                return "                    name: name"
             case "label":
-                return "                label: name"
+                return "                    label: name"
             case "comment":
-                return "                comment: \"\""
+                return "                    comment: \"\""
             default:
-                return "                \(prop.name): Self.metadata.\(prop.name)"
+                return "                    \(prop.name): Self.metadata.\(prop.name)"
             }
         }.joined(separator: ",\n")
 
+        let callAsFunction: DeclSyntax = """
+                public static func callAsFunction(
+                    _ name: String,
+                    @ContentBuilder _ children: () -> Content
+                ) -> Metadata {
+                    Metadata(
+        \(raw: callAsFunctionArgs)
+                    )
+                }
+        """
+
+        var memberStrings: [String] = []
+        memberStrings.append("    public typealias ID = IRI")
+        memberStrings.append("    \(metadataBlock)")
+        memberStrings.append("    \(metadataInit)")
+        for prop in storedProperties {
+            memberStrings.append("    \(prop)")
+        }
+        if let initDecl = initializer {
+            memberStrings.append("    \(initDecl)")
+        }
+        memberStrings.append("    \(callAsFunction)")
+
+        let memberBlock = memberStrings.joined(separator: "\n\n")
+
         let structDecl: DeclSyntax = """
         public struct \(raw: typeName): Entity, Sendable {
-            public typealias ID = IRI
-        
-        \(raw: metadataBlock)
-        
-        \(raw: metadataInit)
-        
-        \(raw: storedProperties)
-        
-        \(raw: initializer)
-        
-            public static func callAsFunction(
-                _ name: String,
-                @ContentBuilder _ children: () -> Content
-            ) -> Metadata {
-                Metadata(
-        \(raw: callAsFunctionArgs)
-                )
-            }
+        \(raw: memberBlock)
         }
         """
 

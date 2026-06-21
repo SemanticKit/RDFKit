@@ -6,6 +6,10 @@ import IRIKit
 @Ontology
 public struct RDF: Ontology {
     typealias `Class` = RDFS.Class
+    typealias Label = RDFS.Label
+    typealias Individual = RDFS.Individual
+    typealias SubClassOf = RDFS.SubClassOf
+    typealias SeeAlso = RDFS.SeeAlso
 
     public var content: Content {
         Prefix.rdf
@@ -93,12 +97,12 @@ public struct RDF: Ontology {
             )
             OWLDeprecated()
         }
-//        Class("Property") {
-//            Type(RDFS.Class)
-//            SubClassOf(RDFS.Resource)
-//            Label("Property")
-//            Comment("The class of RDF properties.")
-//        }
+        Class("Property") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Property")
+            Comment("The class of RDF properties.")
+        }
         Class("PropositionForm") {
             Type(RDFS.Class)
             SubClassOf(RDFS.Resource)
@@ -251,69 +255,81 @@ public struct RDF: Ontology {
             Comment("Version 1.2-basic")
         }
     }
+}
 
-    public struct Property: Entity, IRIIdentifiable, Sendable {
+extension RDF {
+    struct Property: Entity {
         public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
 
-        public struct Metadata: Codable, Identifiable, Sendable {
-            public typealias ID = IRI
-
-            public enum CodingKeys: String, CodingKey, CaseIterable {
-                case id = "id"
-                case name = "name"
-                case type = "type"
-                case comment = "comment"
-            }
-            public let id: IRI
-            public let name: String
-            public let type: IRI
-            public let comment: String
-        }
-
-        public static let metadata = Metadata(
+        public static let metadata = RDFMetadata(
             id: "http://www.w3.org/2000/01/rdf-schema#Resource",
             name: "Resource",
             type: "RDFS.Class",
+            label: "Resource",
             comment: "The class resource, everything."
         )
 
-        public var id: ID
+        public let id: ID
+        public let name: String
+        public let type: String
+        public let label: String
+        public let comment: String
 
-        
-        public static func callAsFunction(_ name: String, @TermContentBuilder _ children: () -> [any Node]) -> TermDeclaration {
-            TermDeclaration(name: name, children: children())
+        public init(
+            id: ID,
+            name: String,
+            type: String,
+            label: String,
+            comment: String
+        ) {
+            self.id = id
+            self.name = name
+            self.type = type
+            self.label = label
+            self.comment = comment
+        }
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
         }
     }
 
-    public struct `Type`: Entity, IRIIdentifiable, Sendable {
+    public struct `Type`: Entity {
         public typealias ID = IRI
-
-        public struct Metadata: Codable, Identifiable, Sendable {
-            public typealias ID = IRI
-
-            public enum CodingKeys: String, CodingKey, CaseIterable {
-                case id = "id"
-                case name = "name"
-                case type = "type"
-                case comment = "comment"
-            }
-            public let id: IRI
-            public let name: String
-            public let type: IRI
-            public let comment: String
-        }
+        public typealias Metadata = RDFMetadata
 
         public static let metadata = Metadata(
-            id: "http://www.w3.org/2000/01/rdf-schema#Resource",
-            name: "Resource",
+            id: "http://www.w3.org/2000/01/rdf-schema#Type",
+            name: "Type",
             type: "RDFS.Class",
-            comment: "The class resource, everything."
+            label: "Type",
+            comment: "The subject is an instance of a class."
         )
 
         public var id: ID
 
-        public static func callAsFunction(_ name: String, @TermContentBuilder _ children: () -> [any Node]) -> TermDeclaration {
-            TermDeclaration(name: name, children: children())
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
         }
     }
 }
