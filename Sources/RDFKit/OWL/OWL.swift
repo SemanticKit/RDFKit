@@ -1,9 +1,11 @@
 import Foundation
+import IRIKit
+import RDFCore
 
 /// The OWL ontology.
+@Ontology
 public struct OWL: Ontology {
-    public var content: some Content {
-        Prefix.dc
+    public var content: Content {
         Prefix("dc", "http://purl.org/dc/elements/1.1/")
         Prefix("grddl", "http://www.w3.org/2003/g/data-view#")
         Prefix("owl", "http://www.w3.org/2002/07/owl#")
@@ -13,7 +15,7 @@ public struct OWL: Ontology {
         Prefix("xml", "http://www.w3.org/XML/1998/namespace")
         Prefix("xsd", "http://www.w3.org/2001/XMLSchema#")
 
-//        Namespace("http://www.w3.org/2002/07/owl#")
+        Namespace("http://www.w3.org/2002/07/owl#")
 
         Class("AllDifferent") {
             Type(RDFS.Class)
@@ -255,7 +257,7 @@ public struct OWL: Ontology {
         Property("cardinality") {
             Type(RDF.Property)
             Domain(OWL.Restriction)
-            Range("http://www.w3.org/2001/XMLSchema#nonNegativeInteger")
+            Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
             Label("cardinality")
             Comment(
                 "The property that determines the cardinality of an exact cardinality restriction."
@@ -409,7 +411,7 @@ public struct OWL: Ontology {
         Property("maxCardinality") {
             Type(RDF.Property)
             Domain(OWL.Restriction)
-            Range("http://www.w3.org/2001/XMLSchema#nonNegativeInteger")
+            Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
             Label("maxCardinality")
             Comment(
                 "The property that determines the cardinality of a maximum cardinality restriction."
@@ -418,7 +420,7 @@ public struct OWL: Ontology {
         Property("maxQualifiedCardinality") {
             Type(RDF.Property)
             Domain(OWL.Restriction)
-            Range("http://www.w3.org/2001/XMLSchema#nonNegativeInteger")
+            Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
             Label("maxQualifiedCardinality")
             Comment(
                 "The property that determines the cardinality of a maximum qualified cardinality restriction."
@@ -436,7 +438,7 @@ public struct OWL: Ontology {
         Property("minCardinality") {
             Type(RDF.Property)
             Domain(OWL.Restriction)
-            Range("http://www.w3.org/2001/XMLSchema#nonNegativeInteger")
+            Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
             Label("minCardinality")
             Comment(
                 "The property that determines the cardinality of a minimum cardinality restriction."
@@ -445,7 +447,7 @@ public struct OWL: Ontology {
         Property("minQualifiedCardinality") {
             Type(RDF.Property)
             Domain(OWL.Restriction)
-            Range("http://www.w3.org/2001/XMLSchema#nonNegativeInteger")
+            Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
             Label("minQualifiedCardinality")
             Comment(
                 "The property that determines the cardinality of a minimum qualified cardinality restriction."
@@ -536,7 +538,7 @@ public struct OWL: Ontology {
         Property("qualifiedCardinality") {
             Type(RDF.Property)
             Domain(OWL.Restriction)
-            Range("http://www.w3.org/2001/XMLSchema#nonNegativeInteger")
+            Range(IRI("http://www.w3.org/2001/XMLSchema#nonNegativeInteger"))
             Label("qualifiedCardinality")
             Comment(
                 "The property that determines the cardinality of an exact qualified cardinality restriction."

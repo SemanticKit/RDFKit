@@ -1,29 +1,25 @@
 import Foundation
+import RDFCore
+import IRIKit
 
 /// The RDF Schema ontology.
-public struct RDFS: Ontology {
-    public var content: some Content {
-//        Namespace("http://www.w3.org/2000/01/rdf-schema#")
-        
-        Class("Resource") {
-            Type(RDFS.Class)
-            Label("Resource")
-            Comment("The class resource, everything.")
-        }
-        Class("Proposition") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Proposition")
-            Comment(
-                "The class of propositions, simple logical expressions describing a relationship between two entities."
-            )
-        }
+@Ontology public struct RDFS: Ontology {
+    typealias Property = RDF.Property
+    public var content: Content {
+        Prefix.rdf
+        Prefix.rdfs
+        Prefix.owl
+        Prefix.dc
+
+        Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
         Class("Class") {
             Type(RDFS.Class)
             SubClassOf(RDFS.Resource)
             Label("Class")
             Comment("The class of classes.")
         }
+
         Property("subClassOf") {
             Type(RDF.Property)
             Domain(RDFS.Class)
@@ -31,6 +27,7 @@ public struct RDFS: Ontology {
             Label("subClassOf")
             Comment("The subject is a subclass of a class.")
         }
+
         Property("subPropertyOf") {
             Type(RDF.Property)
             Domain(RDF.Property)
@@ -75,33 +72,11 @@ public struct RDFS: Ontology {
         }
         Property("isDefinedBy") {
             Type(RDF.Property)
-            SubPropertyOf(RDFS.SeeAlso)
+            SubPropertyOf(RDFS.seeAlso)
             Domain(RDFS.Resource)
             Range(RDFS.Resource)
             Label("isDefinedBy")
             Comment("The definition of the subject resource.")
-        }
-        Class("Literal") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Literal")
-            Comment(
-                "The class of literal values, eg. textual strings and integers."
-            )
-        }
-        Class("Container") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Resource)
-            Label("Container")
-            Comment("The class of RDF containers.")
-        }
-        Class("ContainerMembershipProperty") {
-            Type(RDFS.Class)
-            SubClassOf(RDF.Property)
-            Label("ContainerMembershipProperty")
-            Comment(
-                "The class of container membership properties, rdf:_1, rdf:_2, ..., all of which are sub-properties of 'member'."
-            )
         }
         Property("member") {
             Type(RDF.Property)
@@ -110,11 +85,240 @@ public struct RDFS: Ontology {
             Label("member")
             Comment("A member of the subject resource.")
         }
-        Class("Datatype") {
-            Type(RDFS.Class)
-            SubClassOf(RDFS.Class)
-            Label("Datatype")
-            Comment("The class of RDF datatypes.")
+    }
+}
+
+extension RDFS {
+
+    public struct Class: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#Class",
+            name: "Class",
+            type: "RDFS.Property",
+            label: "Class",
+            comment: "The class of classes."
+        )
+
+        public let id: ID
+        public let name: String
+        public let type: String
+        public let label: String
+        public let comment: String
+
+        public init(
+            id: ID,
+            name: String,
+            type: String,
+            label: String,
+            comment: String
+        ) {
+            self.id = id
+            self.name = name
+            self.type = type
+            self.label = label
+            self.comment = comment
+        }
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
+        }
+    }
+
+    public struct Domain: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#Domain",
+            name: "Domain",
+            type: "RDFS.Property",
+            label: "Domain",
+            comment: "A domain of the subject property."
+        )
+
+        public var id: ID
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
+        }
+    }
+
+    public struct Individual: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#Individual",
+            name: "Individual",
+            type: "RDFS.Property",
+            label: "Individual",
+            comment: "The class of classes."
+        )
+
+        public let id: ID
+        public let name: String
+        public let type: String
+        public let label: String
+        public let comment: String
+
+        public init(
+            id: ID,
+            name: String,
+            type: String,
+            label: String,
+            comment: String
+        ) {
+            self.id = id
+            self.name = name
+            self.type = type
+            self.label = label
+            self.comment = comment
+        }
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
+        }
+    }
+
+    public struct Label: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#Label",
+            name: "Label",
+            type: "RDFS.Property",
+            label: "Label",
+            comment: "A human-readable name for the subject."
+        )
+
+        public var id: ID
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
+        }
+    }
+
+    public struct SeeAlso: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#SeeAlso",
+            name: "SeeAlso",
+            type: "RDFS.Property",
+            label: "SeeAlso",
+            comment: "Further information about the subject resource."
+        )
+
+        public var id: ID
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
+        }
+    }
+
+    public struct SubClassOf: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#subClassOf",
+            name: "SubClassOf",
+            type: "RDFS.Property",
+            label: "subClassOf",
+            comment: "The subject is a subclass of a class."
+        )
+
+        public var id: ID
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
+        }
+    }
+
+    public struct SubPropertyOf: Entity {
+        public typealias ID = IRI
+        public typealias Metadata = RDFMetadata
+
+        public static let metadata = RDFMetadata(
+            id: "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+            name: "SubPropertyOf",
+            type: "RDFS.Property",
+            label: "SubPropertyOf",
+            comment: "The subject is a subproperty of a property."
+        )
+
+        public var id: ID
+
+        public static func callAsFunction(
+            _ name: String,
+            @ContentBuilder _ children: () -> Content
+        ) -> any ContentMetadata {
+            RDFMetadata(
+                id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
+                name: name,
+                type: Self.metadata.type,
+                label: name,
+                comment: ""
+            )
         }
     }
 }
