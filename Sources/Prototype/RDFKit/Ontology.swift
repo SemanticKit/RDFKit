@@ -15,7 +15,7 @@ public typealias Entities = [AnyEntity]
 ///
 /// Conform a type to ``Ontology`` to define an RDF vocabulary — a collection of
 /// classes, properties, individuals, datatypes, prefixes, and annotations —
-/// using the ``@ContentBuilder`` result builder. The ``@Ontology`` macro can
+/// using the ``@OntologyBuilder`` result builder. The ``@Ontology`` macro can
 /// then generate concrete declaration types (``Class``, ``Property``, etc.)
 /// nested inside the conforming type, shadowing the default DSL closures.
 ///
@@ -36,7 +36,7 @@ public typealias Entities = [AnyEntity]
 /// - Note: ``Ontology`` conformance is `Sendable`; conforming types should
 ///   ensure all stored properties are also `Sendable`.
 ///
-/// - SeeAlso: ``ContentBuilder``, ``@Ontology``, ``Entity``
+/// - SeeAlso: ``OntologyBuilder``, ``@Ontology``, ``Entity``
 public protocol Ontology: Sendable {
     /// The authored ontology content.
     ///
@@ -53,7 +53,7 @@ public protocol Ontology: Sendable {
     ///     }
     /// }
     /// ```
-    @ContentBuilder var content: Content { get }
+    @OntologyBuilder var content: Content { get }
 
     /// The flattened collection of all entities declared within this ontology.
     ///

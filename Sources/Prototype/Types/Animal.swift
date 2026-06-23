@@ -1,43 +1,37 @@
-//
-//  Animal.swift
-//  RDFKit
-//
-//  Created by Charles Gardner on 6/20/26.
-//
-import RDFCore
+import IRIKit
 
+public struct Animal: Sendable {
 
-public struct Animal: Entity, Sendable {
     public typealias ID = IRI
 
-    public static let metadata = RDFMetadata(
-        id: "http://example.org/animals#Animal",
-        name: "Animal",
-        type: "RDFS.Class",
-        label: "Animal",
-        comment: "A living organism."
-    )
-
-    public var id: IRI
+    public var id: ID
     public var name: String
-    public let species: String
+    public var hasHabitat: IRI
+    public var hasDiet: IRI
+    public var commonName: String
+    public var scientificName: String
 
-    public init(id: IRI, name: String, species: String) {
-        self.id = id
-        self.name = name
-        self.species = species
-    }
-
-    public static func callAsFunction(
+    public init(
         _ name: String,
-        @ContentBuilder _ children: () -> Content
-    ) -> Metadata {
-        RDFMetadata(
-            id: IRI(rawValue: "\(Self.metadata.type)\(name)") ?? "",
-            name: name,
-            type: Self.metadata.type,
-            label: name,
-            comment: ""
-        )
+        @EntityContentBuilder _ children: () -> Content
+    ) {
+        self.id = ""
+        self.name = name
+        self.hasHabitat = ""
+        self.hasDiet = ""
+        self.commonName = ""
+        self.scientificName = ""
     }
+}
+
+// MARK: Generated Type Metadata
+
+extension Animal: Entity {
+    public static let metadata: any ContentMetadata = Class.ClassMetadata(
+        id: "https://fauna.example.org/ontology#Animal",
+        name: "Animal",
+        type: "https://fauna.example.org/ontology#Animal",
+        label: "Animal",
+        comment: "The class of all animals."
+    )
 }

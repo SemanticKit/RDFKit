@@ -8,6 +8,7 @@ import IRIKit
 
 public struct Class: Entity, Sendable {
     public typealias ID = IRI
+    public typealias Metadata = any ContentMetadata
 
     public static let metadata = RDFMetadata(
         id: "http://www.w3.org/2000/01/rdf-schema#Class",

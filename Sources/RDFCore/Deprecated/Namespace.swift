@@ -2,35 +2,7 @@ import Foundation
 import IRIKit
 
 /// A namespace IRI used to qualify vocabulary terms.
-public struct Namespace: Entity {
-    public typealias ID = IRI
-    public typealias Metadata = RDFMetadata
 
-    public static let metadata = RDFMetadata(
-        id: "http://semantickit.io/o/2026/06/rdfkit#Namespace",
-        name: "Namespace",
-        type: "RDFKit.Namespace",
-        label: "Namespace",
-        comment: "The namespace of the Ontology."
-    )
-
-    public let id: ID
-
-    /// The target namespace.
-    public let namespace: String
-
-    /// Creates a prefix alias.
-    public init(_ namespace: String) {
-        guard let id = try? ID(validating: namespace) else {
-            preconditionFailure(
-                "Could not validate the provided namespace identity as an IRI from \(namespace)."
-            )
-        }
-
-        self.id = id
-        self.namespace = namespace
-    }
-}
 
 //public struct Namespace: Node, RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, LosslessStringConvertible, CustomStringConvertible, ExpressibleByStringLiteral {
 //

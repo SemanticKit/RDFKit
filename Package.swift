@@ -11,6 +11,10 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "Prototype",
+            targets: ["Prototype"]
+        ),
+        .library(
             name: "RDFKit",
             targets: ["RDFKit"]
         ),
@@ -24,6 +28,13 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.0")
     ],
     targets: [
+        .target(
+            name: "Prototype",
+            dependencies: [
+                "IRIKit",
+                "RDFKitMacros"
+            ]
+        ),
         .target(
             name: "RDFCore",
             dependencies: ["IRIKit"]

@@ -2,17 +2,9 @@ import Foundation
 import IRIKit
 
 /// A prefix alias bound to a namespace.
-public struct Prefix: Entity {
+public struct Prefix {
     public typealias ID = IRI
     public typealias Metadata = any ContentMetadata
-
-    public static let metadata = RDFMetadata(
-        id: "http://semantickit.io/o/2026/06/rdfkit#Prefix",
-        name: "Prefix",
-        type: "RDFKit.Prefix",
-        label: "Prefix",
-        comment: "The prefix of the Ontology."
-    )
 
     public let id: IRIKit.IRI
 
@@ -46,6 +38,21 @@ public struct Prefix: Entity {
         self.namespace = namespace
     }
 }
+
+
+
+extension Prefix: Entity {
+    public static let metadata: any ContentMetadata = Class.ClassMetadata(
+        id: "http://semantickit.io/o/2026/06/rdfkit#Prefix",
+        name: "Prefix",
+        type: "RDFKit.Prefix",
+        label: "Prefix",
+        comment: "The prefix of the Ontology."
+    )
+}
+
+
+// MARK: Known Common Prefixes
 
 extension Prefix {
     /// @prefix dc: <http://purl.org/dc/elements/1.1/> .
@@ -109,3 +116,4 @@ extension Prefix {
     /// @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
     public static let xsd = Prefix("xsd", "http://www.w3.org/2001/XMLSchema#")
 }
+
