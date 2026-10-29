@@ -7,6 +7,7 @@ import Testing
 let macroSpecs: [String: MacroSpec] = [
     "Ontology": MacroSpec(type: OntologyMacro.self),
     "OntologyContent": MacroSpec(type: OntologyContentMacro.self),
+    "ClassProtocol": MacroSpec(type: ClassProtocolMacro.self),
 ]
 
 /// Expands the ontology macros on `source` and checks the result.

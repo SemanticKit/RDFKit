@@ -15,8 +15,7 @@ import Synchronization
 /// constants that live as long as the program.
 public final class IndividualGraph: Sendable {
     private struct Members: Sendable {
-        var individuals: [any Resource] = []
-        var properties: [any PropertyStorage] = []
+        var individuals: [any IndividualObject] = []
     }
 
     private let members = Mutex(Members())
@@ -25,17 +24,13 @@ public final class IndividualGraph: Sendable {
     public init() {}
 
     /// The individuals created in this graph, in the order they were created.
-    public var individuals: [any Resource] {
+    public var individuals: [any IndividualObject] {
         members.withLock { $0.individuals }
     }
 
-    /// Adds an individual and the storage of its properties. Generated
-    /// individual initializers call it.
-    public func insert(_ individual: any Resource, properties: [any PropertyStorage]) {
-        members.withLock { members in
-            members.individuals.append(individual)
-            members.properties.append(contentsOf: properties)
-        }
+    /// Adds an individual. Generated individual initializers call it.
+    public func insert(_ individual: any IndividualObject) {
+        members.withLock { $0.individuals.append(individual) }
     }
 
     deinit {
@@ -44,8 +39,8 @@ public final class IndividualGraph: Sendable {
             members = Members()
             return taken
         }
-        for property in members.properties {
-            property.removeAll()
+        for individual in members.individuals {
+            individual.individualProperties.removeAll()
         }
     }
 }

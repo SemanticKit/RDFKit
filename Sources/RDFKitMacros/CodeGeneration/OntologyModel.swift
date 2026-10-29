@@ -10,10 +10,14 @@
 /// - An `Individual` becomes the one instance of a final class that conforms
 ///   to the protocols of its classes.
 /// - A `Property` becomes a term type that names its `Domain` and `Range`.
+///   The properties the DSL is written with (`rdfs:label` as `Label(...)`,
+///   `rdfs:domain` as `Domain(...)`) are also annotation types.
 struct OntologyModel {
     enum Shape: Equatable {
         /// A term RDFCore already provides.
         case alias(form: String, isGeneric: Bool)
+        /// A property term the DSL is written with, such as `rdfs:label`.
+        case annotation(BootstrapTerm.AnnotationForm)
         /// A class of individuals: a protocol.
         case classProtocol
         /// A datatype or literal class: a value type.
@@ -71,42 +75,124 @@ struct OntologyModel {
     // MARK: - Classes
 
     /// The protocols a class protocol refines: its local and foreign
-    /// superclasses, or ``RDFCore/Resource`` when it declares none.
+    /// superclasses, or `RDFS.Resource` when it declares none. `rdfs:Resource`
+    /// itself, the class of everything, is the root: an object with a
+    /// boundary projection.
     func refinements(of className: String) -> [String] {
-        var result: [String] = []
-        for spelling in superclassSpellings(of: className) where !result.contains(spelling) {
-            result.append(spelling)
+        let point = "\(ontology.typeName).\(Self.extensionPoint)"
+        var result = isRoot(className)
+            ? ["RDFCore.IndividualObject"] + BootstrapTerm.extensionPoints.filter { $0 != point || hasExtensionPoint }
+            : superclassSpellings(of: className)
+        // A class with no local superclass refines the ontology's extension
+        // point, so its individuals have the properties the ontology declares
+        // for other ontologies' classes they are in.
+        if hasExtensionPoint, localSuperclasses(of: className).isEmpty, !result.contains(point) {
+            result.append(point)
         }
-        return result.isEmpty ? ["RDFCore.Resource"] : result
+        return result
     }
 
-    /// Whether every class a class refines, transitively, is declared in this
-    /// ontology or is `rdfs:Resource`, so that the macro knows every
-    /// requirement an individual of the class must store. `owl:Nothing` and
-    /// its subclasses have no individuals, so they have no individual type.
-    func knowsAllRequirements(of className: String) -> Bool {
-        var visited: Set<String> = []
-        var pending = [className]
-        while let current = pending.popLast() {
-            guard visited.insert(current).inserted, let declaration = ontology.declaration(named: current) else { continue }
-            if BootstrapTerm.isNothing("\(ontology.typeName).\(current)") { return false }
-            for spelling in declaration.terms("SubClassOf") {
-                let canonical = ontology.canonical(spelling)
-                if BootstrapTerm.isResource(canonical) { continue }
-                if BootstrapTerm.isNothing(canonical) { return false }
-                guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
-                pending.append(name)
+    /// Whether a local class is `rdfs:Resource`.
+    func isRoot(_ className: String) -> Bool {
+        BootstrapTerm.isResource("\(ontology.typeName).\(className)")
+    }
+
+    /// Whether a class has individuals, so that the macro generates an
+    /// individual type for it: `owl:Nothing` and its subclasses have none.
+    func hasIndividuals(_ className: String) -> Bool {
+        if BootstrapTerm.isNothing("\(ontology.typeName).\(className)") { return false }
+        for ancestor in localAncestors(of: className) {
+            if BootstrapTerm.isNothing("\(ontology.typeName).\(ancestor)") { return false }
+        }
+        return !([className] + localAncestors(of: className)).contains { name in
+            superclassSpellings(of: name).contains { BootstrapTerm.isNothing(ontology.canonical($0)) }
+        }
+    }
+
+    /// The local classes a class refines, transitively, nearest first.
+    func localAncestors(of className: String) -> [String] {
+        var result: [String] = []
+        var pending = localSuperclasses(of: className)
+        while !pending.isEmpty {
+            let next = pending.removeFirst()
+            guard next != className, !result.contains(next) else { continue }
+            result.append(next)
+            pending.append(contentsOf: localSuperclasses(of: next))
+        }
+        return result
+    }
+
+    /// The properties a class protocol requires: its own, and any property
+    /// that two or more of its local classes require (a property with several
+    /// domains), so that the class settles which implementation it has.
+    func storedOwnRequirements(of className: String) -> [PropertyRequirement] {
+        var result = ownRequirements(of: className)
+        for requirement in sharedRequirements(among: [className] + localAncestors(of: className))
+        where !result.contains(where: { $0.declaration.name == requirement.declaration.name }) {
+            result.append(requirement)
+        }
+        return result
+    }
+
+    /// The properties that two or more of these local classes require.
+    func sharedRequirements(among classNames: [String]) -> [PropertyRequirement] {
+        var counts: [String: Int] = [:]
+        var order: [PropertyRequirement] = []
+        for name in classNames {
+            for requirement in ownRequirements(of: name) {
+                if counts[requirement.declaration.name] == nil { order.append(requirement) }
+                counts[requirement.declaration.name, default: 0] += 1
             }
         }
-        return true
+        return order.filter { counts[$0.declaration.name, default: 0] > 1 }
     }
 
-    /// Whether a class spelling, local or foreign, has an individual type
-    /// this macro can generate.
-    func knowsAllRequirements(ofSpelling spelling: String) -> Bool {
-        if BootstrapTerm.isResource(ontology.canonical(spelling)) { return true }
-        guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
-        return knowsAllRequirements(of: name)
+    // MARK: - Properties for other ontologies' classes
+
+    /// The name of an ontology's extension point, `OWL.Extending`: the
+    /// protocol whose extensions give individuals the properties the
+    /// ontology declares for other ontologies' classes.
+    static let extensionPoint = "Extending"
+
+    /// The domains of a property that are classes of individuals: local
+    /// class protocols and classes of other ontologies, qualified, in the
+    /// order they are written.
+    func classDomains(of property: ParsedEntity) -> [String] {
+        var result: [String] = []
+        for spelling in property.terms("Domain") {
+            let reference = ontology.resolve(spelling)
+            if let local = reference.localName {
+                guard shapes[local] == .classProtocol else { continue }
+            } else if BootstrapTerm.isLiteral(ontology.canonical(spelling)) {
+                continue
+            }
+            let qualified = ontology.spelling(of: reference)
+            if !result.contains(qualified) { result.append(qualified) }
+        }
+        return result
+    }
+
+    /// Whether the ontology declares properties for classes of other
+    /// ontologies, and so generates its extension point.
+    var hasExtensionPoint: Bool { !foreignDomains().isEmpty }
+
+    /// The classes of other ontologies this ontology declares properties
+    /// for, each with those properties, in the order they are first named.
+    /// The properties become members of the class protocol's extension.
+    func foreignDomains() -> [(classSpelling: String, properties: [PropertyRequirement])] {
+        var order: [String] = []
+        var members: [String: [PropertyRequirement]] = [:]
+        for property in ontology.properties {
+            for domain in classDomains(of: property) where ontology.resolve(domain).localName == nil {
+                if members[domain] == nil { order.append(domain) }
+                members[domain, default: []].append(requirement(for: property))
+            }
+        }
+        return order.map { ($0, members[$0] ?? []) }
+    }
+
+    private func localSuperclasses(of className: String) -> [String] {
+        superclassSpellings(of: className).compactMap { ontology.resolve($0).localName }
     }
 
     /// The properties whose `Domain` is this class, in declaration order.
@@ -141,7 +227,7 @@ struct OntologyModel {
     func requirement(for property: ParsedEntity) -> PropertyRequirement {
         PropertyRequirement(
             declaration: property,
-            valueType: property.term("Range").map(valueType(ofRange:)) ?? "any RDFCore.Resource",
+            valueType: property.term("Range").map(valueType(ofRange:)) ?? "any \(BootstrapTerm.resource)",
             isFunctional: isFunctional(property)
         )
     }
@@ -191,8 +277,12 @@ struct OntologyModel {
     // MARK: - Shapes
 
     private func shape(computing declaration: ParsedEntity) -> Shape {
-        if let form = BootstrapTerm.form(namespace: ontology.namespace, name: declaration.name) {
+        let spelling = "\(ontology.typeName).\(declaration.name)"
+        if let form = BootstrapTerm.form(of: spelling) {
             return .alias(form: form.type, isGeneric: form.isGeneric)
+        }
+        if declaration.kind == .property, let form = BootstrapTerm.annotationForm(of: spelling) {
+            return .annotation(form)
         }
         switch declaration.kind {
         case .class: return isLiteralClass(declaration.name) ? .value : .classProtocol
@@ -215,19 +305,18 @@ struct OntologyModel {
         }
     }
 
-    /// The spellings of the protocols a class's `SubClassOf` annotations name.
+    /// The qualified spellings of the class protocols a class refines: the
+    /// classes its `SubClassOf` annotations name, or `RDFS.Resource`, the
+    /// class of everything, when they name none. `rdfs:Resource` refines none.
     private func superclassSpellings(of className: String) -> [String] {
-        guard let declaration = ontology.declaration(named: className) else { return [] }
-        return declaration.terms("SubClassOf").compactMap { spelling in
+        if isRoot(className) { return [] }
+        var result: [String] = []
+        for spelling in ontology.declaration(named: className)?.terms("SubClassOf") ?? [] {
             let reference = ontology.resolve(spelling)
-            if let local = reference.localName {
-                switch shapes[local] {
-                case .classProtocol: return ontology.spelling(of: reference)
-                case .alias where BootstrapTerm.isResource(ontology.canonical(spelling)): return ontology.spelling(of: reference)
-                default: return nil
-                }
-            }
-            return spelling
+            if let local = reference.localName, shapes[local] != .classProtocol { continue }
+            let qualified = ontology.spelling(of: reference)
+            if !result.contains(qualified) { result.append(qualified) }
         }
+        return result.isEmpty ? [BootstrapTerm.resource] : result
     }
 }

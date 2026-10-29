@@ -6,6 +6,10 @@ struct ParsedOntology {
     /// The namespace from `Namespace("...")`, as written.
     let namespace: String
 
+    /// The access level of the ontology struct, as a modifier with a trailing
+    /// space (`public `), or empty for internal access.
+    let access: String
+
     /// Every declaration, in source order.
     let declarations: [ParsedEntity]
 
