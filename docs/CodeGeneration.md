@@ -21,7 +21,7 @@ Property("label") {
 
 `Resource` is an Entity. `label` is an Entity. They are all the same thing. The trailing closure of a declaration contains annotations — not Entities. Annotations describe what the declaration does. Properties declare their domain and range inside themselves.
 
-Entity instances are what you get when you call `ontology.content`. The content block is evaluated at runtime. Each DSL function call (Class, Property, etc.) returns an Entity instance. The content property returns an array of these Entity instances.
+Content elements are what you get when you call `ontology.content()`. The content block is evaluated at runtime. Each DSL function call (Class, Property, etc.) returns a declaration value, an `RDFCore.ContentElement`; the term it declares is the generated type, which is the Entity. A declaration value has no metadata of its own, so `Class("Animal")` never claims the identity of `rdfs:Class`, which belongs to the generated `RDFS.Class`. The content property returns an array of these content elements.
 
 ## Metadata
 

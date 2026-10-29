@@ -7,7 +7,7 @@ import IRIKit
 /// lives only in ``metadata``, a static projection that the `@Ontology` macro
 /// computes from the ontology's namespace and that is read only at the
 /// boundary (serialization, translation into SPARQL or SHACL, dereferencing).
-public protocol Entity: Node {
+public protocol Entity: Node, ContentElement {
     /// The boundary projection of this entity: its IRI and documentation.
     static var metadata: any ContentMetadata { get }
 }

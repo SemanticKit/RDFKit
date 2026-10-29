@@ -74,6 +74,18 @@ struct RDFSTests {
         #expect(labels.map(\.text) == ["Person"])
     }
 
+    @Test("A declaration form has no term identity; rdfs:Class is the generated type", .tags(.boundary))
+    func declarationFormsCarryNoIdentity() throws {
+        // `Class("Person")` is a statement of Kinship's content, not a term:
+        // only the generated RDFS.ClassIndividual projects rdfs:Class's IRI.
+        let content = Kinship().content()
+        let declarations = content.filter { $0 is any Declaration }
+        #expect(!declarations.isEmpty)
+        #expect(declarations.allSatisfy { !($0 is any Entity) })
+        #expect(RDFS.ClassIndividual.metadata.id == IRI("http://www.w3.org/2000/01/rdf-schema#Class"))
+        #expect(RDF.PropertyIndividual.metadata.id == IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"))
+    }
+
     @Test("A literal range holds rdfs:Literal values", .tags(.property))
     func literalRangeHoldsLiterals() throws {
         let graph = IndividualGraph()

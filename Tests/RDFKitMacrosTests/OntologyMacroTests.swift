@@ -440,7 +440,7 @@ struct OntologyMacroTests {
                                 RDFS.range<RDFS.Class>()
                             }
                 }
-                protocol Resource: RDFCore.Resource, RDF.Extending, OWL.Extending {
+                protocol Resource: RDFCore.Resource, RDF.Extending, RDFS.Extending, OWL.Extending {
                     var label: RDFCore.PropertyValues<RDFS.Literal> {
                         get
                     }
@@ -573,6 +573,16 @@ struct OntologyMacroTests {
                     /// The type of this property's values.
                     public typealias Range = any RDFS.Class
                 }
+
+                /// The individuals the properties RDFS declares for other ontologies' classes apply to.
+                ///
+                /// Each such property is a member of every individual in its domain.
+                protocol Extending: RDFCore.Resource {
+                    /// The individual's place in its graph, which stores its property values.
+                    var membership: RDFCore.Membership {
+                        get
+                    }
+                }
             }
 
             extension Resource where Self: RDFCore.StoredIndividual {
@@ -619,6 +629,11 @@ struct OntologyMacroTests {
                         Domain(Kin.Relation)
                         Range(Kin.Relation)
                     }
+                    Property("degree") {
+                        Domain(OWL.TransitiveProperty)
+                        Domain(OWL.SymmetricProperty)
+                        Range(XSD.nonNegativeInteger)
+                    }
                 }
             }
             """,
@@ -642,6 +657,11 @@ struct OntologyMacroTests {
                     RDFCore.Property("closeTo") {
                                 RDFS.domain<Kin.Relation>()
                                 RDFS.range<Kin.Relation>()
+                            }
+                    RDFCore.Property("degree") {
+                                RDFS.domain<OWL.TransitiveProperty>()
+                                RDFS.domain<OWL.SymmetricProperty>()
+                                RDFS.range<XSD.nonNegativeInteger>()
                             }
                 }
                 public protocol Relation: OWL.TransitiveProperty, OWL.SymmetricProperty, Kin.Extending {
@@ -671,9 +691,9 @@ struct OntologyMacroTests {
                     }
                 }
 
-                public static let relativeOf: any OWL.TransitiveProperty & OWL.SymmetricProperty = _relativeOfIndividual()
+                public static let relativeOf: any OWL.TransitiveProperty & OWL.SymmetricProperty & Kin.Extending = _relativeOfIndividual()
 
-                private final class _relativeOfIndividual: OWL.TransitiveProperty, OWL.SymmetricProperty, RDFCore.StoredIndividual {
+                private final class _relativeOfIndividual: OWL.TransitiveProperty, OWL.SymmetricProperty, Kin.Extending, RDFCore.StoredIndividual {
                     fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://kin.example.org/#relativeOf", name: "relativeOf")
 
                     fileprivate let membership = RDFCore.Membership.fixed()
@@ -703,6 +723,16 @@ struct OntologyMacroTests {
                     public typealias Range = any Kin.Relation
                 }
 
+                public struct degree: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://kin.example.org/#degree", name: "degree")
+
+                    /// The types this property applies to: an individual of all of them.
+                    public typealias Domain = OWL.TransitiveProperty & OWL.SymmetricProperty
+
+                    /// The type of this property's values.
+                    public typealias Range = XSD.nonNegativeInteger
+                }
+
                 /// The individuals the properties Kin declares for other ontologies' classes apply to.
                 ///
                 /// Each such property is a member of every individual in its domain.
@@ -714,6 +744,8 @@ struct OntologyMacroTests {
 
                     /// The name of the relation read backwards.
                     typealias _inverseName = (any RDF.Property, RDFCore.PropertyValues<RDFS.Literal>)
+
+                    typealias _degree = (any OWL.TransitiveProperty & OWL.SymmetricProperty, RDFCore.PropertyValues<XSD.nonNegativeInteger>)
                 }
             }
 
@@ -727,6 +759,12 @@ struct OntologyMacroTests {
                 /// The name of the relation read backwards.
                 public var inverseName: RDFCore.PropertyValues<RDFS.Literal> {
                     RDFCore.PropertyValues(\\Self.inverseName, of: membership)
+                }
+            }
+
+            extension Extending where Self: OWL.TransitiveProperty & OWL.SymmetricProperty {
+                public var degree: RDFCore.PropertyValues<XSD.nonNegativeInteger> {
+                    RDFCore.PropertyValues(\\Self.degree, of: membership)
                 }
             }
             """
@@ -757,7 +795,7 @@ struct OntologyMacroTests {
                                 RDFS.subClassOf<OWL.Thing>()
                             }
                 }
-                protocol Thing: RDFS.Resource {
+                protocol Thing: RDFS.Resource, OWL.Extending {
                 }
 
                 /// An individual of ``OWL/Thing``.
@@ -780,6 +818,16 @@ struct OntologyMacroTests {
                     }
                 }
                 protocol Nothing: OWL.Thing {
+                }
+
+                /// The individuals the properties OWL declares for other ontologies' classes apply to.
+                ///
+                /// Each such property is a member of every individual in its domain.
+                protocol Extending: RDFCore.Resource {
+                    /// The individual's place in its graph, which stores its property values.
+                    var membership: RDFCore.Membership {
+                        get
+                    }
                 }
             }
             """
@@ -1021,6 +1069,117 @@ struct OntologyMacroTests {
                 DiagnosticSpec(message: "'Animal' is already declared in this ontology", line: 6, column: 9),
                 DiagnosticSpec(message: "'version_1' and 'version-1' would both be the Swift type 'version_1'; rename one of them", line: 10, column: 9),
                 DiagnosticSpec(message: "Individuals keep their place in their graph as 'membership', so a property with a class as its domain cannot be named 'membership'", line: 11, column: 9),
+            ]
+        )
+    }
+
+    @Test("A property with local and foreign domains, and a term named like the extension point, are reported")
+    func extensionPointDiagnostics() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Pets: Ontology {
+                func content() -> Content {
+                    Namespace("https://pets.example.org/#")
+                    Class("Pet")
+                    Class("Extending")
+                    Property("owner") {
+                        Domain(Pets.Pet)
+                        Domain(OWL.Thing)
+                    }
+                    Property("nickname") {
+                        Domain(OWL.Thing)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            struct Pets: Ontology {
+                func content() -> Content {
+                    Namespace("https://pets.example.org/#")
+                    RDFCore.Class("Pet")
+                    RDFCore.Class("Extending")
+                    RDFCore.Property("owner") {
+                                RDFS.domain<Pets.Pet>()
+                                RDFS.domain<OWL.Thing>()
+                            }
+                    RDFCore.Property("nickname") {
+                                RDFS.domain<OWL.Thing>()
+                            }
+                }
+                protocol Pet: RDFS.Resource, Pets.Extending {
+                    var owner: RDFCore.PropertyValues<any RDFS.Resource> {
+                        get
+                    }
+                }
+
+                /// An individual of ``Pets/Pet``.
+                public final class PetIndividual: Pets.Pet, RDFCore.StoredIndividual {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://pets.example.org/#Pet", name: "Pet")
+
+                    /// This individual's place in its graph, which stores its property values.
+                    public let membership: RDFCore.Membership
+
+                    private init(membership: RDFCore.Membership) {
+                        self.membership = membership
+                    }
+
+                    /// Creates an individual in a graph, with these property values.
+                    public convenience init(in graph: RDFCore.IndividualGraph, owner: [any RDFS.Resource] = []) {
+                        self.init(membership: RDFCore.Membership(in: graph) {
+                                PetIndividual(membership: $0)
+                            })
+                        graph.insert(self)
+                        self.owner.append(contentsOf: owner)
+                    }
+                }
+                protocol Extending: RDFS.Resource, Pets.Extending {
+                }
+
+                /// An individual of ``Pets/Extending``.
+                public final class ExtendingIndividual: Pets.Extending, RDFCore.StoredIndividual {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://pets.example.org/#Extending", name: "Extending")
+
+                    /// This individual's place in its graph, which stores its property values.
+                    public let membership: RDFCore.Membership
+
+                    private init(membership: RDFCore.Membership) {
+                        self.membership = membership
+                    }
+
+                    /// Creates an individual in a graph, with these property values.
+                    public convenience init(in graph: RDFCore.IndividualGraph) {
+                        self.init(membership: RDFCore.Membership(in: graph) {
+                                ExtendingIndividual(membership: $0)
+                            })
+                        graph.insert(self)
+                    }
+                }
+
+                public struct owner: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://pets.example.org/#owner", name: "owner")
+
+                    /// The type this property applies to.
+                    public typealias Domain = any Pets.Pet
+                }
+
+                public struct nickname: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://pets.example.org/#nickname", name: "nickname")
+
+                    /// The type this property applies to.
+                    public typealias Domain = OWL.Thing
+                }
+            }
+
+            extension Pet where Self: RDFCore.StoredIndividual {
+                var owner: RDFCore.PropertyValues<any RDFS.Resource> {
+                    RDFCore.PropertyValues(\\Self.owner, of: membership)
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "'owner' has the domain 'Pets.Pet' of this ontology and the domain 'OWL.Thing' of another, which would store it twice; declare it for 'Pets.Pet' and make 'Pets.Pet' a subclass of 'OWL.Thing'", line: 9, column: 13),
+                DiagnosticSpec(message: "'Extending' is the extension point @Ontology generates for the properties Pets declares for other ontologies' classes, so no term of Pets can be named 'Extending'", line: 6, column: 9),
             ]
         )
     }

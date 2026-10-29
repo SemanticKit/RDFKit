@@ -2,14 +2,14 @@ import Foundation
 
 /// The type returned by an ontology's `content()` function.
 ///
-/// Content is an ordered list of entities — declarations (classes, properties,
+/// Content is an ordered list of content elements — declarations (classes, properties,
 /// individuals, datatypes), their annotations, prefixes, and namespaces — that
 /// together define an ontology's vocabulary.
-public typealias Content = [any Entity]
+public typealias Content = [any ContentElement]
 
 public typealias AnyEntity = any Entity
 
-public typealias Entities = [AnyEntity]
+public typealias Entities = Content
 
 /// A declaratively authored ontology.
 ///
@@ -20,7 +20,7 @@ public typealias Entities = [AnyEntity]
 /// conforming type.
 ///
 /// Conformance requires a ``content()`` function that returns ``Content`` — an
-/// ordered list of ``Entity`` values. The default ``entities`` property
+/// ordered list of ``ContentElement`` values. The default ``entities`` property
 /// provides a stable, non-rebuilding view of the same declarations.
 ///
 /// Annotations that relate a term to another term take the related type as
@@ -44,7 +44,7 @@ public typealias Entities = [AnyEntity]
 /// - Note: ``Ontology`` conformance is `Sendable`; conforming types should
 ///   ensure all stored properties are also `Sendable`.
 ///
-/// - SeeAlso: ``ContentBuilder``, ``Entity``, ``Declaration``
+/// - SeeAlso: ``ContentBuilder``, ``ContentElement``, ``Declaration``
 public protocol Ontology: Sendable {
     /// The authored ontology content.
     ///

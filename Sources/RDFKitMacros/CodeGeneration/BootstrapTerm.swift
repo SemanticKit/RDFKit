@@ -18,6 +18,11 @@ enum BootstrapTerm {
     /// the others' classes (RDFS declares `rdfs:domain` for `rdf:Property`,
     /// OWL declares `owl:equivalentClass` for `rdfs:Class`), and they become
     /// members of every individual in their domain through these protocols.
+    /// RDF, RDFS and OWL always generate their extension point, empty or
+    /// not, so this list never names a protocol that does not exist. Any
+    /// other ontology's extension point reaches its own classes and named
+    /// individuals, not `rdfs:Resource`, because no class of another
+    /// ontology can refine it.
     static let extensionPoints = ["RDF.Extending", "RDFS.Extending", "OWL.Extending"]
 
     /// How a property the DSL is written with is written in content.

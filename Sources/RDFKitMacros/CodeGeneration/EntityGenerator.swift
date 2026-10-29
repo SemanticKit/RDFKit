@@ -68,6 +68,13 @@ struct EntityGenerator {
             if declaration.kind == .property, declaration.name == OntologyModel.reservedName, !model.classDomains(of: declaration).isEmpty {
                 context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.reservedPropertyName(declaration.name)))
             }
+            if declaration.kind == .property, let mixed = model.mixedDomains(of: declaration) {
+                let node = declaration.annotations("Domain").first { $0.term.map(ontology.canonical) == ontology.canonical(mixed.foreign) }?.syntax
+                context.diagnose(Diagnostic(
+                    node: node ?? declaration.syntax,
+                    message: OntologyDiagnostic.mixedDomains(declaration.name, local: mixed.local, foreign: mixed.foreign)
+                ))
+            }
             guard let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
@@ -104,21 +111,20 @@ struct EntityGenerator {
     /// reads. The extension point requires the individual's membership, so
     /// the members work on existentials such as `any RDF.Property`.
     private func extensionPoint() -> [String] {
-        let foreign = model.foreignDomains()
-        guard !foreign.isEmpty else { return [] }
+        guard model.hasExtensionPoint else { return [] }
         if let declaration = ontology.declaration(named: OntologyModel.extensionPoint) {
             context.diagnose(Diagnostic(
                 node: declaration.syntax,
-                message: OntologyDiagnostic.generatedTypeCollides(name: OntologyModel.extensionPoint, className: OntologyModel.extensionPoint)
+                message: OntologyDiagnostic.extensionPointCollides(OntologyModel.extensionPoint, ontology: ontology.typeName)
             ))
             return []
         }
-        var aliases: [String] = []
-        var named: Set<String> = []
-        for (domain, properties) in foreign {
-            for requirement in properties where named.insert(requirement.declaration.name).inserted {
-                aliases.append(Documentation.docComment(for: requirement.declaration, indent: "    ")
-                    + "    typealias _\(SwiftIdentifier.sanitized(requirement.declaration.name)) = (any \(domain), \(requirement.viewType))")
+        // Each property has one domain here, the intersection of its
+        // classes, so it has one alias and one store.
+        let aliases = model.foreignDomains().flatMap { domain, properties in
+            properties.map { requirement in
+                Documentation.docComment(for: requirement.declaration, indent: "    ")
+                    + "    typealias _\(SwiftIdentifier.sanitized(requirement.declaration.name)) = (any \(domain), \(requirement.viewType))"
             }
         }
         return ["""
@@ -129,9 +135,7 @@ struct EntityGenerator {
         \(ontology.access)protocol \(OntologyModel.extensionPoint): RDFCore.Resource {
             /// The individual's place in its graph, which stores its property values.
             var \(OntologyModel.reservedName): RDFCore.Membership { get }
-
-        \(aliases.joined(separator: "\n\n"))
-        }
+        \(aliases.isEmpty ? "" : "\n" + aliases.joined(separator: "\n\n") + "\n")}
         """]
     }
 
@@ -215,11 +219,19 @@ struct EntityGenerator {
             if !classes.contains(qualified) { classes.append(qualified) }
         }
         if classes.isEmpty { classes = [BootstrapTerm.resource] }
+        let localClasses = classes.compactMap { ontology.resolve($0).localName }
+        // An individual of other ontologies' classes only is in this
+        // ontology's extension point too, so it has the properties this
+        // ontology declares for those classes. A local class refines the
+        // extension point already, and RDF's, RDFS's and OWL's are refined
+        // by every resource.
+        if localClasses.isEmpty, model.hasExtensionPoint, !model.isBootstrapVocabulary {
+            classes.append("\(ontology.typeName).\(OntologyModel.extensionPoint)")
+        }
 
         // A property that several of the individual's local classes require
         // has an implementation in each of their extensions; the individual
         // implements it itself.
-        let localClasses = classes.compactMap { ontology.resolve($0).localName }
         var localKnown: [String] = []
         for local in localClasses + localClasses.flatMap(model.localAncestors(of:)) where !localKnown.contains(local) {
             localKnown.append(local)
@@ -363,7 +375,11 @@ struct EntityGenerator {
     /// also an annotation: `RDFS.label("Animal")`, `RDFS.domain<Fauna.Animal>()`.
     private func propertyTerm(_ declaration: ParsedEntity, form: BootstrapTerm.AnnotationForm?) -> String {
         var relations: [String] = []
-        if let domain = declaration.term("Domain") {
+        // Several domains of other ontologies are one domain, their intersection.
+        let foreignDomains = model.foreignClassDomains(of: declaration)
+        if foreignDomains.count > 1 {
+            relations.append("    /// The types this property applies to: an individual of all of them.\n    public typealias Domain = \(foreignDomains.joined(separator: " & "))")
+        } else if let domain = declaration.term("Domain") {
             relations.append("    /// The type this property applies to.\n    public typealias Domain = \(model.valueType(ofRange: domain))")
         }
         if let range = declaration.term("Range") {

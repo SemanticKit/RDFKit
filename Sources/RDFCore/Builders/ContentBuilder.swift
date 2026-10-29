@@ -3,12 +3,12 @@ import Foundation
 /// Builds ontology content: declarations (``Class``, ``Property``,
 /// ``Datatype``, ``Individual``), their annotations, prefixes and namespaces.
 ///
-/// Every statement in a builder body is an ``Entity`` value. Each one is lifted
+/// Every statement in a builder body is a ``ContentElement``. Each one is lifted
 /// into ``Content`` by `buildExpression`, so `if`, `if`/`else`, `for` and
 /// availability checks compose without a fixed arity.
 @resultBuilder
 public enum ContentBuilder {
-    public static func buildExpression<Value: Entity>(_ expression: Value) -> Content {
+    public static func buildExpression<Value: ContentElement>(_ expression: Value) -> Content {
         [expression]
     }
 

@@ -38,19 +38,19 @@ struct OWLTests {
         #expect(human.subClassOf.isEmpty)
     }
 
-    @Test("OWL's annotations apply to every resource", .tags(.property))
+    @Test("OWL's properties for rdfs:Resource apply to every resource", .tags(.property))
     func versionInfoAppliesToEveryResource() throws {
-        // OWL declares owl:versionInfo for rdfs:Resource, which RDFS declares.
+        // OWL declares owl:versionInfo for rdfs:Resource, which RDFS declares,
+        // so an individual of any vocabulary's class has it.
         let graph = IndividualGraph()
-        let release = RDFS.ResourceIndividual(in: graph)
         let schema = RDFS.ResourceIndividual(in: graph)
         let list = RDF.ListIndividual(in: graph)
-        schema.versionInfo.append(release)
-        list.versionInfo.append(release)
+        schema.versionInfo.append(RDF.version_1_2)
+        list.versionInfo.append(RDF.version_1_1)
 
-        #expect(schema.versionInfo.first === release)
-        #expect(list.versionInfo.first === release)
-        #expect(release.versionInfo.isEmpty)
+        let resources: [any RDFS.Resource] = [schema, list]
+        #expect(resources[0].versionInfo.first === RDF.version_1_2)
+        #expect(resources[1].versionInfo.first === RDF.version_1_1)
         #expect(RDF.version_1_2.versionInfo.isEmpty)
     }
 
@@ -102,6 +102,45 @@ struct OWLTests {
         cousinOf.subPropertyOf.append(Kinship.relativeOf)
         let parent = try #require(cousinOf.subPropertyOf.first)
         #expect(parent === Kinship.relativeOf)
+    }
+
+    @Test("A property with two domains of another ontology applies to their intersection, with one store", .tags(.characteristic, .property))
+    func propertyWithTwoForeignDomains() throws {
+        // Kinship declares degree for owl:TransitiveProperty and
+        // owl:SymmetricProperty: only a relation that is both has it.
+        let graph = IndividualGraph()
+        let siblingOf = Kinship.FamilyRelationIndividual(in: graph)
+        siblingOf.degree.append("1")
+
+        func degrees<R: OWL.TransitiveProperty & OWL.SymmetricProperty & Kinship.Extending>(of relation: R) -> [XSD.nonNegativeInteger] {
+            relation.degree.values
+        }
+        let asFamilyRelation: any Kinship.FamilyRelation = siblingOf
+        let asBoth: any OWL.TransitiveProperty & OWL.SymmetricProperty & Kinship.Extending = siblingOf
+
+        // Written through the individual, read through every view: the same values.
+        #expect(degrees(of: siblingOf) == ["1"])
+        #expect(asFamilyRelation.degree.values == ["1"])
+        #expect(asBoth.degree.values == ["1"])
+        asBoth.degree.append("2")
+        #expect(siblingOf.degree.values == ["1", "2"])
+
+        // relativeOf is of both classes, so it has a degree too.
+        #expect(Kinship.relativeOf.degree.isEmpty)
+    }
+
+    @Test("A named individual of another ontology's class has its own ontology's properties for that class", .tags(.property))
+    func namedIndividualOfForeignClassHasLocalProperties() throws {
+        // Kinship declares coverage for owl:Ontology, and names itself as an
+        // owl:Ontology individual.
+        let ontology: any OWL.Ontology = Kinship.kinshipOntology
+        #expect(Kinship.kinshipOntology.coverage.isEmpty)
+        #expect(ontology === Kinship.kinshipOntology)
+        #expect(type(of: Kinship.kinshipOntology).metadata.id == IRI("https://kinship.example.org/ontology#kinshipOntology"))
+
+        // The named individual is in Kinship's extension point, which gives it coverage.
+        let extending: any Kinship.Extending = Kinship.kinshipOntology
+        #expect(extending === Kinship.kinshipOntology)
     }
 
     @Test("A class can refine two classes of another ontology", .tags(.characteristic))

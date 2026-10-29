@@ -80,7 +80,7 @@ struct OntologyModel {
     func refinements(of className: String) -> [String] {
         let point = "\(ontology.typeName).\(Self.extensionPoint)"
         var result = isRoot(className)
-            ? ["RDFCore.Resource"] + BootstrapTerm.extensionPoints.filter { $0 != point || hasExtensionPoint }
+            ? ["RDFCore.Resource"] + BootstrapTerm.extensionPoints
             : superclassSpellings(of: className)
         // A class with no local superclass refines the ontology's extension
         // point, so its individuals have the properties the ontology declares
@@ -184,21 +184,58 @@ struct OntologyModel {
         return result
     }
 
-    /// Whether the ontology declares properties for classes of other
-    /// ontologies, and so generates its extension point.
-    var hasExtensionPoint: Bool { !foreignDomains().isEmpty }
+    /// Whether the ontology generates its extension point: it declares
+    /// properties for classes of other ontologies, or it is RDF, RDFS or
+    /// OWL, whose extension points `rdfs:Resource` always refines.
+    var hasExtensionPoint: Bool {
+        isBootstrapVocabulary || !foreignDomains().isEmpty
+    }
 
-    /// The classes of other ontologies this ontology declares properties
+    /// Whether the ontology is RDF, RDFS or OWL, whose extension points
+    /// `rdfs:Resource`, the class of everything, refines.
+    var isBootstrapVocabulary: Bool {
+        BootstrapTerm.extensionPoints.contains("\(ontology.typeName).\(Self.extensionPoint)")
+    }
+
+    /// The domains of a property that are classes of other ontologies, when
+    /// it has no domain in this ontology.
+    ///
+    /// RDFS reads several domains as their intersection: whatever has the
+    /// property is in every one. So a property with several foreign domains
+    /// is a member of the individuals in all of them, `where Self: A & B`.
+    /// A property with a local domain is a requirement of that class only,
+    /// and the macro reports a foreign domain beside it (see
+    /// ``mixedDomains(of:)``), so that each property has one store.
+    func foreignClassDomains(of property: ParsedEntity) -> [String] {
+        let domains = classDomains(of: property)
+        guard !domains.contains(where: { ontology.resolve($0).localName != nil }) else { return [] }
+        return domains
+    }
+
+    /// The first local and the first foreign class domain of a property that
+    /// has both, which the macro reports.
+    func mixedDomains(of property: ParsedEntity) -> (local: String, foreign: String)? {
+        let domains = classDomains(of: property)
+        guard let local = domains.first(where: { ontology.resolve($0).localName != nil }),
+              let foreign = domains.first(where: { ontology.resolve($0).localName == nil }) else { return nil }
+        return (local, foreign)
+    }
+
+    /// The domains of other ontologies this ontology declares properties
     /// for, each with those properties, in the order they are first named.
-    /// The properties become members of the class protocol's extension.
+    /// A domain is one class (`RDF.Property`) or the intersection of a
+    /// property's classes (`OWL.ObjectProperty & OWL.FunctionalProperty`).
+    /// The properties become members of the extension point wherever the
+    /// individual is in the domain.
     func foreignDomains() -> [(classSpelling: String, properties: [PropertyRequirement])] {
         var order: [String] = []
         var members: [String: [PropertyRequirement]] = [:]
         for property in ontology.properties {
-            for domain in classDomains(of: property) where ontology.resolve(domain).localName == nil {
-                if members[domain] == nil { order.append(domain) }
-                members[domain, default: []].append(requirement(for: property))
-            }
+            let domains = foreignClassDomains(of: property)
+            guard !domains.isEmpty else { continue }
+            let domain = domains.joined(separator: " & ")
+            if members[domain] == nil { order.append(domain) }
+            members[domain, default: []].append(requirement(for: property))
         }
         return order.map { ($0, members[$0] ?? []) }
     }

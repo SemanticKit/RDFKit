@@ -11,6 +11,7 @@
 | `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X`, which may be another ontology's class; a class with no superclass refines `RDFS.Resource` |
 | `Property("p") { Domain(RDF.Property) }`, a domain of another ontology | a member `p` of every individual in that domain, through the ontology's extension point `Extending` |
+| `Property("p") { Domain(OWL.TransitiveProperty); Domain(OWL.SymmetricProperty) }` | a member `p` of every individual in both domains, `where Self: OWL.TransitiveProperty & OWL.SymmetricProperty` |
 | `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X`; `Type` may name several classes, of any ontology |
 | `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) that stores the literal and conforms to `RDFCore.LiteralValue` |
 | `Label`, `Comment` | DocC on the generated declaration, and the term's static `metadata` |
@@ -177,7 +178,17 @@ extension RDFS.Extending where Self: RDF.Property {
 }
 ```
 
-Every class the ontology declares without a local superclass refines its extension point. `RDFS.Resource`, the class of everything, refines the extension points of RDF, RDFS and OWL. So every `RDF.Property` has `domain` and `range`, every `rdfs:Class` has `equivalentClass`, and every resource has `rdf:value` and `owl:versionInfo`, on the individual and on an existential such as `any RDF.Property`. An ontology outside RDFKit gives these members to the individuals of its own classes that are in the domain, because no class of another ontology refines its extension point. The macro reports a declared term named `Extending` in an ontology that generates one.
+Every class the ontology declares without a local superclass refines its extension point, and so does a named individual whose classes all belong to other ontologies: `Individual("kinshipOntology") { Type(OWL.Ontology) }` is typed `any OWL.Ontology & Kinship.Extending`, so it has the properties Kinship declares for `owl:Ontology`. `RDFS.Resource`, the class of everything, refines the extension points of RDF, RDFS and OWL, which those three always generate, empty or not. So every `RDF.Property` has `domain` and `range`, every `rdfs:Class` has `equivalentClass`, and every resource has `rdf:value` and `owl:versionInfo`, on the individual and on an existential such as `any RDF.Property`. An ontology outside RDFKit gives these members to its own classes' individuals and its named individuals that are in the domain, because no class of another ontology refines its extension point.
+
+RDFS reads several domains as their intersection: whatever has the property is in every domain. A property with several domains of other ontologies is therefore one member, on the individuals in all of them, with one store:
+
+```swift
+extension Kinship.Extending where Self: OWL.TransitiveProperty & OWL.SymmetricProperty {
+    public var degree: RDFCore.PropertyValues<XSD.nonNegativeInteger> { ... }
+}
+```
+
+A property with a domain in its own ontology is a requirement of that class, and the macro reports a second domain of another ontology beside it, at that `Domain`: the property would be stored once as the requirement and once as the extension member. Declare it for the local class and make that class a subclass of the other ontology's class instead. The macro also reports a declared term named `Extending` in an ontology that generates its extension point.
 
 ## Properties Are Many-Valued
 
@@ -210,7 +221,8 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 - a related term written as a term of this ontology that it does not declare (`Fauna.Habitatt`);
 - a term declared twice, at the second declaration, and two local names that become the same Swift identifier (`version-1` and `version_1`);
 - a class whose individual type name is taken by a declared term, and a declared term named `Extending` in an ontology that generates its extension point;
-- a named individual of `owl:Nothing`, of a datatype, or of a class written without its ontology;
+- a property with a domain in its own ontology and a domain in another, at the other ontology's `Domain`;
+- a named individual of `owl:Nothing`, of a datatype this ontology declares, or of a class written without its ontology (the macro does not know which terms of other ontologies are datatypes, so `Type(RDF.HTML)` is reported by the compiler, inside the expansion);
 - a property named `membership` with a class as its domain, local or of another ontology;
 - a functional property that would make a value type contain itself.
 

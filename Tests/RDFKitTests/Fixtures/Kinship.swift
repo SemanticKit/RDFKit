@@ -44,6 +44,29 @@ struct Kinship: Ontology {
             Label("name")
         }
 
+        Property("degree") {
+            Type(OWL.DatatypeProperty)
+            Domain(OWL.TransitiveProperty)
+            Domain(OWL.SymmetricProperty)
+            Range(XSD.nonNegativeInteger)
+            Label("degree")
+            Comment("How many steps of kinship a relation spans. Its two domains are an intersection: only a relation that is both transitive and symmetric has a degree.")
+        }
+
+        Property("coverage") {
+            Type(OWL.AnnotationProperty)
+            Domain(OWL.Ontology)
+            Range(RDFS.Literal)
+            Label("coverage")
+            Comment("What part of family life an ontology describes.")
+        }
+
+        Individual("kinshipOntology") {
+            Type(OWL.Ontology)
+            Label("Kinship")
+            Comment("This ontology, named as an individual of owl:Ontology.")
+        }
+
         Individual("Mammal") {
             Type(OWL.Class)
             Label("Mammal")

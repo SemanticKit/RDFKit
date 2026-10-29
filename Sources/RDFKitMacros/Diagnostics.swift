@@ -26,6 +26,22 @@ struct OntologyDiagnostic: DiagnosticMessage {
         )
     }
 
+    /// A declared term named like the extension point the ontology generates.
+    static func extensionPointCollides(_ name: String, ontology: String) -> Self {
+        Self(
+            message: "'\(name)' is the extension point @Ontology generates for the properties \(ontology) declares for other ontologies' classes, so no term of \(ontology) can be named '\(name)'",
+            id: "extensionPointName"
+        )
+    }
+
+    /// A property with a domain in this ontology and a domain in another.
+    static func mixedDomains(_ property: String, local: String, foreign: String) -> Self {
+        Self(
+            message: "'\(property)' has the domain '\(local)' of this ontology and the domain '\(foreign)' of another, which would store it twice; declare it for '\(local)' and make '\(local)' a subclass of '\(foreign)'",
+            id: "mixedDomains"
+        )
+    }
+
     /// A property whose name individuals use for their graph membership.
     static func reservedPropertyName(_ property: String) -> Self {
         Self(

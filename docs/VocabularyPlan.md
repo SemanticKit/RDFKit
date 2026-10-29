@@ -50,7 +50,7 @@ Some terms are the DSL itself: content is written with them. The macro generates
 
 `rdfs:Resource` is the generated root protocol `RDFS.Resource`. RDFKit's own `rdfkit:Namespace` and `rdfkit:Prefix` are aliases of the RDFCore values `Namespace` and `Prefix`, which content is written with.
 
-The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
+The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`. The declaration forms are content elements (`RDFCore.ContentElement`), not entities: they carry no IRI or metadata, so `rdfs:Class`, `rdf:Property`, `rdfs:Datatype` and `owl:NamedIndividual` have one Swift type each, the one generated from RDFS.swift, RDF.swift or OWL.swift, whose IRI is projected from that vocabulary's namespace.
 
 The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class and refines the extension points `RDF.Extending`, `RDFS.Extending` and `OWL.Extending`, `OWL.Nothing` has no individual type, and `OWL.FunctionalProperty` makes a property single-valued.
 
