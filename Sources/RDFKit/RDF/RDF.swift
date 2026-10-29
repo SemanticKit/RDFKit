@@ -97,6 +97,12 @@ public struct RDF: Ontology {
             Label("Property")
             Comment("The class of RDF properties.")
         }
+        Class("Resource") {
+            // Not defined by the RDF vocabulary. The LDP vocabulary names it as
+            // the range of ldp:pageSortOrder; every range is an rdfs:Class, so it
+            // is declared here, in its namespace's ontology, as a class and nothing more.
+            Type(RDFS.Class)
+        }
         Class("PropositionForm") {
             Type(RDFS.Class)
             SubClassOf(RDFS.Resource)

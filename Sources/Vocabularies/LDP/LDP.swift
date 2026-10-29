@@ -14,8 +14,10 @@ import RDFKit
 ///
 /// The published vocabulary types its individuals `owl:Individual` and gives
 /// `ldp:pageSortOrder` the range `rdf:Resource`. Neither term is defined by OWL
-/// or RDF, so the individuals are declared without that type and the property
-/// without that range.
+/// or RDF, but both are used as classes, so RDFKit declares them as plain
+/// `rdfs:Class`es in their own namespaces' ontologies, `OWL.Individual` and
+/// `RDF.Resource`, and LDP uses them exactly as published. A value of
+/// `ldp:pageSortOrder` is `any RDF.Resource`.
 @Ontology
 public struct LDP: Ontology {
     public init() {}
@@ -170,7 +172,7 @@ public struct LDP: Ontology {
         Property("pageSortOrder") {
             Type(RDF.Property)
             Domain(LDP.PageSortCriterion)
-            // The published range is `rdf:Resource`, which RDF does not define, so no range is declared.
+            Range(RDF.Resource)
             Label("pageSortOrder")
             Comment("The ascending/descending/etc order used to order the members across pages in a page sequence.")
         }
@@ -184,43 +186,43 @@ public struct LDP: Ontology {
         }
 
         Individual("Ascending") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("Ascending")
             Comment("Ascending order.")
         }
 
         Individual("Descending") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("Descending")
             Comment("Descending order.")
         }
 
         Individual("MemberSubject") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("MemberSubject")
             Comment("Used to indicate default and typical behavior for ldp:insertedContentRelation, where the member-URI value in the membership triple added when a creation request is successful is the URI assigned to the newly created resource.")
         }
 
         Individual("PreferContainment") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("PreferContainment")
             Comment("URI identifying a LDPC's containment triples, for example to allow clients to express interest in receiving them.")
         }
 
         Individual("PreferEmptyContainer") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("PreferEmptyContainer")
             Comment("Archaic alias for ldp:PreferMinimalContainer")
         }
 
         Individual("PreferMembership") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("PreferMembership")
             Comment("URI identifying a LDPC's membership triples, for example to allow clients to express interest in receiving them.")
         }
 
         Individual("PreferMinimalContainer") {
-            // The published vocabulary types this term `owl:Individual`, which OWL 2 does not define.
+            Type(OWL.Individual)
             Label("PreferMinimalContainer")
             Comment("URI identifying the subset of a LDPC's triples present in an empty LDPC, for example to allow clients to express interest in receiving them. Currently this excludes containment and membership triples, but in the future other exclusions might be added. This definition is written to automatically exclude those new classes of triples.")
         }

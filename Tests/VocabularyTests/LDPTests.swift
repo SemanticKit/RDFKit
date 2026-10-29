@@ -40,4 +40,25 @@ struct LDPTests {
         #expect(LDP.PreferContainment === LDP.PreferContainment)
         #expect(type(of: LDP.PreferMinimalContainer).metadata.id == IRI("http://www.w3.org/ns/ldp#PreferMinimalContainer"))
     }
+
+    @Test("Named individuals are typed owl:Individual, as published", .tags(.generated))
+    func individualsAreOWLIndividuals() {
+        let individuals: [any OWL.Individual] = [
+            LDP.Ascending, LDP.Descending, LDP.MemberSubject, LDP.PreferContainment,
+            LDP.PreferEmptyContainer, LDP.PreferMembership, LDP.PreferMinimalContainer,
+        ]
+        #expect(individuals.count == 7)
+        #expect(!(LDP.Ascending is any LDP.Resource))
+    }
+
+    @Test("A page sort criterion's order is an rdf:Resource, its published range", .tags(.property, .generated))
+    func pageSortOrderRange() throws {
+        let order = RDF.ResourceIndividual()
+        let criterion = LDP.PageSortCriterionIndividual(pageSortOrder: [order])
+        let value: LDP.pageSortOrder.Range = try #require(LDP.pageSortOrder[criterion].first)
+        let resource: any RDF.Resource = value
+        #expect(resource === order)
+        #expect(try #require(criterion.pageSortOrder.first) === order)
+        #expect(!(LDP.BasicContainerIndividual() is any RDF.Resource))
+    }
 }

@@ -4,17 +4,22 @@ import SwiftSyntaxMacros
 /// The extension macro `@Ontology` attaches to every class protocol it
 /// generates.
 ///
-/// It gives each property requirement of the protocol a default
-/// implementation that keeps the values in the individual's
-/// ``RDFCore/IndividualStorage``, under the property's term type. So an
-/// individual type of any ontology conforms to the class protocol without
-/// knowing its requirements: `Foaf.PersonIndividual` conforms to
-/// `Geo.SpatialThing`, whose requirements the FOAF ontology does not declare.
+/// Each requirement of a class protocol is a subscript keyed by a property's
+/// term type: `subscript(property: Fauna.hasHabitat) -> [any Fauna.Habitat]`.
+/// The macro gives each one a default implementation that keeps the values in
+/// the individual's ``RDFCore/IndividualStorage`` under that term type, and a
+/// member named after the property, `animal.hasHabitat`, that reads and writes
+/// through it. So an individual type of any ontology conforms to the class
+/// protocol without knowing its requirements: `Foaf.PersonIndividual`
+/// conforms to `Geo.SpatialThing`, whose requirements the FOAF ontology does
+/// not declare.
 ///
-/// The requirement `var hasHabitat: [any Fauna.Habitat] { get set }` of
-/// `Fauna.Animal` is kept under the term type `Fauna.hasHabitat`: a
-/// requirement has the name of its property, and the property term is a
-/// member of the same ontology as the class.
+/// The named member is not a requirement, so it never answers for another
+/// ontology's requirement. When a class `X.C` refines another ontology's class
+/// `Y.Q` and both ontologies declare a property `name`, `X.C` and `Y.Q` each
+/// have their own `name` member and their own subscript requirement, keyed
+/// by `X.name` and `Y.name`: reading `name` through `any Y.Q` reads the
+/// values of `Y.name`, and through `any X.C` those of `X.name`.
 public struct ClassPropertiesMacro: ExtensionMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -28,23 +33,28 @@ public struct ClassPropertiesMacro: ExtensionMacro {
         }
         let access = protocolDecl.modifiers.contains { $0.name.tokenKind == .keyword(.public) } ? "public " : ""
 
-        let requirements = protocolDecl.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }
+        let requirements = protocolDecl.memberBlock.members.compactMap { $0.decl.as(SubscriptDeclSyntax.self) }
         if requirements.isEmpty { return [] }
-        guard let ontology = ontologyName(of: type, in: context) else {
-            throw MacroError("@ClassProperties applies to a class protocol nested in its ontology")
-        }
-        let members = requirements.compactMap { variable -> String? in
-            guard let binding = variable.bindings.first,
-                  let valueType = binding.typeAnnotation?.type.trimmedDescription else { return nil }
-            let name = binding.pattern.trimmedDescription
-            let property = name.replacingOccurrences(of: "`", with: "")
-            let key = BootstrapTerm.isAliasProperty("\(ontology).\(property)")
-                ? "\(ontology).\(BootstrapTerm.valuesKey(of: property))()"
-                : "\(ontology).\(name)()"
+        let members = try requirements.map { requirement -> String in
+            guard requirement.parameterClause.parameters.count == 1,
+                  let parameter = requirement.parameterClause.parameters.first else {
+                throw MacroError("A class protocol requirement is a subscript keyed by one property term")
+            }
+            let key = parameter.type.trimmedDescription
+            let valueType = requirement.returnClause.type.trimmedDescription
+            let documentation = requirement.leadingTrivia.compactMap { piece -> String? in
+                if case .docLineComment(let line) = piece { return "    \(line)\n" }
+                return nil
+            }.joined()
             return """
-                \(access)var \(name): \(valueType) {
-                    get { propertyValues[\(key)] }
-                    set { propertyValues[\(key)] = newValue }
+                \(access)subscript(property: \(key)) -> \(valueType) {
+                    get { propertyValues[property] }
+                    set { propertyValues[property] = newValue }
+                }
+
+            \(documentation)    \(access)var \(memberName(ofKey: key)): \(valueType) {
+                    get { self[\(key)()] }
+                    set { self[\(key)()] = newValue }
                 }
             """
         }
@@ -56,16 +66,16 @@ public struct ClassPropertiesMacro: ExtensionMacro {
         return [try ExtensionDeclSyntax(validating: source.cast(ExtensionDeclSyntax.self))]
     }
 
-    /// The ontology the class protocol is nested in, `Fauna` for
-    /// `Fauna.Animal`: the qualifier of the extended type, or the enclosing
-    /// struct or extension.
-    private static func ontologyName(of type: some TypeSyntaxProtocol, in context: some MacroExpansionContext) -> String? {
-        let typeName = type.trimmedDescription
-        if let dot = typeName.lastIndex(of: ".") { return String(typeName[..<dot]) }
-        for scope in context.lexicalContext {
-            if let ontology = scope.as(StructDeclSyntax.self) { return ontology.name.trimmedDescription }
-            if let ontology = scope.as(ExtensionDeclSyntax.self) { return ontology.extendedType.trimmedDescription }
+    /// The member name of the property a key type keeps: `hasHabitat` for
+    /// `Fauna.hasHabitat`, and `subClassOf` for the values key
+    /// `RDFS._subClassOfValues` of a property whose term is an RDFCore alias.
+    private static func memberName(ofKey key: String) -> String {
+        let name = key.lastIndex(of: ".").map { String(key[key.index(after: $0)...]) } ?? key
+        let prefix = "_", suffix = "Values"
+        guard name.hasPrefix(prefix), name.hasSuffix(suffix),
+              BootstrapTerm.valuesKey(of: String(name.dropFirst(prefix.count).dropLast(suffix.count))) == name else {
+            return name
         }
-        return nil
+        return SwiftIdentifier.escaped(String(name.dropFirst(prefix.count).dropLast(suffix.count)))
     }
 }

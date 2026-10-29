@@ -112,17 +112,25 @@ struct WebIDProfileTests {
 
     @Test("Profiles can be shared across tasks")
     func profilesAreSendable() async {
-        let (alice, _, _, key) = profile()
+        let (alice, _, _, _) = profile()
         let friends = (0..<20).map { _ in Foaf.PersonIndividual() }
 
+        // cert:key is inverse functional: each key identifies one agent, so
+        // every friend gets a key of its own whose identity is that friend.
         await withTaskGroup { group in
-            for friend in friends {
+            for (index, friend) in friends.enumerated() {
                 group.addTask {
                     friend.knows = [alice]
+                    let key = Cert.RSAPublicKeyIndividual(identity: [friend], modulus: [[0xC2, UInt8(index)]], exponent: [65537])
                     Cert.key[friend] = [key]
                 }
             }
         }
-        #expect(friends.allSatisfy { $0.knows.first === alice && Cert.key[$0].first === key })
+        #expect(friends.allSatisfy { $0.knows.first === alice })
+        #expect(friends.allSatisfy { friend in
+            Cert.key[friend].count == 1 && Cert.key[friend].allSatisfy { key in
+                key.identity.count == 1 && key.identity.first === friend
+            }
+        })
     }
 }

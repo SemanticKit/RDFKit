@@ -24,42 +24,63 @@ struct ClassPropertiesMacroTests {
         )
     }
 
-    @Test("Each requirement keeps its values under its property term")
+    @Test("Each requirement keeps its values under its property term, and has a named member")
     func requirementsKeepValuesUnderTheirTerm() {
         assertProperties(
             """
             struct Zoo {
                 @ClassProperties
                 public protocol Keeper: RDFCore.Resource {
-                    var feeds: [any Zoo.Animal] { get set }
-                    var `default`: String? { get set }
+                    /// The animals a keeper feeds.
+                    subscript(property: Zoo.feeds) -> [any Zoo.Animal] { get set }
+                    subscript(property: Zoo.`default`) -> String? { get set }
                 }
             }
             """,
             expandedSource: """
             struct Zoo {
                 public protocol Keeper: RDFCore.Resource {
-                    var feeds: [any Zoo.Animal] { get set }
-                    var `default`: String? { get set }
+                    /// The animals a keeper feeds.
+                    subscript(property: Zoo.feeds) -> [any Zoo.Animal] { get set }
+                    subscript(property: Zoo.`default`) -> String? { get set }
                 }
             }
 
             extension Zoo.Keeper {
-                public var feeds: [any Zoo.Animal] {
+                public subscript(property: Zoo.feeds) -> [any Zoo.Animal] {
                     get {
-                        propertyValues[Zoo.feeds()]
+                        propertyValues[property]
                     }
                     set {
-                        propertyValues[Zoo.feeds()] = newValue
+                        propertyValues[property] = newValue
+                    }
+                }
+
+                /// The animals a keeper feeds.
+                public var feeds: [any Zoo.Animal] {
+                    get {
+                        self[Zoo.feeds()]
+                    }
+                    set {
+                        self[Zoo.feeds()] = newValue
+                    }
+                }
+
+                public subscript(property: Zoo.`default`) -> String? {
+                    get {
+                        propertyValues[property]
+                    }
+                    set {
+                        propertyValues[property] = newValue
                     }
                 }
 
                 public var `default`: String? {
                     get {
-                        propertyValues[Zoo.`default`()]
+                        self[Zoo.`default`()]
                     }
                     set {
-                        propertyValues[Zoo.`default`()] = newValue
+                        self[Zoo.`default`()] = newValue
                     }
                 }
             }
@@ -74,24 +95,105 @@ struct ClassPropertiesMacroTests {
             struct RDFS {
                 @ClassProperties
                 public protocol Class: RDFCore.Resource {
-                    var subClassOf: [any RDFS.Class] { get set }
+                    subscript(property: RDFS._subClassOfValues) -> [any RDFS.Class] { get set }
                 }
             }
             """,
             expandedSource: """
             struct RDFS {
                 public protocol Class: RDFCore.Resource {
-                    var subClassOf: [any RDFS.Class] { get set }
+                    subscript(property: RDFS._subClassOfValues) -> [any RDFS.Class] { get set }
                 }
             }
 
             extension RDFS.Class {
-                public var subClassOf: [any RDFS.Class] {
+                public subscript(property: RDFS._subClassOfValues) -> [any RDFS.Class] {
                     get {
-                        propertyValues[RDFS._subClassOfValues()]
+                        propertyValues[property]
                     }
                     set {
-                        propertyValues[RDFS._subClassOfValues()] = newValue
+                        propertyValues[property] = newValue
+                    }
+                }
+
+                public var subClassOf: [any RDFS.Class] {
+                    get {
+                        self[RDFS._subClassOfValues()]
+                    }
+                    set {
+                        self[RDFS._subClassOfValues()] = newValue
+                    }
+                }
+            }
+            """
+        )
+    }
+
+    @Test("Same-named properties of two ontologies get members keyed by their own terms")
+    func sameNamedPropertiesOfTwoOntologies() {
+        assertProperties(
+            """
+            struct Fauna {
+                @ClassProperties
+                public protocol Animal: RDFCore.Resource {
+                    subscript(property: Fauna.commonName) -> [String] { get set }
+                }
+            }
+            struct Zoo {
+                @ClassProperties
+                public protocol Resident: Fauna.Animal {
+                    subscript(property: Zoo.commonName) -> [String] { get set }
+                }
+            }
+            """,
+            expandedSource: """
+            struct Fauna {
+                public protocol Animal: RDFCore.Resource {
+                    subscript(property: Fauna.commonName) -> [String] { get set }
+                }
+            }
+            struct Zoo {
+                public protocol Resident: Fauna.Animal {
+                    subscript(property: Zoo.commonName) -> [String] { get set }
+                }
+            }
+
+            extension Fauna.Animal {
+                public subscript(property: Fauna.commonName) -> [String] {
+                    get {
+                        propertyValues[property]
+                    }
+                    set {
+                        propertyValues[property] = newValue
+                    }
+                }
+
+                public var commonName: [String] {
+                    get {
+                        self[Fauna.commonName()]
+                    }
+                    set {
+                        self[Fauna.commonName()] = newValue
+                    }
+                }
+            }
+
+            extension Zoo.Resident {
+                public subscript(property: Zoo.commonName) -> [String] {
+                    get {
+                        propertyValues[property]
+                    }
+                    set {
+                        propertyValues[property] = newValue
+                    }
+                }
+
+                public var commonName: [String] {
+                    get {
+                        self[Zoo.commonName()]
+                    }
+                    set {
+                        self[Zoo.commonName()] = newValue
                     }
                 }
             }

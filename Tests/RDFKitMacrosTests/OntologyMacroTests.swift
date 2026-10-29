@@ -59,7 +59,7 @@ struct OntologyMacroTests {
                 /// An animal.
                 @ClassProperties
                 public protocol Animal: RDFCore.Resource {
-                    var name: String? {
+                    subscript(property: Zoo.name) -> String? {
                         get
                         set
                     }
@@ -74,22 +74,15 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     public init(name: String? = nil) {
-                        propertyValues[Zoo.name()] = name
-                    }
-
-                    public var name: String? {
-                        get {
-                            propertyValues[Zoo.name()]
-                        }
-                        set {
-                            propertyValues[Zoo.name()] = newValue
+                        if name != nil {
+                            propertyValues[Zoo.name()] = name
                         }
                     }
                 }
 
                 @ClassProperties
                 public protocol Keeper: Zoo.Animal {
-                    var feeds: [any Zoo.Animal] {
+                    subscript(property: Zoo.feeds) -> [any Zoo.Animal] {
                         get
                         set
                     }
@@ -104,25 +97,11 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     public init(name: String? = nil, feeds: [any Zoo.Animal] = []) {
-                        propertyValues[Zoo.name()] = name
-                        propertyValues[Zoo.feeds()] = feeds
-                    }
-
-                    public var name: String? {
-                        get {
-                            propertyValues[Zoo.name()]
+                        if name != nil {
+                            propertyValues[Zoo.name()] = name
                         }
-                        set {
-                            propertyValues[Zoo.name()] = newValue
-                        }
-                    }
-
-                    public var feeds: [any Zoo.Animal] {
-                        get {
-                            propertyValues[Zoo.feeds()]
-                        }
-                        set {
-                            propertyValues[Zoo.feeds()] = newValue
+                        if !feeds.isEmpty {
+                            propertyValues[Zoo.feeds()] = feeds
                         }
                     }
                 }
@@ -137,25 +116,11 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     fileprivate init(name: String? = nil, feeds: [any Zoo.Animal] = []) {
-                        propertyValues[Zoo.name()] = name
-                        propertyValues[Zoo.feeds()] = feeds
-                    }
-
-                    fileprivate var name: String? {
-                        get {
-                            propertyValues[Zoo.name()]
+                        if name != nil {
+                            propertyValues[Zoo.name()] = name
                         }
-                        set {
-                            propertyValues[Zoo.name()] = newValue
-                        }
-                    }
-
-                    fileprivate var feeds: [any Zoo.Animal] {
-                        get {
-                            propertyValues[Zoo.feeds()]
-                        }
-                        set {
-                            propertyValues[Zoo.feeds()] = newValue
+                        if !feeds.isEmpty {
+                            propertyValues[Zoo.feeds()] = feeds
                         }
                     }
                 }
@@ -378,7 +343,7 @@ struct OntologyMacroTests {
 
                 @ClassProperties
                 public protocol Animal: OWL.Thing {
-                    var weight: Units.Kilograms? {
+                    subscript(property: Units.weight) -> Units.Kilograms? {
                         get
                         set
                     }
@@ -393,15 +358,8 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     public init(weight: Units.Kilograms? = nil) {
-                        propertyValues[Units.weight()] = weight
-                    }
-
-                    public var weight: Units.Kilograms? {
-                        get {
-                            propertyValues[Units.weight()]
-                        }
-                        set {
-                            propertyValues[Units.weight()] = newValue
+                        if weight != nil {
+                            propertyValues[Units.weight()] = weight
                         }
                     }
                 }
@@ -499,7 +457,7 @@ struct OntologyMacroTests {
 
                 @ClassProperties
                 public protocol Key: RDFCore.Resource {
-                    var size: UInt? {
+                    subscript(property: Keys.size) -> UInt? {
                         get
                         set
                     }
@@ -514,15 +472,8 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     public init(size: UInt? = nil) {
-                        propertyValues[Keys.size()] = size
-                    }
-
-                    public var size: UInt? {
-                        get {
-                            propertyValues[Keys.size()]
-                        }
-                        set {
-                            propertyValues[Keys.size()] = newValue
+                        if size != nil {
+                            propertyValues[Keys.size()] = size
                         }
                     }
                 }
@@ -540,22 +491,15 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     public init(size: UInt? = nil) {
-                        propertyValues[Keys.size()] = size
-                    }
-
-                    public var size: UInt? {
-                        get {
-                            propertyValues[Keys.size()]
-                        }
-                        set {
-                            propertyValues[Keys.size()] = newValue
+                        if size != nil {
+                            propertyValues[Keys.size()] = size
                         }
                     }
                 }
 
                 @ClassProperties
                 public protocol Lock: RDFCore.Resource {
-                    var size: UInt? {
+                    subscript(property: Keys.size) -> UInt? {
                         get
                         set
                     }
@@ -570,15 +514,8 @@ struct OntologyMacroTests {
 
                     /// Creates an individual with these property values.
                     public init(size: UInt? = nil) {
-                        propertyValues[Keys.size()] = size
-                    }
-
-                    public var size: UInt? {
-                        get {
-                            propertyValues[Keys.size()]
-                        }
-                        set {
-                            propertyValues[Keys.size()] = newValue
+                        if size != nil {
+                            propertyValues[Keys.size()] = size
                         }
                     }
                 }
