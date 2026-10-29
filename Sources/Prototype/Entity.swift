@@ -9,16 +9,12 @@
 ///
 /// Represents the declared thing itself, not an instance of it.
 /// Contains class-level metadata derived from the DSL declarations.
+///
+/// The Swift type is the entity's identity inside the runtime. Its IRI lives
+/// only in ``metadata``, which is read at the boundary.
 public protocol Entity: Node {
-    /// The class-level metadata for this entity.
-    associatedtype ID: Identifiable
-//    associatedtype Metadata: Codable & Identifiable
-
     /// The class-level metadata.
     static var metadata: any ContentMetadata { get }
-
-    /// The instance-level identifier.
-    var id: ID { get }
 }
 
 

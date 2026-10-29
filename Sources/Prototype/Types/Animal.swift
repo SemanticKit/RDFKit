@@ -1,28 +1,28 @@
-import IRIKit
+// MARK: - Example: Fauna.Animal
 
+/// An example of the type the macro generates for `Class("Animal")`.
+///
+/// Relationships are typed by their range: `hasHabitat` is a ``Habitat``,
+/// not an IRI. The IRI exists only in ``metadata``, for the boundary.
 public struct Animal: Sendable {
-
-    public typealias ID = IRI
-
-    public var id: ID
-    public var name: String
-    public var hasHabitat: IRI
-    public var hasDiet: IRI
+    public var hasHabitat: Habitat
+    public var hasDiet: Diet
     public var commonName: String
     public var scientificName: String
 
     public init(
-        _ name: String,
-        @EntityContentBuilder _ children: () -> Content
+        habitat: Habitat,
+        diet: Diet,
+        commonName: String,
+        scientificName: String
     ) {
-        self.id = ""
-        self.name = name
-        self.hasHabitat = ""
-        self.hasDiet = ""
-        self.commonName = ""
-        self.scientificName = ""
+        self.hasHabitat = habitat
+        self.hasDiet = diet
+        self.commonName = commonName
+        self.scientificName = scientificName
     }
 }
+
 
 // MARK: Generated Type Metadata
 
@@ -30,7 +30,7 @@ extension Animal: Entity {
     public static let metadata: any ContentMetadata = Class.ClassMetadata(
         id: "https://fauna.example.org/ontology#Animal",
         name: "Animal",
-        type: "https://fauna.example.org/ontology#Animal",
+        type: "http://www.w3.org/2000/01/rdf-schema#Class",
         label: "Animal",
         comment: "The class of all animals."
     )
