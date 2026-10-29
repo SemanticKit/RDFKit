@@ -15,4 +15,6 @@ extension Tag {
     @Tag static var nTriples: Self
     /// Reading Turtle.
     @Tag static var turtle: Self
+    /// Reading RDF/XML.
+    @Tag static var rdfXML: Self
 }

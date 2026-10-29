@@ -37,5 +37,15 @@ struct RDFTest: Ontology {
             Label("Turtle evaluation test")
             Comment("A document whose graph is isomorphic to the result.")
         }
+        Class("TestXMLEval") {
+            Type(RDFS.Class)
+            Label("RDF/XML evaluation test")
+            Comment("A document whose graph is isomorphic to the result.")
+        }
+        Class("TestXMLNegativeSyntax") {
+            Type(RDFS.Class)
+            Label("RDF/XML negative syntax test")
+            Comment("A document a decoder rejects.")
+        }
     }
 }

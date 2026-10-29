@@ -1,5 +1,5 @@
 #!/bin/sh
-# Fetches the W3C RDF 1.2 N-Triples and Turtle test suites, and the RDF 1.1
+# Fetches the W3C RDF 1.2 N-Triples, Turtle and RDF/XML test suites, and the RDF 1.1
 # suites their manifests include, from the main branch of
 # https://github.com/w3c/rdf-tests into Tests/RDFFormatsTests/W3C/rdf-tests.
 #
@@ -9,7 +9,7 @@ set -eu
 
 package=$(cd "$(dirname "$0")/.." && pwd)
 destination="$package/Tests/RDFFormatsTests/W3C/rdf-tests"
-suites="rdf/rdf12/rdf-n-triples rdf/rdf12/rdf-turtle rdf/rdf11/rdf-n-triples rdf/rdf11/rdf-turtle"
+suites="rdf/rdf12/rdf-n-triples rdf/rdf12/rdf-turtle rdf/rdf12/rdf-xml rdf/rdf11/rdf-n-triples rdf/rdf11/rdf-turtle rdf/rdf11/rdf-xml"
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -21,7 +21,7 @@ git -C "$work/rdf-tests" sparse-checkout set $suites
 rm -rf "$destination"
 for suite in $suites; do
     (cd "$work/rdf-tests" && find "$suite" -type f \
-        \( -name '*.ttl' -o -name '*.nt' -o -name 'LICENSE' \) \
+        \( -name '*.ttl' -o -name '*.nt' -o -name '*.rdf' -o -name 'LICENSE' \) \
         -not -path '*/reports/*') |
     while read -r file; do
         mkdir -p "$destination/$(dirname "$file")"

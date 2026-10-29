@@ -107,9 +107,11 @@ struct W3CManifest {
              RDFTest.TestTurtlePositiveSyntaxIndividual.metadata.id:
             .positiveSyntax
         case RDFTest.TestNTriplesNegativeSyntaxIndividual.metadata.id,
-             RDFTest.TestTurtleNegativeSyntaxIndividual.metadata.id:
+             RDFTest.TestTurtleNegativeSyntaxIndividual.metadata.id,
+             RDFTest.TestXMLNegativeSyntaxIndividual.metadata.id:
             .negativeSyntax
-        case RDFTest.TestTurtleEvalIndividual.metadata.id:
+        case RDFTest.TestTurtleEvalIndividual.metadata.id,
+             RDFTest.TestXMLEvalIndividual.metadata.id:
             .evaluation
         case RDFTest.TestNTriplesPositiveC14NIndividual.metadata.id:
             .canonicalization
