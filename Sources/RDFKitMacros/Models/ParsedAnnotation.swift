@@ -1,12 +1,30 @@
-//
-//  ParsedAnnotation.swift
-//  RDFKit
-//
-//  Created by Charles Gardner on 6/20/26.
-//
-
-/// Parsed annotation data.
+/// An annotation read from a declaration's trailing closure.
 struct ParsedAnnotation {
+    /// What the annotation was given.
+    enum Argument {
+        /// No argument: `Deprecated()`.
+        case none
+        /// A string literal, as its source text without quotes: `Label("Animal")`.
+        case text(String)
+        /// A term given as a generic argument: `Domain<Fauna.Animal>()`.
+        case term(String)
+        /// Any other expression, as source text.
+        case expression(String)
+    }
+
+    /// The annotation form: `Label`, `Domain`, `SubClassOf`, ...
     let name: String
-    let value: String
+    let argument: Argument
+
+    /// The term spelling, when the annotation relates to a term.
+    var term: String? {
+        if case .term(let spelling) = argument { return spelling }
+        return nil
+    }
+
+    /// The string literal source text, when the annotation carries text.
+    var text: String? {
+        if case .text(let source) = argument { return source }
+        return nil
+    }
 }

@@ -1,44 +1,60 @@
 import SwiftSyntax
 
-/// Parses annotations from a trailing closure.
+/// Reads the annotations in a declaration's trailing closure.
 struct AnnotationParser {
     static func parse(from call: FunctionCallExprSyntax) -> [ParsedAnnotation] {
-        guard let trailingClosure = call.trailingClosure else { return [] }
-        var annotations: [ParsedAnnotation] = []
-
-        for statement in trailingClosure.statements {
-            guard let expr = statement.item.as(ExprSyntax.self) else { continue }
-            let (baseExpr, _) = unwrapChainedCalls(expr)
-            guard let baseExpr, let innerCall = baseExpr.as(FunctionCallExprSyntax.self) else { continue }
-            guard let funcName = innerCall.calledExpression.as(DeclReferenceExprSyntax.self)?.baseName.text else { continue }
-
-            let value: String
-            if let firstArg = innerCall.arguments.first {
-                if let stringLiteral = firstArg.expression.as(StringLiteralExprSyntax.self) {
-                    // String literal: grab segments to avoid source formatting issues
-                    let segments = stringLiteral.segments.map { $0.description }.joined()
-                    value = "\"\(segments)\""
-                } else {
-                    value = firstArg.expression.description.trimmingCharacters(in: .whitespaces)
-                }
-            } else {
-                value = ""
-            }
-            annotations.append(ParsedAnnotation(name: funcName, value: value))
+        guard let closure = call.trailingClosure else { return [] }
+        return closure.statements.compactMap { statement in
+            guard let expression = statement.item.as(ExprSyntax.self),
+                  let call = DeclarationCall(expression) else { return nil }
+            return ParsedAnnotation(name: call.name, argument: call.argument)
         }
-        return annotations
+    }
+}
+
+/// A call to a DSL form, `Name(...)` or `Name<Term>(...)`, possibly followed
+/// by chained modifiers such as `.deprecated()`.
+struct DeclarationCall {
+    let name: String
+    let call: FunctionCallExprSyntax
+    let argument: ParsedAnnotation.Argument
+
+    init?(_ expression: ExprSyntax) {
+        var current = expression
+        // Unwrap chained modifiers: `Class("X") { ... }.deprecated()`.
+        while let chained = current.as(FunctionCallExprSyntax.self),
+              let member = chained.calledExpression.as(MemberAccessExprSyntax.self),
+              let base = member.base {
+            current = base
+        }
+        guard let call = current.as(FunctionCallExprSyntax.self) else { return nil }
+
+        if let reference = call.calledExpression.as(DeclReferenceExprSyntax.self) {
+            self.name = reference.baseName.text
+            self.argument = Self.argument(of: call)
+        } else if let specialized = call.calledExpression.as(GenericSpecializationExprSyntax.self),
+                  let reference = specialized.expression.as(DeclReferenceExprSyntax.self),
+                  let term = specialized.genericArgumentClause.arguments.first {
+            self.name = reference.baseName.text
+            self.argument = .term(term.argument.trimmedDescription)
+        } else {
+            return nil
+        }
+        self.call = call
     }
 
-    private static func unwrapChainedCalls(_ expr: ExprSyntax) -> (ExprSyntax?, [String]) {
-        var current = expr
-        while let callExpr = current.as(FunctionCallExprSyntax.self),
-              let memberAccess = callExpr.calledExpression.as(MemberAccessExprSyntax.self) {
-            if let base = memberAccess.base {
-                current = base
-            } else {
-                break
-            }
+    /// The source text of the first string literal argument, without quotes.
+    var stringArgument: String? {
+        if case .text(let source) = argument { return source }
+        return nil
+    }
+
+    private static func argument(of call: FunctionCallExprSyntax) -> ParsedAnnotation.Argument {
+        guard let first = call.arguments.first?.expression else { return .none }
+        if let literal = first.as(StringLiteralExprSyntax.self),
+           literal.segments.allSatisfy({ $0.is(StringSegmentSyntax.self) }) {
+            return .text(literal.segments.map(\.description).joined())
         }
-        return (current, [])
+        return .expression(first.trimmedDescription)
     }
 }
