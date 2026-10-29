@@ -45,6 +45,10 @@ enum BootstrapTerm {
     /// declaration form itself (for example `OWL.Class`).
     static let declarationForms: Set<String> = ["Class", "Property", "Datatype", "Individual"]
 
+    /// Annotation forms that relate the declared term to another term. They
+    /// are authored with the related type as the argument, `Domain(Fauna.Animal)`.
+    static let termForms: Set<String> = ["Type", "Domain", "Range", "SubClassOf", "SubPropertyOf"]
+
     private static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     private static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
     private static let owl = "http://www.w3.org/2002/07/owl#"

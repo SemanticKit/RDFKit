@@ -6,7 +6,7 @@ struct ParsedAnnotation {
         case none
         /// A string literal's value, with escapes resolved: `Label("Animal")`.
         case text(String)
-        /// A term given as a generic argument: `Domain<Fauna.Animal>()`.
+        /// The related type given as the argument: `Domain(Fauna.Animal)`.
         case term(String)
         /// Any other expression, as source text.
         case expression(String)

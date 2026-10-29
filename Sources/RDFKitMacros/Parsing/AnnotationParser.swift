@@ -2,24 +2,24 @@ import SwiftSyntax
 
 /// Reads the annotations in a declaration's trailing closure.
 struct AnnotationParser {
-    static func parse(from call: FunctionCallExprSyntax) -> [ParsedAnnotation] {
+    static func parse(from call: FunctionCallExprSyntax) throws -> [ParsedAnnotation] {
         guard let closure = call.trailingClosure else { return [] }
-        return closure.statements.compactMap { statement in
+        return try closure.statements.compactMap { statement in
             guard let expression = statement.item.as(ExprSyntax.self),
-                  let call = DeclarationCall(expression) else { return nil }
+                  let call = try DeclarationCall(expression) else { return nil }
             return ParsedAnnotation(name: call.name, argument: call.argument)
         }
     }
 }
 
-/// A call to a DSL form, `Name(...)` or `Name<Term>(...)`, possibly followed
-/// by chained modifiers such as `.deprecated()`.
+/// A call to a DSL form, `Name(...)`, possibly followed by chained modifiers
+/// such as `.deprecated()`.
 struct DeclarationCall {
     let name: String
     let call: FunctionCallExprSyntax
     let argument: ParsedAnnotation.Argument
 
-    init?(_ expression: ExprSyntax) {
+    init?(_ expression: ExprSyntax) throws {
         var current = expression
         // Unwrap chained modifiers: `Class("X") { ... }.deprecated()`.
         while let chained = current.as(FunctionCallExprSyntax.self),
@@ -31,12 +31,19 @@ struct DeclarationCall {
 
         if let reference = call.calledExpression.as(DeclReferenceExprSyntax.self) {
             self.name = reference.baseName.text
-            self.argument = Self.argument(of: call)
+            if BootstrapTerm.termForms.contains(name) {
+                guard let term = TermArgument.typePath(of: call) else {
+                    throw MacroError("Write \(name) with the related type as its argument: \(name)(Fauna.Animal)")
+                }
+                self.argument = .term(term)
+            } else {
+                self.argument = Self.argument(of: call)
+            }
         } else if let specialized = call.calledExpression.as(GenericSpecializationExprSyntax.self),
                   let reference = specialized.expression.as(DeclReferenceExprSyntax.self),
-                  let term = specialized.genericArgumentClause.arguments.first {
-            self.name = reference.baseName.text
-            self.argument = .term(term.argument.trimmedDescription)
+                  BootstrapTerm.termForms.contains(reference.baseName.text) {
+            let name = reference.baseName.text
+            throw MacroError("Write \(name) with the related type as its argument: \(name)(Fauna.Animal)")
         } else {
             return nil
         }
@@ -58,5 +65,35 @@ struct DeclarationCall {
             return .text(value)
         }
         return .expression(first.trimmedDescription)
+    }
+}
+
+/// The related type given to a term annotation: `Fauna.Animal` in
+/// `Domain(Fauna.Animal)`.
+enum TermArgument {
+    /// The type spelling of a call's only argument, when the call is
+    /// `Name(Path.To.Type)`: one unlabeled argument that is a plain type path,
+    /// with no trailing closure. A `.self` path is not a type path.
+    static func typePath(of call: FunctionCallExprSyntax) -> String? {
+        guard call.trailingClosure == nil,
+              call.additionalTrailingClosures.isEmpty,
+              call.arguments.count == 1,
+              let argument = call.arguments.first,
+              argument.label == nil,
+              let components = components(of: argument.expression),
+              components.last != "self" else { return nil }
+        return components.joined(separator: ".")
+    }
+
+    private static func components(of expression: ExprSyntax) -> [String]? {
+        if let reference = expression.as(DeclReferenceExprSyntax.self), reference.argumentNames == nil {
+            return [reference.baseName.text]
+        }
+        if let member = expression.as(MemberAccessExprSyntax.self),
+           let base = member.base,
+           let prefix = components(of: base) {
+            return prefix + [member.declName.baseName.text]
+        }
+        return nil
     }
 }
