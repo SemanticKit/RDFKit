@@ -101,8 +101,8 @@ let ontology = MyOntology {
     }
     
     Property("knows") {
-        Domain(Person.self)
-        Range(Person.self)
+        Domain(Person)
+        Range(Person)
         Label("knows")
         Comment("knows another person.")
     }

@@ -5,8 +5,8 @@ import IRIKit
 /// `rdf:Property`
 ///
 ///     Property("hasHabitat") {
-///         Domain<Fauna.Animal>()
-///         Range<Fauna.Habitat>()
+///         Domain(Fauna.Animal)
+///         Range(Fauna.Habitat)
 ///     }
 public struct Property: Declaration {
     public static let metadata: any ContentMetadata = RDFMetadata(

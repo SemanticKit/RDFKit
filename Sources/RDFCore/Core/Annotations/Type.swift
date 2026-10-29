@@ -4,7 +4,7 @@ import IRIKit
 ///
 /// `rdf:type`
 ///
-///     Type<RDFS.Class>()
+///     Type(RDFS.Class)
 public struct Type<Term: Entity>: TermAnnotation {
     public static var metadata: any ContentMetadata {
         RDFMetadata(

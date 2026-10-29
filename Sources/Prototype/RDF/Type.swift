@@ -4,8 +4,8 @@ import IRIKit
 
 /// States that the declared term is an instance of `Term`.
 ///
-/// The related term is the generic argument, a Swift type, never an IRI:
-/// `Type<Animal>()`.
+/// The related term is a Swift type, never an IRI:
+/// `Type(Animal)`.
 public struct Type<Term: Entity>: SemanticProperty, Sendable {
     public init() {}
 }

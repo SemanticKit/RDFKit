@@ -5,7 +5,7 @@ import IRIKit
 /// `rdfs:Class`
 ///
 ///     Class("Animal") {
-///         Type<RDFS.Class>()
+///         Type(RDFS.Class)
 ///         Label("Animal")
 ///     }
 public struct Class: Declaration {

@@ -5,7 +5,7 @@ import IRIKit
 /// `owl:NamedIndividual`
 ///
 ///     Individual("nil") {
-///         Type<RDF.List>()
+///         Type(RDF.List)
 ///     }
 public struct Individual: Declaration {
     public static let metadata: any ContentMetadata = RDFMetadata(

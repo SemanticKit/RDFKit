@@ -9,7 +9,7 @@
 ```swift
 @Vocabulary
 public struct OWL: Ontology {
-    public var content: Content {
+    public func content() -> Content {
         Namespace("http://www.w3.org/2002/07/owl#")
 
         Class("Thing") {

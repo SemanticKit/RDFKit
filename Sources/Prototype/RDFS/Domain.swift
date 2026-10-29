@@ -4,8 +4,8 @@ import IRIKit
 
 /// States that the declared property applies to instances of `Term`.
 ///
-/// The related term is the generic argument, a Swift type, never an IRI:
-/// `Domain<Animal>()`.
+/// The related term is a Swift type, never an IRI:
+/// `Domain(Animal)`.
 public struct Domain<Term: Entity>: SemanticProperty, Sendable {
     public init() {}
 }

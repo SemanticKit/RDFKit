@@ -4,7 +4,7 @@ import IRIKit
 ///
 /// `rdfs:range`
 ///
-///     Range<Fauna.Habitat>()
+///     Range(Fauna.Habitat)
 public struct Range<Term: Entity>: TermAnnotation {
     public static var metadata: any ContentMetadata {
         RDFMetadata(

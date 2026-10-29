@@ -4,8 +4,8 @@ import IRIKit
 
 /// States that values of the declared property are instances of `Term`.
 ///
-/// The related term is the generic argument, a Swift type, never an IRI:
-/// `Range<Animal>()`.
+/// The related term is a Swift type, never an IRI:
+/// `Range(Animal)`.
 public struct Range<Term: Entity>: SemanticProperty, Sendable {
     public init() {}
 }

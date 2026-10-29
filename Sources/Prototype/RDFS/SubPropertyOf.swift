@@ -4,8 +4,8 @@ import IRIKit
 
 /// States that the declared property is a subproperty of `Term`.
 ///
-/// The related term is the generic argument, a Swift type, never an IRI:
-/// `SubPropertyOf<Animal>()`.
+/// The related term is a Swift type, never an IRI:
+/// `SubPropertyOf(Animal)`.
 public struct SubPropertyOf<Term: Entity>: SemanticProperty, Sendable {
     public init() {}
 }

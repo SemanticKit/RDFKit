@@ -4,7 +4,7 @@ import IRIKit
 ///
 /// `rdfs:subClassOf`
 ///
-///     SubClassOf<RDFS.Resource>()
+///     SubClassOf(RDFS.Resource)
 public struct SubClassOf<Term: Entity>: TermAnnotation {
     public static var metadata: any ContentMetadata {
         RDFMetadata(

@@ -4,8 +4,8 @@ import IRIKit
 
 /// States that the declared class is a subclass of `Term`.
 ///
-/// The related term is the generic argument, a Swift type, never an IRI:
-/// `SubClassOf<Animal>()`.
+/// The related term is a Swift type, never an IRI:
+/// `SubClassOf(Animal)`.
 public struct SubClassOf<Term: Entity>: SemanticProperty, Sendable {
     public init() {}
 }

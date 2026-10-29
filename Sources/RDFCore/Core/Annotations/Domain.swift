@@ -4,7 +4,7 @@ import IRIKit
 ///
 /// `rdfs:domain`
 ///
-///     Domain<Fauna.Animal>()
+///     Domain(Fauna.Animal)
 public struct Domain<Term: Entity>: TermAnnotation {
     public static var metadata: any ContentMetadata {
         RDFMetadata(

@@ -7,25 +7,28 @@ A protocol-oriented RDF ontology DSL for Swift.
 RDFKit is a Swift library for defining RDF ontologies using a declarative DSL. You write ontologies the way you think about them — classes, properties, relationships — and the Swift compiler validates the structure.
 
 ```swift
+@Ontology
 public struct OWL: Ontology {
-    public var content: Content {
+    public func content() -> Content {
         Namespace("http://www.w3.org/2002/07/owl#")
 
         Class("Thing") {
-            Type(RDFSTerm.Class)
+            Type(RDFS.Class)
             Label("Thing")
             Comment("The class of OWL individuals.")
         }
 
         Property("sameAs") {
-            Type(RDFTerm.Property)
-            Domain(OWLTerm.Thing)
-            Range(OWLTerm.Thing)
+            Type(RDF.Property)
+            Domain(OWL.Thing)
+            Range(OWL.Thing)
             Label("sameAs")
         }
     }
 }
 ```
+
+Related terms are written as their types: `Type(RDFS.Class)`, `Domain(OWL.Thing)`. `@Ontology` generates `OWL.Thing` and the other term types from this content, and owns the body of `content()`, so these annotations are read as written and `content()` returns them built from the generated types.
 
 This reads like RDF. It IS RDF. The compiler enforces the structure.
 

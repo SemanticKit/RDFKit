@@ -6,7 +6,7 @@ The DSL works. You can write ontologies:
 
 ```swift
 public struct OWL: Ontology {
-    public var content: Content {
+    public func content() -> Content {
         Namespace("http://www.w3.org/2002/07/owl#")
         Class("Thing") { Type(RDFSTerm.Class) ... }
         Property("sameAs") { Type(RDFTerm.Property) ... }
