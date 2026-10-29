@@ -39,9 +39,14 @@ struct OntologyParser {
             throw MacroError("Content must include a Namespace(\"...\") declaration")
         }
 
+        let access = structDecl.modifiers
+            .map(\.name.text)
+            .first { ["public", "package"].contains($0) }
+            .map { $0 + " " } ?? ""
         return ParsedOntology(
             typeName: structDecl.name.text,
             namespace: namespace,
+            access: access,
             declarations: declarations
         )
     }

@@ -19,6 +19,23 @@ import SwiftSyntaxMacros
 /// in any module that conforms to a class protocol, directly or through a
 /// subclass, has every requirement of it, including those of classes the
 /// module never sees declared.
+///
+/// An ontology's extension point `Q.Extending` names, as one type alias per
+/// property, the properties the ontology declares for other ontologies'
+/// classes:
+///
+///     typealias _equivalentClass = (any RDFS.Class, RDFCore.PropertyValues<any RDFS.Class>)
+///
+/// The alias gives the property's domain and value view. Each becomes a
+/// member of the extension point wherever the individual is in the domain,
+/// on the `membership` the extension point requires, so the member is there
+/// on an existential (`any RDFS.Class`) too:
+///
+///     extension OWL.Extending where Self: RDFS.Class {
+///         public var equivalentClass: RDFCore.PropertyValues<any RDFS.Class> {
+///             RDFCore.PropertyValues(\Self.equivalentClass, of: membership)
+///         }
+///     }
 public struct StoredRequirementsMacro: ExtensionMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -30,33 +47,75 @@ public struct StoredRequirementsMacro: ExtensionMacro {
         guard declaration.is(ProtocolDeclSyntax.self) else {
             throw MacroError("@StoredRequirements applies to a class protocol that @Ontology generates")
         }
-        let implementations = declaration.memberBlock.members.compactMap { member -> String? in
-            guard let variable = member.decl.as(VariableDeclSyntax.self),
-                  let binding = variable.bindings.first,
-                  let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-                  let valueType = binding.typeAnnotation?.type else { return nil }
-            let view = valueType.trimmedDescription
-            guard let form = ["RDFCore.PropertyValues", "RDFCore.PropertyValue"].first(where: { view.hasPrefix($0 + "<") }) else {
-                return nil
-            }
-            let documentation = variable.leadingTrivia.description
-                .split(separator: "\n", omittingEmptySubsequences: true)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { $0.hasPrefix("///") }
-                .map { "    " + $0 + "\n" }
-                .joined()
-            return """
-            \(documentation)    public var \(name): \(view) {
-                    \(form)(\\Self.\(name), of: membership)
+        // The implementations are as visible as the protocol they implement.
+        let access = declaration.modifiers
+            .map(\.name.text)
+            .first { ["public", "package"].contains($0) }
+            .map { $0 + " " } ?? ""
+        var implementations: [String] = []
+        var constrained: [(domain: String, members: [String])] = []
+        for member in declaration.memberBlock.members {
+            if let variable = member.decl.as(VariableDeclSyntax.self),
+               let binding = variable.bindings.first,
+               let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+               let valueType = binding.typeAnnotation?.type,
+               let implementation = implementation(of: name, view: valueType.trimmedDescription, documentation: variable.leadingTrivia, access: access) {
+                implementations.append(implementation)
+            } else if let alias = member.decl.as(TypeAliasDeclSyntax.self),
+                      alias.name.text.hasPrefix("_"),
+                      let tuple = alias.initializer.value.as(TupleTypeSyntax.self),
+                      tuple.elements.count == 2 {
+                let elements = Array(tuple.elements)
+                let domainType = elements[0].type
+                let domain = domainType.as(SomeOrAnyTypeSyntax.self)?.constraint.trimmedDescription ?? domainType.trimmedDescription
+                guard let implementation = implementation(
+                    of: String(alias.name.text.dropFirst()),
+                    view: elements[1].type.trimmedDescription,
+                    documentation: alias.leadingTrivia,
+                    access: access
+                ) else { continue }
+                if let index = constrained.firstIndex(where: { $0.domain == domain }) {
+                    constrained[index].members.append(implementation)
+                } else {
+                    constrained.append((domain, [implementation]))
                 }
-            """
-        }
-        guard !implementations.isEmpty else { return [] }
-        let source: DeclSyntax = """
-            extension \(type.trimmed) where Self: RDFCore.StoredIndividual {
-            \(raw: implementations.joined(separator: "\n\n"))
             }
-            """
-        return [source.cast(ExtensionDeclSyntax.self)]
+        }
+
+        var sources: [DeclSyntax] = []
+        if !implementations.isEmpty {
+            sources.append("""
+                extension \(type.trimmed) where Self: RDFCore.StoredIndividual {
+                \(raw: implementations.joined(separator: "\n\n"))
+                }
+                """)
+        }
+        for (domain, members) in constrained {
+            sources.append("""
+                extension \(type.trimmed) where Self: \(raw: domain) {
+                \(raw: members.joined(separator: "\n\n"))
+                }
+                """)
+        }
+        return sources.map { $0.cast(ExtensionDeclSyntax.self) }
+    }
+
+    /// A property implemented on the individual's membership, under its own
+    /// key path, with the documentation of the declaration it came from.
+    private static func implementation(of name: String, view: String, documentation trivia: Trivia, access: String) -> String? {
+        guard let form = ["RDFCore.PropertyValues", "RDFCore.PropertyValue"].first(where: { view.hasPrefix($0 + "<") }) else {
+            return nil
+        }
+        let documentation = trivia.description
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.hasPrefix("///") }
+            .map { "    " + $0 + "\n" }
+            .joined()
+        return """
+        \(documentation)    \(access)var \(name): \(view) {
+                \(form)(\\Self.\(name), of: membership)
+            }
+        """
     }
 }

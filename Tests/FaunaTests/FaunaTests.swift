@@ -305,7 +305,10 @@ struct FaunaTests {
 }
 
 /// A diet that is not an individual of any graph, so that a test can see
-/// when the values an individual stores are freed.
-private final class TrackedDiet: Fauna.Diet {
+/// when the values an individual stores are freed. Like a named individual,
+/// it has a fixed membership in no graph, which gives it the properties every
+/// resource has (`label`, `comment`, ...).
+private final class TrackedDiet: Fauna.Diet, StoredIndividual {
     static let metadata: any ContentMetadata = Fauna.DietIndividual.metadata
+    let membership = Membership.fixed()
 }

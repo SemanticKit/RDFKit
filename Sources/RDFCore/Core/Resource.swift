@@ -1,9 +1,11 @@
 /// An individual: a member of one or more classes.
 ///
 /// The `@Ontology` macro generates a protocol for every class an ontology
-/// declares, and every class protocol refines `Resource` (directly, or through
-/// the classes it is a subclass of). An individual is an instance of a final
-/// class that conforms to its classes' protocols.
+/// declares. A class with no superclass refines `RDFS.Resource`, which the
+/// macro generates from the `rdfs:Resource` declaration in RDFS.swift and
+/// which refines this protocol, so every class protocol refines `Resource`.
+/// An individual is an instance of a final class that conforms to its
+/// classes' protocols.
 ///
 /// An individual is a reference. Its identity inside the runtime is the object
 /// itself: the zebra a lion preys on is the same object as the zebra a
@@ -13,5 +15,6 @@
 /// individual's type is the boundary projection of the term that type was
 /// generated from, read only when the individual leaves the runtime.
 ///
-/// `rdfs:Resource`
+/// This is the runtime's notion of an individual object, not a term: the
+/// term `rdfs:Resource` is the generated `RDFS.Resource`.
 public protocol Resource: AnyObject, Entity {}

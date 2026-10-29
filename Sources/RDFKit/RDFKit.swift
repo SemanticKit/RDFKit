@@ -7,10 +7,9 @@ import RDFCore
     func content() -> Content {
         Namespace("http://semantickit.io/o/2026/06/rdfkit#")
 
-//        Prefix.rdf
-//        Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-//        Prefix.rdfs
-//        Prefix.owl
+        Prefix.rdf
+        Prefix.rdfs
+        Prefix.owl
 
         Class("Namespace") {
             Type(RDFS.Class)
