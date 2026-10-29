@@ -2,9 +2,9 @@ import Foundation
 
 /// The type returned by an ontology's `content` property.
 ///
-/// Content is an ordered list of RDF nodes — declarations (classes, properties,
-/// individuals, datatypes), prefixes, and namespaces — that together define an
-/// ontology's vocabulary.
+/// Content is an ordered list of entities — declarations (classes, properties,
+/// individuals, datatypes), their annotations, prefixes, and namespaces — that
+/// together define an ontology's vocabulary.
 public typealias Content = [any Entity]
 
 public typealias AnyEntity = any Entity
@@ -15,20 +15,25 @@ public typealias Entities = [AnyEntity]
 ///
 /// Conform a type to ``Ontology`` to define an RDF vocabulary — a collection of
 /// classes, properties, individuals, datatypes, prefixes, and annotations —
-/// using the ``@ContentBuilder`` result builder. The ``@Ontology`` macro can
-/// then generate concrete declaration types (``Class``, ``Property``, etc.)
-/// nested inside the conforming type, shadowing the default DSL closures.
+/// using the ``ContentBuilder`` result builder. The `@Ontology` macro reads the
+/// content and generates one Swift type per declared term, nested inside the
+/// conforming type.
 ///
 /// Conformance requires a ``content`` property that returns ``Content`` — an
 /// ordered list of ``Entity`` values. The default ``entities`` property
 /// provides a stable, non-rebuilding view of the same declarations.
 ///
 /// ```swift
-/// struct MyVocabulary: Ontology {
+/// @Ontology
+/// struct People: Ontology {
 ///     var content: Content {
+///         Namespace("https://people.example.org/ontology#")
 ///         Class("Person")
-///         Property("fullName") { Label("Full Name") }
-///         Individual("alice")
+///         Property("fullName") {
+///             Domain<People.Person>()
+///             Range<RDFS.Literal>()
+///             Label("Full Name")
+///         }
 ///     }
 /// }
 /// ```
@@ -36,7 +41,7 @@ public typealias Entities = [AnyEntity]
 /// - Note: ``Ontology`` conformance is `Sendable`; conforming types should
 ///   ensure all stored properties are also `Sendable`.
 ///
-/// - SeeAlso: ``ContentBuilder``, ``@Ontology``, ``Entity``
+/// - SeeAlso: ``ContentBuilder``, ``Entity``, ``Declaration``
 public protocol Ontology: Sendable {
     /// The authored ontology content.
     ///
@@ -83,10 +88,3 @@ extension Ontology {
     }
 }
 
-extension Ontology {
-//    public var namespace: Namespace? {
-//        entities.lazy
-//            .compactMap { $0 as? Namespace }
-//            .first
-//    }
-}

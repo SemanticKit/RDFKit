@@ -1,0 +1,26 @@
+import IRIKit
+
+/// Declares an RDF property. The `@Ontology` macro generates a Swift type for it and a stored property, typed by its `Range`, on the type of its `Domain`.
+///
+/// `rdf:Property`
+///
+///     Property("hasHabitat") {
+///         Domain<Fauna.Animal>()
+///         Range<Fauna.Habitat>()
+///     }
+public struct Property: Declaration {
+    public static let metadata: any ContentMetadata = RDFMetadata(
+        id: "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
+        name: "Property",
+        label: "Property",
+        comment: "The class of RDF properties."
+    )
+
+    public let localName: String
+    public let content: Content
+
+    public init(_ localName: String, @ContentBuilder _ content: () -> Content) {
+        self.localName = localName
+        self.content = content()
+    }
+}

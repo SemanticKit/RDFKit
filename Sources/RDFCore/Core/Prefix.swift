@@ -1,47 +1,25 @@
 import Foundation
 import IRIKit
 
-/// A prefix alias bound to a namespace.
+/// A prefix alias bound to a namespace, for serialization.
+///
+///     Prefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
 public struct Prefix: Entity {
-    public typealias ID = IRI
-    public typealias Metadata = any ContentMetadata
-
-    public static let metadata = RDFMetadata(
+    public static let metadata: any ContentMetadata = RDFMetadata(
         id: "http://semantickit.io/o/2026/06/rdfkit#Prefix",
         name: "Prefix",
-        type: "RDFKit.Prefix",
         label: "Prefix",
         comment: "The prefix of the Ontology."
     )
 
-    public let id: IRIKit.IRI
-
     /// The alias prefix.
     public let prefix: String
 
-    /// The target namespace.
-    public let namespace: String
-
-    init(_ prefix: String, _ namespace: Namespace) {
-        guard let id = try? IRI(validating: "\(Self.metadata.id)\(prefix)") else {
-            preconditionFailure(
-                "Could not validate the provided namespace identity as an IRI from \(namespace)."
-            )
-        }
-        self.id = id
-        self.prefix = prefix
-        self.namespace = namespace.namespace
-    }
+    /// The namespace IRI the prefix abbreviates.
+    public let namespace: IRI
 
     /// Creates a prefix alias.
-    public init(_ prefix: String, _ namespace: String) {
-        guard let id = try? IRI(validating: namespace) else {
-            preconditionFailure(
-                "Could not validate the provided namespace identity as an IRI from \(namespace)."
-            )
-        }
-
-        self.id = id
+    public init(_ prefix: String, _ namespace: IRI) {
         self.prefix = prefix
         self.namespace = namespace
     }

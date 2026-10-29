@@ -2,16 +2,12 @@ import IRIKit
 
 /// An ontology entity declared in the DSL.
 ///
-/// Represents the declared thing itself, not an instance of it.
-/// Contains class-level metadata derived from the DSL declarations.
+/// The Swift type is the entity's identity inside the runtime. Types refer to
+/// each other as types, never through an IRI or a string. The entity's IRI
+/// lives only in ``metadata``, a static projection that the `@Ontology` macro
+/// computes from the ontology's namespace and that is read only at the
+/// boundary (serialization, translation into SPARQL or SHACL, dereferencing).
 public protocol Entity: Node {
-    /// The class-level metadata for this entity.
-    associatedtype ID: Identifiable
-    associatedtype Metadata: Codable & Identifiable
-
-    /// The class-level metadata.
+    /// The boundary projection of this entity: its IRI and documentation.
     static var metadata: any ContentMetadata { get }
-
-    /// The instance-level identifier.
-    var id: ID { get }
 }

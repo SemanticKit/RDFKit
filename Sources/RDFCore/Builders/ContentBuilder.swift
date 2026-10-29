@@ -1,35 +1,38 @@
 import Foundation
 
-/// Builds ontology-level content (declarations: Class, Property, Prefix, etc.).
+/// Builds ontology content: declarations (``Class``, ``Property``,
+/// ``Datatype``, ``Individual``), their annotations, prefixes and namespaces.
+///
+/// Every statement in a builder body is an ``Entity`` value. Each one is lifted
+/// into ``Content`` by `buildExpression`, so `if`, `if`/`else`, `for` and
+/// availability checks compose without a fixed arity.
 @resultBuilder
 public enum ContentBuilder {
-    public static func buildBlock() -> [any Node] {
-        []
+    public static func buildExpression<Value: Entity>(_ expression: Value) -> Content {
+        [expression]
     }
 
-    public static func buildBlock<each T: Node>(_ content: repeat each T) -> [any Node] {
-        var result: [any Node] = []
-        repeat result.append(each content)
-        return result
+    public static func buildBlock(_ components: Content...) -> Content {
+        components.flatMap { $0 }
     }
 
-    public static func buildOptional(_ content: (any Node)?) -> [any Node] {
-        content.map { [$0] } ?? []
+    public static func buildOptional(_ component: Content?) -> Content {
+        component ?? []
     }
 
-    public static func buildEither(first content: any Node) -> [any Node] {
-        [content]
+    public static func buildEither(first component: Content) -> Content {
+        component
     }
 
-    public static func buildEither(second content: any Node) -> [any Node] {
-        [content]
+    public static func buildEither(second component: Content) -> Content {
+        component
     }
 
-    public static func buildArray(_ components: [any Node]) -> [any Node] {
-        components
+    public static func buildArray(_ components: [Content]) -> Content {
+        components.flatMap { $0 }
     }
 
-    public static func buildLimitedAvailability(_ content: any Node) -> [any Node] {
-        [content]
+    public static func buildLimitedAvailability(_ component: Content) -> Content {
+        component
     }
 }
