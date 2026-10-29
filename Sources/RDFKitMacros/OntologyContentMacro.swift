@@ -13,7 +13,8 @@ import SwiftSyntaxMacros
 /// by its module, `RDFCore.Class("Animal")`, because the ontology may declare
 /// a term of the same name (`RDFS.Class`). The statements keep the authored
 /// file and line, so the compiler reports an error in them at the line it
-/// was written on.
+/// was written on. `content()` takes ``ContentBuilder`` from the `Ontology`
+/// requirement, so the returned statements are built into `Content`.
 public struct OntologyContentMacro: BodyMacro {
     public static func expansion(
         of node: AttributeSyntax,
