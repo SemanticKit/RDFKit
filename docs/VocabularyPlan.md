@@ -2,60 +2,61 @@
 
 ## Current State
 
-The DSL works. You can write ontologies:
+RDF, RDFS, OWL, XSD and the RDFKit vocabulary are declared with the DSL in `Sources/RDFKit`, and each is an `@Ontology` struct. The macro generates their Swift model from that content, the same way it generates the model of any other ontology (see `MacroDesign.md`). There are no hand-written term enums and no `+Terms.swift` files: `RDFS.Class`, `OWL.Thing` and `RDF.List` are types the macro generates.
 
 ```swift
+@Ontology
 public struct OWL: Ontology {
     public func content() -> Content {
         Namespace("http://www.w3.org/2002/07/owl#")
-        Class("Thing") { Type(RDFSTerm.Class) ... }
-        Property("sameAs") { Type(RDFTerm.Property) ... }
+
+        Class("Thing") {
+            Type(OWL.Class)
+            Label("Thing")
+            Comment("The class of OWL individuals.")
+        }
+
+        Property("sameAs") {
+            Type(RDF.Property)
+            Domain(OWL.Thing)
+            Range(OWL.Thing)
+            Label("sameAs")
+        }
     }
 }
 ```
 
-But the term references (`OWLTerm.Class`, `RDFSTerm.Class`) are hand-written enums. That's scaffolding.
+## What the Standard Vocabularies Become
 
-## The Loop
+The vocabularies follow the same rules as any ontology:
 
-The ontology content tree already contains everything needed:
-- Term names (`"Thing"`, `"sameAs"`)
-- Term types (via `Type(RDFSTerm.Class)`)
-- Relationships (`SubClassOf`, `Domain`, `Range`)
-- Namespace (`"http://www.w3.org/2002/07/owl#"`)
+- Every class is a protocol: `RDFS.Class`, `RDF.Property`, `RDF.List`, `OWL.Thing`, `OWL.ObjectProperty`, `OWL.FunctionalProperty`. Its requirements are the properties the vocabulary declares with that class as domain (`RDF.List` requires `first` and `rest`; `OWL.Thing` requires `sameAs` and `differentFrom`), and `SubClassOf` becomes refinement (`OWL.Class` refines `RDFS.Class`).
+- Classes whose superclasses are all declared in the same vocabulary, or are `rdfs:Resource`, get an individual type (`RDF.ListIndividual`). Classes that refine another vocabulary's class (`OWL.Class` refines `RDFS.Class`) are protocols only.
+- Named individuals are static constants: `RDF.nil` is the one empty list.
+- `rdfs:Literal` and the datatypes (`RDF.HTML`, `RDF.langString`, `XSD.nonNegativeInteger`) are value types.
+- Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range.
 
-A macro reads this metadata at compile time and generates the type-safe term references. The hand-written `+Terms.swift` files come down.
+## Bootstrap Terms
 
-## What the Macro Generates
+Some terms are the DSL itself. RDFCore provides them, and when a vocabulary declares one the macro aliases the RDFCore type instead of generating a second type for the same term:
 
-From the ontology content, the macro produces static properties with IRI values:
+| Term | RDFCore type |
+|---|---|
+| `rdfs:Resource` | `Resource`, the protocol every class refines |
+| `rdf:type`, `rdfs:domain`, `rdfs:range`, `rdfs:subClassOf`, `rdfs:subPropertyOf` | `Type`, `Domain`, `Range`, `SubClassOf`, `SubPropertyOf`, generic over the related term |
+| `rdfs:label`, `rdfs:comment`, `rdfs:seeAlso`, `owl:deprecated` | `Label`, `Comment`, `SeeAlso`, `Deprecated` |
+| `rdfkit:Namespace`, `rdfkit:Prefix` | `Namespace`, `Prefix` |
 
-```swift
-// Auto-generated from OWL ontology content
-extension OWL {
-    /// owl:Thing — The class of OWL individuals.
-    public static let Thing: IRI = "http://www.w3.org/2002/07/owl#Thing"
-    
-    /// owl:sameAs — The property that determines that two given individuals are equal.
-    public static let sameAs: IRI = "http://www.w3.org/2002/07/owl#sameAs"
-}
-```
+The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
 
-## What This Eliminates
-
-- Hand-written `OWL+Terms.swift`, `RDF+Terms.swift`, `RDFS+Terms.swift`
-- Generic `TermDeclaration` scaffolding (the DSL methods still return it, but it's internal)
-- Runtime string concatenation for IRI resolution
-- Resolver structs (the type system provides identity via `Identifiable` on `IRI`)
+The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` and `XSD.nonNegativeInteger` map to the Swift value types `String` and `UInt`, `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, and `OWL.FunctionalProperty` makes a property single-valued.
 
 ## What Stays
 
-- The DSL syntax (unchanged)
-- The protocol hierarchy (defines what something IS)
-- The result builders (compose content)
-- The content tree (the ontology IS the tree)
-- `IRI: Identifiable` (identity is the IRI)
+- The DSL syntax: `Class("Animal") { Domain(Fauna.Animal) }` inside `func content()`.
+- The result builder (`ContentBuilder`) and the content tree that `content()` returns.
+- IRIs as boundary values only: each term's IRI is in its static `metadata`, computed from the namespace when the macro expands.
 
 ## Testing Approach
 
-Don't test scaffolding types. Build a new ontology using the DSL. Prove it works end-to-end. The consumer test library depends on RDFKit, declares new ontologies, and verifies the DSL is self-describing.
+Don't test scaffolding types. `Tests/FaunaTests` declares an ontology with the DSL and uses its generated model end to end: individuals of several classes, cycles between individuals, many-valued and functional properties, and the boundary projection of IRIs. `Tests/RDFKitMacrosTests` pins what the macro generates.
