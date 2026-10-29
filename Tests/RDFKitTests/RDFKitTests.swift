@@ -52,4 +52,65 @@ struct RDFKitTests {
         #expect(superclass === animal)
         #expect(predator.disjointWith.first === plant)
     }
+
+    @Test("A property of another ontology's class reaches every individual of that class", .tags(.property))
+    func propertiesOfForeignDomains() throws {
+        let graph = IndividualGraph()
+        // `owl:equivalentClass` and `owl:unionOf` have `rdfs:Class` as domain,
+        // which RDFS declares, so OWL classes and RDFS classes both have them.
+        let feline = OWL.ClassIndividual(in: graph)
+        let cat = OWL.ClassIndividual(in: graph)
+        let animal = RDFS.ClassIndividual(in: graph)
+        let beast = RDFS.ClassIndividual(in: graph)
+        let members = RDF.ListIndividual(in: graph, first: [feline], rest: [RDF.nil])
+
+        OWL.equivalentClass.values(of: feline).append(cat)
+        OWL.unionOf.values(of: feline).append(members)
+        OWL.equivalentClass.values(of: animal).append(beast)
+
+        #expect(OWL.equivalentClass.values(of: feline).first === cat)
+        #expect(OWL.unionOf.values(of: feline).first === members)
+        #expect(OWL.equivalentClass.values(of: animal).first === beast)
+        #expect(OWL.equivalentClass.values(of: cat).isEmpty)
+
+        // `rdfs:subPropertyOf` and `owl:equivalentProperty` have `rdf:Property`
+        // as domain.
+        let parent = RDF.PropertyIndividual(in: graph)
+        let child = RDF.PropertyIndividual(in: graph)
+        RDFS.subPropertyOf.values(of: child).append(parent)
+        OWL.equivalentProperty.values(of: child).append(parent)
+        #expect(RDFS.subPropertyOf.values(of: child).first === parent)
+        #expect(OWL.equivalentProperty.values(of: child).first === parent)
+
+        // `owl:onDatatype` has `rdfs:Datatype` as domain, which `owl:DataRange` refines.
+        let range = OWL.DataRangeIndividual(in: graph)
+        let base = RDFS.DatatypeIndividual(in: graph)
+        OWL.onDatatype.values(of: range).append(base)
+        #expect(OWL.onDatatype.values(of: range).first === base)
+    }
+
+    @Test("Every individual can have the properties of rdfs:Resource", .tags(.property))
+    func propertiesOfResource() throws {
+        let graph = IndividualGraph()
+        let ontology = OWL.OntologyIndividual(in: graph)
+        let thing = OWL.ThingIndividual(in: graph)
+        let related = OWL.ThingIndividual(in: graph)
+
+        RDFS.label.values(of: thing).append(contentsOf: ["Morning star", RDFS.Literal("Morgenstern", languageTag: "de")])
+        RDFS.comment.values(of: thing).append("The planet Venus.")
+        RDFS.seeAlso.values(of: thing).append(related)
+        OWL.versionInfo.values(of: ontology).append(thing)
+
+        #expect(RDFS.label.values(of: thing).values.map(\.lexicalForm) == ["Morning star", "Morgenstern"])
+        #expect(RDFS.comment.values(of: thing).first?.lexicalForm == "The planet Venus.")
+        #expect(RDFS.seeAlso.values(of: thing).first === related)
+        #expect(OWL.versionInfo.values(of: ontology).first === thing)
+
+        // The values belong to the individual, not to the term: another
+        // individual has none.
+        #expect(RDFS.label.values(of: related).isEmpty)
+        // Stored once, whichever way the individual is reached.
+        let resource: some StoredIndividual = thing
+        #expect(RDFS.label.values(of: resource).count == 2)
+    }
 }

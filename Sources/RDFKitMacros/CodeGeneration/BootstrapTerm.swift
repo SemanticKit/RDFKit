@@ -13,7 +13,7 @@ enum BootstrapTerm {
         case (rdfs, "Resource"): ("Resource", false)
         case (rdfkit, "Namespace"): ("Namespace", false)
         case (rdfkit, "Prefix"): ("Prefix", false)
-        case (rdf, "type"): ("Type", true)
+        case (rdf, "type"): (typeForm, true)
         case (rdfs, "domain"): ("Domain", true)
         case (rdfs, "range"): ("Range", true)
         case (rdfs, "subClassOf"): ("SubClassOf", true)
@@ -26,23 +26,28 @@ enum BootstrapTerm {
         }
     }
 
+    /// The RDFCore form of `rdf:type`.
+    static let typeForm = "Type"
+
     /// Whether a qualified spelling names `rdfs:Literal`, the class of
     /// literal values. It and its subclasses are value types.
     static func isLiteral(_ spelling: String) -> Bool {
-        spelling == "RDFS.Literal"
+        unqualified(spelling) == "RDFS.Literal"
     }
 
     /// Whether a qualified spelling names `rdfs:Resource`, the root of every
     /// class, which RDFCore provides as ``Resource`` with no requirements.
     static func isResource(_ spelling: String) -> Bool {
-        spelling == "RDFS.Resource" || spelling == "RDFCore.Resource"
+        let term = unqualified(spelling)
+        return term == "RDFS.Resource" || term == "RDFCore.Resource"
     }
 
     /// Whether a qualified spelling of another ontology's term names a
     /// datatype or literal class of XSD, RDFS or RDF, whose values are
     /// literals.
     static func isDatatype(_ spelling: String) -> Bool {
-        spelling.hasPrefix("XSD.") || isLiteral(spelling) || rdfDatatypes.contains(spelling)
+        let term = unqualified(spelling)
+        return term.hasPrefix("XSD.") || isLiteral(term) || rdfDatatypes.contains(term)
     }
 
     private static let rdfDatatypes: Set<String> = [
@@ -53,19 +58,28 @@ enum BootstrapTerm {
     /// Whether a qualified spelling names `owl:Thing`, the class of every
     /// individual.
     static func isThing(_ spelling: String) -> Bool {
-        spelling == "OWL.Thing"
+        unqualified(spelling) == "OWL.Thing"
     }
 
     /// Whether a qualified spelling names `owl:Nothing`, the class with no
     /// individuals, which therefore has no individual type.
     static func isNothing(_ spelling: String) -> Bool {
-        spelling == "OWL.Nothing"
+        unqualified(spelling) == "OWL.Nothing"
     }
 
     /// Whether a qualified spelling names `owl:FunctionalProperty`. A
     /// property typed with it has at most one value.
     static func isFunctionalProperty(_ spelling: String) -> Bool {
-        spelling == "OWL.FunctionalProperty"
+        unqualified(spelling) == "OWL.FunctionalProperty"
+    }
+
+    /// A spelling without its module: `RDFKit.OWL.FunctionalProperty` is
+    /// `OWL.FunctionalProperty`. A term is an ontology's nested type, so only
+    /// its last two components name it.
+    private static func unqualified(_ spelling: String) -> String {
+        let components = spelling.split(separator: ".")
+        guard components.count > 2 else { return spelling }
+        return components.suffix(2).joined(separator: ".")
     }
 
     private static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"

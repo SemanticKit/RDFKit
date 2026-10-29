@@ -15,7 +15,7 @@ import FOAF
 ///
 /// `cert:key` relates a `foaf:Agent` to its public keys. Its domain is another
 /// ontology's class, so it is read and written through its term:
-/// `Cert.key[alice].append(aliceKey)`.
+/// `Cert.key.values(of: alice).append(aliceKey)`.
 ///
 /// `cert:modulus` has the ranges `xsd:hexBinary` and `xsd:base64Binary`, two
 /// encodings of one value, so it holds literals of either:

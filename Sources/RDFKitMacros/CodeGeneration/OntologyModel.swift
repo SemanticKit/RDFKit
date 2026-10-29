@@ -10,6 +10,9 @@
 /// - An `Individual` becomes the one instance of a final class that conforms
 ///   to the protocols of its classes.
 /// - A `Property` becomes a term type that names its `Domain` and `Range`.
+///   When the domain is a class of another ontology, or `rdfs:Resource`,
+///   the term type also reads and changes the property's values on the
+///   individuals of the domain (``DomainAccess``).
 struct OntologyModel {
     enum Shape: Equatable {
         /// A term RDFCore already provides.
@@ -139,6 +142,77 @@ struct OntologyModel {
         return order.flatMap(ownRequirements(of:)).filter { seen.insert($0.declaration.name).inserted }
     }
 
+    // MARK: - Properties of other classes
+
+    /// A property whose `Domain` is not a class of this ontology: a class of
+    /// another ontology, `rdfs:Resource`, another ontology's `owl:Thing`, or
+    /// no domain at all, which is any resource. Its term type reads and changes
+    /// its values on any stored individual of the domain.
+    struct DomainAccess {
+        /// The protocols of the domains. A property with several domains
+        /// applies to the individuals of all of them.
+        let domains: [String]
+        let requirement: PropertyRequirement
+    }
+
+    /// Why a property's `Domain` cannot give it to any individual.
+    enum DomainProblem: Error {
+        /// The domain is a literal class, a property, an individual or not a
+        /// term of this ontology at all.
+        case notAClass(String)
+    }
+
+    /// Whether a property is `rdf:type`. Class membership is the Swift type
+    /// of an individual, the classes its type conforms to, so `rdf:type` is
+    /// never stored as a property value.
+    func isTypeProperty(_ property: ParsedEntity) -> Bool {
+        if case .alias(let form, _) = shapes[property.name] { return form == BootstrapTerm.typeForm }
+        return false
+    }
+
+    /// The protocol for a domain that is not a class of this ontology, `nil`
+    /// for a domain that is one (or a value type of this ontology, or a
+    /// value type RDFCore provides, which store their own fields), or the
+    /// reason it has no individuals.
+    private func accessDomain(_ spelling: String) -> Result<String, DomainProblem>? {
+        let canonical = ontology.canonical(spelling)
+        if BootstrapTerm.isResource(canonical) { return .success("RDFCore.Resource") }
+        // Every individual is an `owl:Thing`, but another ontology's classes
+        // need not say so: `foaf:name` has the domain `owl:Thing` and applies
+        // to a `foaf:Person`.
+        if BootstrapTerm.isThing(canonical), ontology.resolve(spelling).localName == nil { return .success("RDFCore.Resource") }
+        if let local = ontology.resolve(spelling).localName {
+            switch shapes[local] {
+            case .classProtocol, .value, .alias: return nil
+            default: return .failure(.notAClass(spelling))
+            }
+        }
+        if BootstrapTerm.isLiteral(canonical) { return .failure(.notAClass(spelling)) }
+        return .success(spelling)
+    }
+
+    /// How a property whose domains are classes of other ontologies, or
+    /// `rdfs:Resource`, or that has no domain, reaches the individuals of
+    /// those domains, or why it cannot. `nil` when a domain is a class or
+    /// value type of this ontology, and for `rdf:type`.
+    func domainAccess(for property: ParsedEntity) -> Result<DomainAccess, DomainProblem>? {
+        guard !isTypeProperty(property) else { return nil }
+        let spellings = property.terms("Domain")
+        // A property with no domain applies to any resource.
+        guard !spellings.isEmpty else {
+            return .success(DomainAccess(domains: ["RDFCore.Resource"], requirement: requirement(for: property)))
+        }
+        var domains: [String] = []
+        for spelling in spellings {
+            guard let domain = accessDomain(spelling) else { return nil }
+            switch domain {
+            case .failure(let problem): return .failure(problem)
+            case .success(let type): if !domains.contains(type) { domains.append(type) }
+            }
+        }
+        return .success(DomainAccess(domains: domains, requirement: requirement(for: property)))
+    }
+
     // MARK: - Properties
 
     func requirement(for property: ParsedEntity) -> PropertyRequirement {
@@ -201,29 +275,6 @@ struct OntologyModel {
 
     /// Any resource, the type of a value or subject a property does not constrain.
     static let anyResource = "any RDFCore.Resource"
-
-    /// The subject types of a property that is not a requirement of a class
-    /// protocol of this ontology, one for each `Domain`: another ontology's
-    /// class protocols, or any resource for a property without a domain or
-    /// with the domain `rdfs:Resource` or `owl:Thing`. A domain that is a
-    /// datatype or literal class has no individuals to store values, so it
-    /// is left out.
-    func subjectTypes(of property: ParsedEntity) -> [String] {
-        let domains = property.terms("Domain")
-        guard !domains.isEmpty else { return [Self.anyResource] }
-        var result: [String] = []
-        for domain in domains {
-            let canonical = ontology.canonical(domain)
-            if let name = ontology.resolve(domain).localName, shapes[name] != .classProtocol, !BootstrapTerm.isResource(canonical) {
-                continue
-            }
-            if BootstrapTerm.isLiteral(canonical) { continue }
-            var type = valueType(ofRange: domain)
-            if !type.hasPrefix("any ") { type = "any " + type }
-            if !result.contains(type) { result.append(type) }
-        }
-        return result
-    }
 
     /// The `Domain` type alias of a property term: one domain's type, or,
     /// for several class domains, their composition, the subjects that are

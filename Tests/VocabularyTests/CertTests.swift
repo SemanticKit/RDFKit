@@ -31,8 +31,9 @@ struct CertTests {
         // cert:key has two ranges, so a value is in both.
         let value: Cert.key.Range = key
         let subject: Cert.key.Domain = agent
-        Cert.key[subject].append(value)
-        #expect(Cert.key[agent].first === key)
+        #expect(subject === agent)
+        Cert.key.values(of: agent).append(value)
+        #expect(Cert.key.values(of: agent).first === key)
     }
 
     @Test("cert:modulus applies to both of its domains and holds either binary encoding", .tags(.property, .generated))

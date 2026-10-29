@@ -35,13 +35,13 @@ struct SolidTests {
         let registration = Solid.TypeRegistrationIndividual(in: graph)
 
         // solid:publicTypeIndex has the range solid:ListedDocument and no domain.
-        Solid.publicTypeIndex[alice].append(index)
-        let found: Solid.publicTypeIndex.Range = try #require(Solid.publicTypeIndex[alice].first)
+        Solid.publicTypeIndex.values(of: alice).append(index)
+        let found: Solid.publicTypeIndex.Range = try #require(Solid.publicTypeIndex.values(of: alice).first)
         #expect(found === index)
 
         // solid:forClass registers a class: here foaf:Person, as a value.
-        Solid.forClass[registration].append(Foaf.personClass)
-        let registered = try #require(Solid.forClass[registration].first)
+        Solid.forClass.values(of: registration).append(Foaf.personClass)
+        let registered = try #require(Solid.forClass.values(of: registration).first)
         #expect(registered === Foaf.personClass)
         #expect(registered is any RDFS.Class)
         #expect(!(registered is any Foaf.Person))

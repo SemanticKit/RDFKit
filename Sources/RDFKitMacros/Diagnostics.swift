@@ -42,6 +42,14 @@ struct OntologyDiagnostic: DiagnosticMessage {
         )
     }
 
+    /// A property whose domain has no individuals to give it to.
+    static func domainIsNotAClass(property: String, domain: String) -> Self {
+        Self(
+            message: "'\(domain)' is not a class of individuals, so no individual can have '\(property)'; make its domain a class",
+            id: "domainIsNotAClass"
+        )
+    }
+
     /// A term declared a second time.
     static func duplicateDeclaration(_ name: String) -> Self {
         Self(message: "'\(name)' is already declared in this ontology", id: "duplicateDeclaration")

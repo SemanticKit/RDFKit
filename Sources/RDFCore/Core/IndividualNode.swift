@@ -9,31 +9,51 @@ import Synchronization
 /// value gives back the object while anything holds it, and otherwise makes
 /// a new object of the same type on the same node.
 ///
-/// Each store is created the first time its property is read. A property
-/// that is a class protocol requirement is stored under the key path of the
-/// requirement, so a property inherited along two paths
+/// Each store is created the first time its property is read, under the key
+/// path of the class protocol requirement it backs. The key is the
+/// requirement itself, so a property inherited along two paths
 /// (`Fauna.Mesopredator` is a predator and a prey, both animals) has one
-/// store. A property whose domain is another ontology's class, or that has
-/// no domain, is stored under its ``PropertyTerm``: `cert:key` on a
-/// `foaf:Person` is kept under `Cert.key`.
+/// store. A property whose domain is a class of another ontology, or
+/// `rdfs:Resource`, is no requirement; its store is keyed by its term type
+/// (`OWL.equivalentClass`).
 final class IndividualNode: Sendable {
     private struct State {
         weak var individual: (any StoredIndividual)?
         var stores: [StoreKey: any PropertyStorage] = [:]
     }
 
-    /// What a store is kept under: the key path of a class protocol
-    /// requirement, or a property term. Keys of different types are never
-    /// equal, so a requirement and a term never share a store.
-    private struct StoreKey: Hashable, Sendable {
-        let key: any Hashable & Sendable
+    /// What a store backs: the key path of a class protocol requirement, or
+    /// the term type of a property whose domain is a class of another
+    /// ontology or `rdfs:Resource`.
+    struct StoreKey: Hashable, Sendable {
+        private enum Kind: Sendable {
+            case requirement(any AnyKeyPath & Sendable)
+            case term(ObjectIdentifier)
+        }
+
+        private let kind: Kind
+
+        static func requirement(_ path: any AnyKeyPath & Sendable) -> Self { Self(kind: .requirement(path)) }
+
+        static func term(_ term: any Entity.Type) -> Self { Self(kind: .term(ObjectIdentifier(term))) }
 
         static func == (lhs: Self, rhs: Self) -> Bool {
-            AnyHashable(lhs.key) == AnyHashable(rhs.key)
+            switch (lhs.kind, rhs.kind) {
+            case (.requirement(let left), .requirement(let right)): (left as AnyKeyPath) == (right as AnyKeyPath)
+            case (.term(let left), .term(let right)): left == right
+            default: false
+            }
         }
 
         func hash(into hasher: inout Hasher) {
-            hasher.combine(AnyHashable(key))
+            switch kind {
+            case .requirement(let path):
+                hasher.combine(0)
+                hasher.combine(path as AnyKeyPath)
+            case .term(let term):
+                hasher.combine(1)
+                hasher.combine(term)
+            }
         }
     }
 
@@ -48,14 +68,12 @@ final class IndividualNode: Sendable {
         self.make = make
     }
 
-    /// The store for a requirement's key path or a property term, created
-    /// empty the first time.
-    func store<Value: Sendable>(for key: any Hashable & Sendable) -> ValueStore<Value> {
-        let key = StoreKey(key: key)
-        return state.withLock { state in
+    /// The store for a requirement or term, created empty the first time.
+    func store<Value: Sendable>(for key: StoreKey) -> ValueStore<Value> {
+        state.withLock { state in
             if let existing = state.stores[key] {
                 guard let store = existing as? ValueStore<Value> else {
-                    preconditionFailure("A property's store holds the property's value type.")
+                    preconditionFailure("A requirement's store holds the requirement's value type.")
                 }
                 return store
             }

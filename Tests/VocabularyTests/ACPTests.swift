@@ -26,8 +26,8 @@ struct ACPTests {
         #expect(policy.anyOf.isEmpty)
 
         // acp:agent is a subproperty of acp:attribute with no domain.
-        ACP.agent[matcher].append(ACP.PublicAgent)
-        #expect(ACP.agent[matcher].first === ACP.PublicAgent)
+        ACP.agent.values(of: matcher).append(ACP.PublicAgent)
+        #expect(ACP.agent.values(of: matcher).first === ACP.PublicAgent)
     }
 
     @Test("Named individuals are single objects of their classes", .tags(.generated))

@@ -48,8 +48,8 @@ struct FoafTests {
 
         // foaf:homepage has the domain owl:Thing and the range foaf:Document.
         let homepage = Foaf.DocumentIndividual(in: graph)
-        Foaf.homepage[team].append(homepage)
-        #expect(Foaf.homepage[team].first === homepage)
+        Foaf.homepage.values(of: team).append(homepage)
+        #expect(Foaf.homepage.values(of: team).first === homepage)
     }
 
     @Test("Subclasses refine their superclasses", .tags(.generated))

@@ -34,7 +34,8 @@ The vocabularies follow the same rules as any ontology:
 - Every class but `OWL.Nothing`, the class with no individuals, gets an individual type (`RDF.ListIndividual`, `OWL.ThingIndividual`). That includes classes that refine another vocabulary's class: `OWL.ClassIndividual` has `subClassOf` from `RDFS.Class` and `disjointWith` from `OWL.Class`, because `@StoredRequirements` implements each class protocol's requirements where the protocol is declared.
 - Named individuals are static constants: `RDF.nil` is the one empty list.
 - `rdfs:Literal` and the datatypes (`RDF.HTML`, `RDF.langString`, `XSD.nonNegativeInteger`) are value types that store the literal: its lexical form, with the language tag and base direction RDF allows on strings. A property whose range is a datatype holds that datatype's type, so each term has one Swift type: `XSD.nonNegativeInteger("14")`, `RDF.langString("Löwe", languageTag: "de")`.
-- Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range. A property whose domain is `rdfs:Resource`, such as `rdfs:member`, is read and written through its term: `RDFS.member[bag]`.
+- Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range.
+- A property whose domain is another vocabulary's class or `rdfs:Resource` is read through its term type: `OWL.equivalentClass.values(of: feline)` on any individual of `RDFS.Class` (an `OWL.ClassIndividual` or an `RDFS.ClassIndividual`), `RDFS.subPropertyOf.values(of: property)` on any individual of `RDF.Property`, and `RDFS.label.values(of: lion)`, `RDFS.comment`, `RDFS.seeAlso` and `OWL.versionInfo` on every individual. The RDFCore-provided terms among them get their accessor in `Sources/RDFKit/RDFCoreTerms+PropertyValues.swift`, which each vocabulary's expansion checks against its declaration. `rdf:type` is the conformances of an individual's type, not a stored value.
 - Every class and datatype is also a value, an individual of its `rdf:type`: `RDFS.classClass`, `OWL.thingClass`, `XSD.nonNegativeIntegerClass`.
 
 ## Bootstrap Terms
@@ -50,7 +51,7 @@ Some terms are the DSL itself. RDFCore provides them, and when a vocabulary decl
 
 The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
 
-The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, `OWL.Thing` named by another vocabulary is any resource, `OWL.Nothing` has no individual type, `OWL.FunctionalProperty` makes a property single-valued, and the XSD, RDFS and RDF datatypes make a property with several ranges hold any literal.
+The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates, with or without the module (`RDFKit.OWL.FunctionalProperty`): `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, `OWL.Thing` named by another vocabulary is any resource, `OWL.Nothing` has no individual type, `OWL.FunctionalProperty` makes a property single-valued, and the XSD, RDFS and RDF datatypes make a property with several ranges hold any literal.
 
 ## The Solid Vocabularies
 
@@ -58,7 +59,7 @@ FOAF, cert, WAC (`acl`), ACP, LDP and the Solid terms are declared with the DSL 
 
 The terms of other vocabularies they name (`geo:SpatialThing`, `contact:Person`, `skos:Concept`, `gen:InformationResource`, `vcard:Group`, `log:Formula`, `sioc:Post` and the OpenID Connect `issuer`) are declared, alone, in the `ReferencedVocabularies` target, so that the Solid vocabularies refer to them as types. LDP also names `rdf:Resource` and `owl:Individual`, which RDF 1.2 and OWL 2 do not define. `RDF` and `OWL` keep to what the standards define, so these two are declared there too, as `LegacyRDF.Resource` and `LegacyOWL.Individual`, plain `rdfs:Class`es in their own namespaces; each IRI still has one Swift type.
 
-A WebID profile is built from their types: `Foaf.PersonIndividual(in: graph)` is a person, `alice.knows` links people, `Cert.key[alice]` holds her keys, and `acl:agentClass` holds `Foaf.agentClass`.
+A WebID profile is built from their types: `Foaf.PersonIndividual(in: graph)` is a person, `alice.knows` links people, `Cert.key.values(of: alice)` holds her keys, and `acl:agentClass` holds `Foaf.agentClass`.
 
 ## What Stays
 

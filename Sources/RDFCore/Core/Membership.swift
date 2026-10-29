@@ -40,23 +40,11 @@ public struct Membership: Sendable {
 
     /// The store of the property a requirement's key path names.
     func store<Value: Sendable>(for key: any AnyKeyPath & Sendable) -> ValueStore<Value> {
-        node.store(for: key as any Hashable & Sendable)
+        node.store(for: .requirement(key))
     }
 
-    /// The store of a property term's values.
-    func store<Value: Sendable>(for term: some PropertyTerm) -> ValueStore<Value> {
-        node.store(for: term)
-    }
-
-    /// The membership of a subject of a property term.
-    ///
-    /// Every individual type the `@Ontology` macro generates is a
-    /// ``StoredIndividual``; a hand-written ``Resource`` has no membership
-    /// and stores no property values.
-    static func of(_ subject: any Resource) -> Membership {
-        guard let individual = subject as? any StoredIndividual else {
-            preconditionFailure("A property's values are stored by individuals of the types @Ontology generates.")
-        }
-        return individual.membership
+    /// The store of a property, by its term type.
+    func store<Value: Sendable>(forTerm term: any Entity.Type) -> ValueStore<Value> {
+        node.store(for: .term(term))
     }
 }

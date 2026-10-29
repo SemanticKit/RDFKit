@@ -16,7 +16,7 @@ import ReferencedVocabularies
 /// A WebID profile describes its agent with FOAF: `Foaf.PersonIndividual` is a
 /// person, and `knows` links people to each other. The properties whose domain is
 /// `owl:Thing`, such as `foaf:name`, apply to any resource and are read through
-/// their term: `Foaf.name[alice]`.
+/// their term: `Foaf.name.values(of: alice)`.
 @Ontology
 public struct Foaf: Ontology {
     public init() {}

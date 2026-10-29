@@ -8,7 +8,7 @@
 |---|---|
 | `Class("Animal")` | `protocol Animal`, the default implementation of its requirements for stored individuals, and the individual type `final class AnimalIndividual: Animal` |
 | `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: RDFCore.PropertyValues<any Y> { get }` on protocol `X`, and the term type `struct hasHabitat` |
-| a property whose `Domain` is another ontology's class, `rdfs:Resource` or `owl:Thing`, or that has no `Domain` | the term type `struct key: RDFCore.PropertyTerm`, with a static subscript that takes the subject: `Cert.key[alice]` (see [Properties of Another Ontology's Classes](#properties-of-another-ontologys-classes)) |
+| `Property("equivalentClass") { Domain(RDFS.Class) }`, a domain from another ontology, `RDFS.Resource`, another ontology's `OWL.Thing`, or no domain | `static func values(of: some RDFS.Class & RDFCore.StoredIndividual)` on the term type `struct equivalentClass` |
 | several `Domain`s, several `Range`s | a requirement on each domain class; values in every range, `any Cert.Key & Cert.PublicKey` (see [Several Domains and Ranges](#several-domains-and-ranges)) |
 | `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X` |
@@ -156,21 +156,9 @@ Properties link individuals in cycles (`hasHabitat` and `inhabitedBy`, `owl:same
 
 A value links individuals of one graph; storing an individual of another graph stops the program. Named individuals such as `Fauna.carnivore` are static constants, belong to no graph and can be stored in any graph. Their own values are fixed: changing them stops the program, so nothing one graph asserts reaches another.
 
-## Properties of Another Ontology's Classes
-
-A protocol's requirements are fixed where the protocol is declared, so an ontology cannot add a requirement to another ontology's class. `cert:key` has the domain `foaf:Agent`, `foaf:name` the domain `owl:Thing`, and most Solid terms have no domain at all. Such a property's term type conforms to `RDFCore.PropertyTerm` and has a static subscript that takes the subject, typed by the property's domain, and returns the same `PropertyValues` or `PropertyValue` view a requirement does:
-
-```swift
-Cert.key[alice].append(aliceKey)      // cert:key: foaf:Agent -> cert:Key and cert:PublicKey
-Solid.oidcIssuer[alice].values        // no domain: any RDFCore.Resource
-Foaf.name[alice].append("Alice")      // the domain owl:Thing of another ontology: any resource
-```
-
-The values live in the subject's membership under the term itself, not a key path, so the values of two ontologies' properties never mix, and the term's identity is its type, never an IRI or a name. A property with no domain, or the domain `rdfs:Resource`, or another ontology's `owl:Thing`, takes any resource; every individual is one, but another ontology's classes need not say they refine `owl:Thing`. The term's initializer is private to the generated type, so the subscript, which checks the domain, is the only way to its values. Every change through the view is atomic, as for a requirement.
-
 ## Several Domains and Ranges
 
-RDFS reads several `rdfs:domain`s as an intersection: a subject of the property is in every domain. The macro departs from that on purpose and makes the property a requirement of each domain class, because the published vocabularies use several domains to mean a union: `cert:modulus` has the domains `cert:RSAKey` and `cert:DSAKey`, and its comment reads "The modulus of an RSA public and private key. Or the modulus of a DSA Key." Under the intersection reading an RSA key with a modulus would also be a DSA key. The term's `Domain` type alias is the composition, a subject in all of them.
+RDFS reads several `rdfs:domain`s as an intersection: a subject of the property is in every domain. The macro departs from that on purpose and makes the property a requirement of each domain class, because the published vocabularies use several domains to mean a union: `cert:modulus` has the domains `cert:RSAKey` and `cert:DSAKey`, and its comment reads "The modulus of an RSA public and private key. Or the modulus of a DSA Key." Under the intersection reading an RSA key with a modulus would also be a DSA key. The term's `Domain` type alias is the composition, a subject in all of them, and so is the subject of `values(of:)` for a property whose domains are all other ontologies' classes.
 
 Several `Range`s keep the RDFS reading: a value is in all of them, so class ranges become a protocol composition, `any Cert.Key & Cert.PublicKey`. A literal has one datatype, so a property with several datatype ranges (`cert:modulus` is `xsd:hexBinary` or `xsd:base64Binary`) holds literals of any of them, `any RDFCore.LiteralValue`, and a reader casts to the datatype it finds: `key.modulus.first as? XSD.hexBinary`.
 
@@ -187,9 +175,28 @@ The constant is named after the class with a lowercase first word and `Class`: `
 
 ## Properties Are Many-Valued
 
-A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
+A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. `update(_:)` and `removeAll(where:)` run their closure while holding the property's lock, so the closure must not read or change the same property of the same individual. A property typed `OWL.FunctionalProperty` (however it is qualified, `RDFKit.OWL.FunctionalProperty` too), or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
 
 Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is the datatype's value type: `RDFS.Literal`, `XSD.nonNegativeInteger`, `Fauna.Kilograms`. A property without a `Range`, or with the range `rdfs:Resource` or another ontology's `owl:Thing`, holds `any RDFCore.Resource`. For several ranges see [Several Domains and Ranges](#several-domains-and-ranges).
+
+## Properties of Another Ontology's Classes
+
+A property's domain can be a class another ontology declares (`owl:equivalentClass` has `rdfs:Class` as domain) or `rdfs:Resource` (`rdfs:label`, `owl:versionInfo`). Such a property cannot be a requirement of the domain's protocol, because that protocol is declared elsewhere, and an extension of it would be a file-scope declaration, which a macro can only write for the type it is attached to: the compiler turns an extension macro's `extension RDFS.Class` into an extension of the ontology struct. So the property's term type reads and changes its values, on any stored individual of the domain, in any module:
+
+    OWL.equivalentClass.values(of: feline).append(cat)
+    RDFS.label.values(of: lion).append(RDFS.Literal("Löwe", languageTag: "de"))
+
+`values(of:)` takes `some RDFS.Class & RDFCore.StoredIndividual`, every domain of the property, so it applies only to individuals of the domain; a functional property has `value(of:)`. The values live in the individual's membership like any other, stored under the term type.
+
+The terms RDFCore provides (`rdfs:label` is `RDFCore.Label`, `rdfs:subPropertyOf` is `RDFCore.SubPropertyOf`) cannot name their ranges, which RDFS and OWL declare, so RDFKit gives them their `values(of:)` in `Sources/RDFKit/RDFCoreTerms+PropertyValues.swift`. The expansion of the vocabulary that declares each one checks that accessor against the declared domain and range, so the declaration stays the source of truth: a mismatch does not compile.
+
+A property with no domain applies to any resource, and so does one whose domain is another ontology's `owl:Thing`: every individual is an `owl:Thing`, but another ontology's classes need not say they refine it. Their `values(of:)` takes any stored individual, which is how most Solid terms are written:
+
+    Cert.key.values(of: alice).append(aliceKey)   // cert:key: foaf:Agent -> cert:Key and cert:PublicKey
+    Solid.oidcIssuer.values(of: alice)            // no domain
+    Foaf.name.values(of: alice).append("Alice")   // the domain owl:Thing of another ontology
+
+`rdf:type` has no accessor: an individual's classes are the protocols its type conforms to. A property whose domain is a literal class, or anything but a class, is reported at its `Domain`. A domain that is a value type RDFCore provides (`rdfkit:Prefix`) describes a field that type stores.
 
 ## Datatypes Are Values
 
@@ -215,6 +222,7 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 - a term declared twice, at the second declaration, and two local names that become the same Swift identifier (`version-1` and `version_1`);
 - a class whose individual type name is taken by a declared term, and a class whose value's name is (`animalClass`);
 - a property named `membership` with a class as its domain;
+- a property whose domain is a literal class or not a class (`Domain(RDFS.Literal)`);
 - a functional property that would make a value type contain itself.
 
 ## Testing

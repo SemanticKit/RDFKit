@@ -17,7 +17,7 @@ import ReferencedVocabularies
 ///
 /// Most Solid properties, such as `solid:oidcIssuer`, have no domain, so they
 /// apply to any resource and are read through their term:
-/// `Solid.oidcIssuer[alice]`.
+/// `Solid.oidcIssuer.values(of: alice)`.
 @Ontology
 public struct Solid: Ontology {
     public init() {}

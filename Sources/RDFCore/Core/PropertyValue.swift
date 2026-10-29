@@ -23,14 +23,11 @@ public struct PropertyValue<Value: Sendable>: Sendable {
         graph = membership.graph
     }
 
-    /// The value of a functional property term for `subject`.
-    ///
-    /// The static subscript the `@Ontology` macro generates on the term
-    /// calls it, after its parameter has checked the term's domain:
-    /// `RDFCore.PropertyValue(Self(), of: subject)`.
-    public init<Term: PropertyTerm>(_ term: Term, of subject: any Resource) where Term.Range == Value {
-        let membership = Membership.of(subject)
-        store = membership.store(for: term)
+    /// The value of a property that is no class protocol requirement,
+    /// stored in `membership` under the property's term type. See
+    /// ``Entity/propertyValue(of:)``.
+    init(term: any Entity.Type, of membership: Membership) {
+        store = membership.store(forTerm: term)
         graph = membership.graph
     }
 
@@ -48,6 +45,10 @@ public struct PropertyValue<Value: Sendable>: Sendable {
     }
 
     /// Reads and changes the value in one atomic step.
+    ///
+    /// The lock is held while `body` runs, so `body` must not read or change
+    /// this same property of this individual: the lock is not reentrant, and
+    /// doing so deadlocks. Read what `body` needs before calling it.
     public func update<Result: Sendable>(_ body: (inout Value?) -> Result) -> Result {
         store.update(in: graph) { values in
             var value = values.first

@@ -19,7 +19,7 @@ struct WebIDProfileTests {
         alice.knows.append(carol)
 
         let key = Cert.RSAPublicKeyIndividual(in: graph, identity: [alice], modulus: [XSD.hexBinary("C24F9A01")], exponent: ["65537"])
-        Cert.key[alice].append(key)
+        Cert.key.values(of: alice).append(key)
         return (alice, bob, carol, key)
     }
 
@@ -59,7 +59,7 @@ struct WebIDProfileTests {
         let (alice, _, _, key) = profile()
 
         // cert:key has the domain foaf:Agent and the ranges cert:Key and cert:PublicKey.
-        let found = try #require(Cert.key[alice].first)
+        let found = try #require(Cert.key.values(of: alice).first)
         #expect(found === key)
         #expect(found is any Cert.RSAPublicKey)
 
@@ -83,17 +83,17 @@ struct WebIDProfileTests {
 
         // foaf:name has the domain owl:Thing; solid:oidcIssuer, solid:account
         // and ldp:inbox have no domain.
-        Foaf.name[alice].append("Alice")
-        Solid.oidcIssuer[alice].append(issuer)
-        Solid.account[alice].append(account)
-        LDP.inbox[alice].append(inbox)
+        Foaf.name.values(of: alice).append("Alice")
+        Solid.oidcIssuer.values(of: alice).append(issuer)
+        Solid.account.values(of: alice).append(account)
+        LDP.inbox.values(of: alice).append(inbox)
 
-        #expect(Foaf.name[alice].values == ["Alice"])
-        #expect(Foaf.name[bob].isEmpty)
-        #expect(Solid.oidcIssuer[alice].first === issuer)
-        #expect(Solid.account[alice].first === account)
-        #expect(LDP.inbox[alice].first === inbox)
-        #expect(Solid.account[bob].isEmpty)
+        #expect(Foaf.name.values(of: alice).values == ["Alice"])
+        #expect(Foaf.name.values(of: bob).isEmpty)
+        #expect(Solid.oidcIssuer.values(of: alice).first === issuer)
+        #expect(Solid.account.values(of: alice).first === account)
+        #expect(LDP.inbox.values(of: alice).first === inbox)
+        #expect(Solid.account.values(of: bob).isEmpty)
     }
 
     @Test("The profile document's primary topic is the person")
@@ -101,12 +101,12 @@ struct WebIDProfileTests {
         let (alice, _, _, _) = profile()
         let graph = try #require(alice.membership.graph)
         let document = Foaf.PersonalProfileDocumentIndividual(in: graph, primaryTopic: alice)
-        Foaf.isPrimaryTopicOf[alice].append(document)
+        Foaf.isPrimaryTopicOf.values(of: alice).append(document)
 
         // foaf:primaryTopic is functional: at most one value.
         let topic = try #require(document.primaryTopic.value)
         #expect(topic === alice)
-        #expect(Foaf.isPrimaryTopicOf[alice].first === document)
+        #expect(Foaf.isPrimaryTopicOf.values(of: alice).first === document)
         let asDocument: any Foaf.Document = document
         #expect(asDocument === document)
     }
@@ -124,14 +124,14 @@ struct WebIDProfileTests {
                     friend.knows.append(alice)
                     alice.knows.append(friend)
                     let key = Cert.RSAPublicKeyIndividual(in: graph, identity: [friend], exponent: [XSD.nonNegativeInteger("\(index)")])
-                    Cert.key[friend].append(key)
+                    Cert.key.values(of: friend).append(key)
                 }
             }
         }
         #expect(friends.allSatisfy { $0.knows.first === alice })
         #expect(alice.knows.count == friends.count + 1)
         #expect(friends.allSatisfy { friend in
-            Cert.key[friend].count == 1 && Cert.key[friend].allSatisfy { key in
+            Cert.key.values(of: friend).count == 1 && Cert.key.values(of: friend).allSatisfy { key in
                 key.identity.count == 1 && key.identity.first === friend
             }
         })
@@ -148,13 +148,13 @@ struct WebIDProfileTests {
             for task in 0..<tasks {
                 group.addTask {
                     for index in 0..<perTask {
-                        Foaf.name[alice].append(RDFS.Literal("\(task)-\(index)"))
+                        Foaf.name.values(of: alice).append(RDFS.Literal("\(task)-\(index)"))
                         alice.firstName.update { $0.append(RDFS.Literal("\(task)-\(index)")) }
                     }
                 }
             }
         }
-        #expect(Foaf.name[alice].count == tasks * perTask)
+        #expect(Foaf.name.values(of: alice).count == tasks * perTask)
         #expect(alice.firstName.count == tasks * perTask)
     }
 }

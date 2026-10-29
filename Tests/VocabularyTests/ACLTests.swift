@@ -28,9 +28,9 @@ struct ACLTests {
         // acl:default is a Swift keyword; acl:owner has no domain.
         let container = Gen.InformationResourceIndividual(in: graph)
         authorization.default.append(container)
-        ACL.owner[document].append(alice)
+        ACL.owner.values(of: document).append(alice)
         #expect(authorization.default.first === container)
-        #expect(ACL.owner[document].first === alice)
+        #expect(ACL.owner.values(of: document).first === alice)
     }
 
     @Test("Public read access names the class foaf:Agent as a value", .tags(.property, .generated))

@@ -54,10 +54,12 @@ import RDFCore
 /// - a static constant for each `Individual("name")`, `Fauna.name`.
 /// - value types for datatypes and literal classes, which store the literal.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
-///   and `Range` as type aliases. A property whose domain is another
-///   ontology's class, or that has no domain, is no requirement; its term
-///   conforms to `RDFCore.PropertyTerm` and reads and writes the values of a
-///   subject through a static subscript: `Cert.key[alice].append(key)`.
+///   and `Range` as type aliases. When the domain is a class of another
+///   ontology, or `rdfs:Resource`, the term type reads the values on any
+///   individual of it: `RDFS.label.values(of: lion)`,
+///   `OWL.equivalentClass.values(of: feline)`. A property with no domain,
+///   or another ontology's `owl:Thing` as its domain, applies to any
+///   individual: `Solid.oidcIssuer.values(of: alice)`.
 /// - for every class and datatype, a static constant that is the class as a
 ///   value, an individual of its `rdf:type`: `Fauna.animalClass`. A property
 ///   whose range is a class of classes holds it.
