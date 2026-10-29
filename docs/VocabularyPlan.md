@@ -31,10 +31,10 @@ public struct OWL: Ontology {
 The vocabularies follow the same rules as any ontology:
 
 - Every class is a protocol: `RDFS.Class`, `RDF.Property`, `RDF.List`, `OWL.Thing`, `OWL.ObjectProperty`, `OWL.FunctionalProperty`. Its requirements are the properties the vocabulary declares with that class as domain (`RDF.List` requires `first` and `rest`; `OWL.Thing` requires `sameAs` and `differentFrom`), and `SubClassOf` becomes refinement (`OWL.Class` refines `RDFS.Class`).
-- Classes whose superclasses are all declared in the same vocabulary, or are `rdfs:Resource`, get an individual type (`RDF.ListIndividual`). Classes that refine another vocabulary's class (`OWL.Class` refines `RDFS.Class`) are protocols only, and so is `OWL.Nothing`, the class with no individuals.
+- Every class gets an individual type (`RDF.ListIndividual`, `OWL.ClassIndividual`), also a class that refines another vocabulary's class, because each requirement has a default implementation from `@ClassProperties`. `OWL.Nothing`, the class with no individuals, is a protocol only.
 - Named individuals are static constants: `RDF.nil` is the one empty list.
 - `rdfs:Literal` and the datatypes (`RDF.HTML`, `RDF.langString`, `XSD.nonNegativeInteger`) are value types.
-- Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range.
+- Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range. A property term (`OWL.sameAs`) is also the key of its values in an individual's storage, and reads them for any subject in its domain: `OWL.sameAs[morningStar]`.
 
 ## Bootstrap Terms
 
@@ -49,7 +49,15 @@ Some terms are the DSL itself. RDFCore provides them, and when a vocabulary decl
 
 The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
 
-The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` and `XSD.nonNegativeInteger` map to the Swift value types `String` and `UInt`, `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, `OWL.Nothing` has no individual type, and `OWL.FunctionalProperty` makes a property single-valued.
+The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal`, `XSD.string`, `XSD.nonNegativeInteger`, `XSD.hexBinary` and `XSD.base64Binary` map to the Swift value types `String`, `UInt` and `[UInt8]`, `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, `OWL.Thing` named by another vocabulary is any resource, `OWL.Nothing` has no individual type, and `OWL.FunctionalProperty` makes a property single-valued.
+
+## The Solid Vocabularies
+
+FOAF, cert, WAC (`acl`), ACP, LDP and the Solid terms are declared with the DSL in `Sources/Vocabularies`, one target each (`FOAF`, `Cert`, `ACL`, `ACP`, `LDP`, `Solid`), as their published vocabularies declare them: classes, properties, individuals, types (`owl:FunctionalProperty` included), superclasses, superproperties, domains, ranges, labels and comments. Each file's documentation names its source and the few places where the published vocabulary names a term no vocabulary defines (`owl:Individual` and `rdf:Resource` in LDP) or one it does not declare (`cert:DSAKey`, `cert:RSAPrivateKey`).
+
+The terms of other vocabularies they name (`geo:SpatialThing`, `contact:Person`, `skos:Concept`, `gen:InformationResource`, `vcard:Group`, `log:Formula`, `sioc:Post` and the OpenID Connect `issuer`) are declared, alone, in the `ReferencedVocabularies` target, so that the Solid vocabularies refer to them as types.
+
+A WebID profile is built from their types: `Foaf.PersonIndividual` is a person, `alice.knows` links people, and `Cert.key[alice]` holds her keys.
 
 ## What Stays
 
@@ -59,4 +67,4 @@ The macro also recognises the meaning of a few vocabulary terms by their qualifi
 
 ## Testing Approach
 
-Don't test scaffolding types. `Tests/FaunaTests` declares an ontology with the DSL and uses its generated model end to end: individuals of several classes, cycles between individuals, many-valued and functional properties, and the boundary projection of IRIs. `Tests/RDFKitMacrosTests` pins what the macro generates.
+Don't test scaffolding types. `Tests/FaunaTests` declares an ontology with the DSL and uses its generated model end to end: individuals of several classes, cycles between individuals, many-valued and functional properties, and the boundary projection of IRIs. `Tests/VocabularyTests` does the same for the Solid vocabularies and builds a WebID profile across them. `Tests/RDFKitMacrosTests` pins what the macro generates.
