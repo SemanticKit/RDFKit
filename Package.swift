@@ -46,6 +46,7 @@ let package = Package(
                 "RDFKitMacros"
             ],
             exclude: [
+                "DSL_INVARIANTS.md",
                 "OWL/AGENTS.md",
                 "RDF/AGENTS.md",
                 "RDF/rdf.ttl",
@@ -69,12 +70,20 @@ let package = Package(
             dependencies: ["RDFKit"],
             exclude: [
                 "Data/shacl.rdf",
-                "Data/shacl.ttl"
+                "Data/shacl.ttl",
+                "Fixtures/.gitkeep"
             ]
         ),
         .target(
             name: "Fauna",
             dependencies: ["RDFCore", "RDFKit"]
+        ),
+        .testTarget(
+            name: "RDFKitMacrosTests",
+            dependencies: [
+                "RDFKitMacros",
+                .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
+            ]
         ),
         .testTarget(
             name: "FaunaTests",
