@@ -74,7 +74,7 @@ let package = Package(
         ),
         .target(
             name: "Fauna",
-            dependencies: ["RDFKit"]
+            dependencies: ["RDFCore", "RDFKit"]
         ),
         .testTarget(
             name: "FaunaTests",
