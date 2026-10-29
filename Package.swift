@@ -21,7 +21,14 @@ let package = Package(
         .library(
             name: "RDFCore",
             targets: ["RDFCore"]
-        )
+        ),
+        .library(name: "FOAF", targets: ["FOAF"]),
+        .library(name: "Cert", targets: ["Cert"]),
+        .library(name: "ACL", targets: ["ACL"]),
+        .library(name: "ACP", targets: ["ACP"]),
+        .library(name: "LDP", targets: ["LDP"]),
+        .library(name: "Solid", targets: ["Solid"]),
+        .library(name: "ReferencedVocabularies", targets: ["ReferencedVocabularies"])
     ],
     dependencies: [
         .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
@@ -77,6 +84,45 @@ let package = Package(
         .target(
             name: "Fauna",
             dependencies: ["RDFCore", "RDFKit"]
+        ),
+        .target(
+            name: "ReferencedVocabularies",
+            dependencies: ["RDFCore", "RDFKit"],
+            path: "Sources/Vocabularies/Referenced"
+        ),
+        .target(
+            name: "FOAF",
+            dependencies: ["RDFCore", "RDFKit", "ReferencedVocabularies"],
+            path: "Sources/Vocabularies/FOAF"
+        ),
+        .target(
+            name: "Cert",
+            dependencies: ["RDFCore", "RDFKit", "FOAF"],
+            path: "Sources/Vocabularies/Cert"
+        ),
+        .target(
+            name: "ACL",
+            dependencies: ["RDFCore", "RDFKit", "FOAF", "ReferencedVocabularies"],
+            path: "Sources/Vocabularies/ACL"
+        ),
+        .target(
+            name: "ACP",
+            dependencies: ["RDFCore", "RDFKit"],
+            path: "Sources/Vocabularies/ACP"
+        ),
+        .target(
+            name: "LDP",
+            dependencies: ["RDFCore", "RDFKit"],
+            path: "Sources/Vocabularies/LDP"
+        ),
+        .target(
+            name: "Solid",
+            dependencies: ["RDFCore", "RDFKit", "FOAF", "LDP", "ReferencedVocabularies"],
+            path: "Sources/Vocabularies/Solid"
+        ),
+        .testTarget(
+            name: "VocabularyTests",
+            dependencies: ["RDFCore", "RDFKit", "ReferencedVocabularies", "FOAF", "Cert", "ACL", "ACP", "LDP", "Solid", .product(name: "IRIKit", package: "IRIKit")]
         ),
         .testTarget(
             name: "RDFKitMacrosTests",
