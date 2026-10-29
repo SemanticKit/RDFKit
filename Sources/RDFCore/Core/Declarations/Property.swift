@@ -1,6 +1,9 @@
 import IRIKit
 
-/// Declares an RDF property. The `@Ontology` macro generates a Swift type for it and a stored property, typed by its `Range`, on the type of its `Domain`.
+/// Declares an RDF property. The `@Ontology` macro generates a term type for
+/// it and a requirement on the protocol of its `Domain`, typed by its `Range`:
+/// many values by default, at most one when the property is typed
+/// `OWL.FunctionalProperty`.
 ///
 /// `rdf:Property`
 ///

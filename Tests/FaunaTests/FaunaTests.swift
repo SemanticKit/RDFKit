@@ -7,144 +7,156 @@ import RDFKit
 @Suite("Fauna ontology", .tags(.ontology))
 struct FaunaTests {
 
-    @Test("Create an animal and use it", .tags(.generated))
-    func createAnimal() {
-        let lion = Fauna.Animal(
-            habitat: Fauna.Habitat(),
-            diet: Fauna.Diet(),
-            commonName: "Lion",
-            scientificName: "Panthera leo"
-        )
+    @Test("An individual is an object of its class", .tags(.generated))
+    func individualIsAnObjectOfItsClass() {
+        let lion = Fauna.PredatorIndividual(commonName: ["Lion"], scientificName: "Panthera leo")
 
-        // Use the animal in a real scenario
-        let description = "\(lion.commonName) (\(lion.scientificName))"
-        #expect(description == "Lion (Panthera leo)")
+        // `Fauna.Predator` refines `Fauna.Animal`: a predator is an animal.
+        let animal: any Fauna.Animal = lion
+        #expect(animal === lion)
+        #expect(animal is any Fauna.Predator)
+        #expect(!(animal is any Fauna.Prey))
+        #expect(Mirror(reflecting: lion).displayStyle == .class)
     }
 
-    @Test("Relationships are stored as their range types", .tags(.generated, .property))
-    func relationshipsAreTypedByRange() {
-        // Habitat and Diet carry no stored state yet, so these are values of
-        // the range types, not distinct individuals.
-        let habitat = Fauna.Habitat()
-        let diet = Fauna.Diet()
-        let lion = Fauna.Animal(
-            habitat: habitat,
-            diet: diet,
-            commonName: "Lion",
-            scientificName: "Panthera leo"
-        )
+    @Test("One individual belongs to several classes", .tags(.generated))
+    func individualBelongsToSeveralClasses() {
+        // `Mesopredator` is a subclass of both `Predator` and `Prey`.
+        let jackal = Fauna.MesopredatorIndividual(commonName: ["Black-backed jackal"])
+        let hunter: any Fauna.Predator = jackal
+        let hunted: any Fauna.Prey = jackal
+        let animal: any Fauna.Animal = jackal
 
-        // The declared ranges are the stored types: this only compiles if
-        // `hasHabitat` is a `Fauna.Habitat` and `hasDiet` a `Fauna.Diet`.
-        let storedHabitat: Fauna.Habitat = lion.hasHabitat
-        let storedDiet: Fauna.Diet = lion.hasDiet
-        let prey: Fauna.Animal? = lion.preysOn
-        _ = (storedHabitat, storedDiet)
-        #expect(prey == nil)
+        #expect(hunter === hunted)
+        #expect(hunted === animal)
 
-        // Nothing an animal stores is an identifier standing in for a term.
-        let stored = Mirror(reflecting: lion).children.map(\.value)
-        #expect(stored.count == 5)
-        #expect(!stored.contains { $0 is IRI })
-        #expect(stored.filter { $0 is String }.count == 2)
+        // A property of the shared superclass is stored once.
+        hunter.commonName.append("Silver-backed jackal")
+        #expect(hunted.commonName == ["Black-backed jackal", "Silver-backed jackal"])
     }
 
-    @Test("A property whose range is its own domain builds a finite chain", .tags(.generated, .property))
-    func selfReferentialRangeIsConstructible() throws {
-        let zebra = Fauna.Animal(
-            habitat: Fauna.Habitat(),
-            diet: Fauna.Diet(),
-            commonName: "Zebra",
-            scientificName: "Equus quagga"
-        )
-        let lion = Fauna.Animal(
-            habitat: Fauna.Habitat(),
-            diet: Fauna.Diet(),
-            preysOn: zebra,
-            commonName: "Lion",
-            scientificName: "Panthera leo"
-        )
+    @Test("Individuals form a cycle and keep their identity", .tags(.generated, .property))
+    func cycleKeepsIdentity() throws {
+        let savanna = Fauna.HabitatIndividual()
+        let lion = Fauna.PredatorIndividual(hasHabitat: [savanna], commonName: ["Lion"])
+        let zebra = Fauna.PreyIndividual(hasHabitat: [savanna], commonName: ["Zebra"])
+        savanna.inhabitedBy = [lion, zebra]
+        lion.preysOn = [zebra]
 
-        // The stored value is typed by the range, `Fauna.Animal`.
-        let prey: Fauna.Animal = try #require(lion.preysOn)
-        #expect(prey.commonName == "Zebra")
-        #expect(prey.preysOn == nil)
+        // The zebra the lion preys on is the zebra that lives in the savanna.
+        let prey = try #require(lion.preysOn.first)
+        let neighbour = try #require(savanna.inhabitedBy.last)
+        #expect(prey === neighbour)
+        #expect(prey === zebra)
 
-        // Values are stored out of line, so changing one copy leaves the other.
-        var hungry = lion
-        hungry.preysOn = nil
-        #expect(hungry.preysOn == nil)
-        #expect(lion.preysOn?.scientificName == "Equus quagga")
+        // lion -> savanna -> lion
+        let home = try #require(lion.hasHabitat.first)
+        let resident = try #require(home.inhabitedBy.first)
+        #expect(home === savanna)
+        #expect(resident === lion)
 
-        let range: Fauna.preysOn.Range = zebra
-        let domain: Fauna.preysOn.Domain = lion
-        _ = (range, domain)
+        // A change made through one path is seen through every other.
+        neighbour.commonName.append("Plains zebra")
+        #expect(zebra.commonName == ["Zebra", "Plains zebra"])
+        #expect(prey.commonName == ["Zebra", "Plains zebra"])
+    }
+
+    @Test("Properties are many-valued unless they are functional", .tags(.generated, .property, .characteristic))
+    func cardinality() {
+        let lion = Fauna.PredatorIndividual()
+        #expect(lion.commonName.isEmpty)
+        #expect(lion.scientificName == nil)
+        #expect(lion.hasDiet == nil)
+
+        lion.commonName = ["Lion", "African lion"]
+        lion.hasHabitat = [Fauna.HabitatIndividual(), Fauna.HabitatIndividual()]
+        #expect(lion.commonName.count == 2)
+        #expect(lion.hasHabitat.count == 2)
+
+        // `scientificName`, `hasDiet` and `averageLifespan` are
+        // owl:FunctionalProperty: at most one value.
+        lion.scientificName = "Panthera leo"
+        lion.averageLifespan = 14
+        lion.hasDiet = Fauna.carnivore
+        #expect(lion.scientificName == "Panthera leo")
+        #expect(lion.averageLifespan == 14)
+        #expect(lion.hasDiet === Fauna.carnivore)
+    }
+
+    @Test("A named individual is one object", .tags(.generated))
+    func namedIndividualIsOneObject() {
+        let lion = Fauna.PredatorIndividual(hasDiet: Fauna.carnivore)
+        let jackal = Fauna.MesopredatorIndividual(hasDiet: Fauna.carnivore)
+        let zebra = Fauna.PreyIndividual(hasDiet: Fauna.herbivore)
+
+        #expect(lion.hasDiet === jackal.hasDiet)
+        #expect(lion.hasDiet !== zebra.hasDiet)
+        #expect(Fauna.omnivore !== Fauna.herbivore)
+    }
+
+    @Test("Ranges type the values", .tags(.generated, .property))
+    func rangesTypeTheValues() {
+        let savanna = Fauna.HabitatIndividual()
+        let lion = Fauna.PredatorIndividual(hasHabitat: [savanna], scientificName: "Panthera leo", averageLifespan: 14)
+
+        // The property term names the same types the individual stores.
+        let domain: Fauna.hasHabitat.Domain = lion
+        let range: Fauna.hasHabitat.Range = savanna
+        let habitats = domain.hasHabitat
+        #expect(habitats.first === range)
+
+        // Literal ranges are Swift values.
+        let name = lion.scientificName
+        let lifespan = lion.averageLifespan
+        #expect(name?.hasPrefix("Panthera") == true)
+        #expect(lifespan.map { $0 + 1 } == 15)
+    }
+
+    @Test("Datatypes are values", .tags(.generated))
+    func datatypesAreValues() {
+        #expect(Mirror(reflecting: XSD.nonNegativeInteger()).displayStyle == .struct)
+        #expect(Mirror(reflecting: RDFS.Literal()).displayStyle == .struct)
+    }
+
+    @Test("Individuals can be shared across tasks", .tags(.generated))
+    func individualsAreSendable() async {
+        let savanna = Fauna.HabitatIndividual()
+        let animals = (0..<20).map { _ in Fauna.PreyIndividual() }
+
+        await withTaskGroup { group in
+            for animal in animals {
+                group.addTask {
+                    animal.hasHabitat = [savanna]
+                }
+            }
+        }
+        #expect(animals.allSatisfy { $0.hasHabitat.first === savanna })
     }
 
     @Test("Multi-line annotation text survives expansion", .tags(.generated))
     func multiLineCommentIsPreserved() {
         #expect(Fauna.preysOn.metadata.comment == """
-            An animal this animal hunts for food.
-            Its range is "Animal", the property's own domain.
+            An animal this predator hunts for food.
+            Its range is "Animal", so a predator can prey on another predator.
             """)
         #expect(Fauna.preysOn.metadata.label == "preys on")
     }
 
-    @Test("Property declarations relate terms as types", .tags(.property))
-    func declarationsRelateTypes() throws {
-        let declarations = Fauna().content().compactMap { $0 as? RDFCore.Property }
-        let hasHabitat = try #require(declarations.first { $0.localName == "hasHabitat" })
-
-        #expect(hasHabitat.content.contains { $0 is Domain<Fauna.Animal> })
-        #expect(hasHabitat.content.contains { $0 is Range<Fauna.Habitat> })
-        #expect(!hasHabitat.content.contains { $0 is Range<Fauna.Diet> })
-
-        // The generated property term names the same types.
-        let range: Fauna.hasHabitat.Range = Fauna.Habitat()
-        let domain: Fauna.hasHabitat.Domain = Fauna.Animal(
-            habitat: range,
-            diet: Fauna.Diet(),
-            commonName: "Lion",
-            scientificName: "Panthera leo"
-        )
-        #expect(domain.commonName == "Lion")
-    }
-
-    @Test("Annotations authored with a bare type relate that type", .tags(.ontology))
-    func bareTypeArgumentsBecomeTermAnnotations() throws {
-        // Fauna.swift writes `Type(RDFS.Class)`, `Domain(Fauna.Animal)` and
-        // `Range(Fauna.Habitat)`. `content()` returns them as annotations
-        // whose term is that type.
+    @Test("content() returns the authored declarations", .tags(.ontology))
+    func contentReturnsDeclarations() {
         let content = Fauna().content()
-        let animal = try #require(content.compactMap { $0 as? RDFCore.Class }.first { $0.localName == "Animal" })
-        #expect(animal.content.contains { $0 is Type<RDFS.Class> })
-
-        let preysOn = try #require(content.compactMap { $0 as? RDFCore.Property }.first { $0.localName == "preysOn" })
-        #expect(preysOn.content.contains { $0 is Type<OWL.ObjectProperty> })
-        #expect(preysOn.content.contains { $0 is Domain<Fauna.Animal> })
-        #expect(preysOn.content.contains { $0 is Range<Fauna.Animal> })
-
-        let commonName = try #require(content.compactMap { $0 as? RDFCore.Property }.first { $0.localName == "commonName" })
-        #expect(commonName.content.contains { $0 is Range<RDFS.Literal> })
-        #expect(commonName.content.contains { ($0 as? Label)?.text == "common name" })
-    }
-
-    @Test("Every declared class becomes a generated type", .tags(.generated))
-    func everyClassIsGenerated() {
-        let classes = Fauna().content().compactMap { $0 as? RDFCore.Class }.map(\.localName)
-        #expect(classes == ["Animal", "Habitat", "Diet"])
-
-        let generated = [Fauna.Animal.metadata.name, Fauna.Habitat.metadata.name, Fauna.Diet.metadata.name]
-        #expect(generated == classes)
+        #expect(content.filter { $0 is RDFCore.Class }.count == 6)
+        #expect(content.filter { $0 is RDFCore.Property }.count == 7)
+        #expect(content.filter { $0 is RDFCore.Individual }.count == 3)
     }
 
     @Test("A term's IRI is projected from the namespace at the boundary", .tags(.boundary))
-    func iriIsBoundaryProjection() throws {
-        let namespace = try #require(Fauna().content().compactMap { $0 as? Namespace }.first)
+    func iriIsBoundaryProjection() {
+        let lion: any Fauna.Animal = Fauna.PredatorIndividual()
 
-        #expect(namespace.iri == IRI("https://fauna.example.org/ontology#"))
-        #expect(Fauna.Animal.metadata.id == IRI("https://fauna.example.org/ontology#Animal"))
-        #expect(Fauna.Habitat.metadata.id == IRI("https://fauna.example.org/ontology#Habitat"))
+        #expect(Fauna.AnimalIndividual.metadata.id == IRI("https://fauna.example.org/ontology#Animal"))
+        #expect(type(of: lion).metadata.id == IRI("https://fauna.example.org/ontology#Predator"))
+        #expect(type(of: Fauna.carnivore).metadata.id == IRI("https://fauna.example.org/ontology#carnivore"))
         #expect(Fauna.hasHabitat.metadata.id == IRI("https://fauna.example.org/ontology#hasHabitat"))
         #expect(Fauna.hasHabitat.metadata.label == "has habitat")
     }

@@ -1,6 +1,6 @@
 import RDFCore
 
-/// Generates one Swift type per term declared in an ontology's content.
+/// Generates the Swift model of the terms declared in an ontology's content.
 ///
 /// Attach it to an ``Ontology`` struct and write the content in
 /// `func content() -> Content`. Annotations that relate a term to another
@@ -26,12 +26,30 @@ import RDFCore
 ///         }
 ///     }
 ///
-/// This generates `Fauna.Animal`, `Fauna.Habitat` and the property term
-/// `Fauna.hasHabitat`. `Fauna.Animal` has a stored property
-/// `hasHabitat: Fauna.Habitat`, typed by the property's range, and an
-/// initializer `init(habitat:)`. Terms refer to each other as types; each
-/// type's IRI is computed from the namespace during expansion and kept in its
-/// static `metadata`, for the boundary only.
+/// This generates:
+///
+/// - `Fauna.Animal` and `Fauna.Habitat`, protocols for the classes. A
+///   class's requirements are the properties with it as `Domain`, typed by
+///   their `Range`: `Fauna.Animal` requires `hasHabitat: [any Fauna.Habitat]`.
+///   Properties are many-valued; one typed `OWL.FunctionalProperty` has at
+///   most one value (`(any Fauna.Habitat)?`). `SubClassOf(Fauna.Animal)`
+///   makes a class protocol refine `Fauna.Animal`, so one individual can
+///   belong to several classes.
+/// - `Fauna.AnimalIndividual` and `Fauna.HabitatIndividual`, final classes
+///   whose instances are individuals. An individual is a reference, and its
+///   identity is the object:
+///
+///       let savanna = Fauna.HabitatIndividual()
+///       let lion = Fauna.AnimalIndividual(hasHabitat: [savanna])
+///
+/// - a static constant for each `Individual("name")`, `Fauna.name`.
+/// - value types for datatypes and literal classes.
+/// - the property term type `Fauna.hasHabitat`, which names its `Domain`
+///   and `Range` as type aliases.
+///
+/// Terms refer to each other as types. Each term's IRI is computed from the
+/// namespace during expansion and kept in its static `metadata`, for the
+/// boundary only.
 ///
 /// `@Ontology` also attaches ``OntologyContent()`` to `content()`. That body
 /// macro owns the authored body, so `Domain(Fauna.Animal)` is read as syntax

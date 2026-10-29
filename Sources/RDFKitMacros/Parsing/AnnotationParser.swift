@@ -2,12 +2,12 @@ import SwiftSyntax
 
 /// Reads the annotations in a declaration's trailing closure.
 struct AnnotationParser {
-    static func parse(from call: FunctionCallExprSyntax) throws -> [ParsedAnnotation] {
+    static func parse(from call: FunctionCallExprSyntax, declaredNames: Set<String>) -> [ParsedAnnotation] {
         guard let closure = call.trailingClosure else { return [] }
-        return try closure.statements.compactMap { statement in
+        return closure.statements.compactMap { statement in
             guard let expression = statement.item.as(ExprSyntax.self),
-                  let call = try DeclarationCall(expression) else { return nil }
-            return ParsedAnnotation(name: call.name, argument: call.argument)
+                  let call = DeclarationCall(expression, declaredNames: declaredNames) else { return nil }
+            return ParsedAnnotation(name: call.name, argument: call.argument, syntax: Syntax(call.call))
         }
     }
 }
@@ -19,7 +19,7 @@ struct DeclarationCall {
     let call: FunctionCallExprSyntax
     let argument: ParsedAnnotation.Argument
 
-    init?(_ expression: ExprSyntax) throws {
+    init?(_ expression: ExprSyntax, declaredNames: Set<String>) {
         var current = expression
         // Unwrap chained modifiers: `Class("X") { ... }.deprecated()`.
         while let chained = current.as(FunctionCallExprSyntax.self),
@@ -27,27 +27,16 @@ struct DeclarationCall {
               let base = member.base {
             current = base
         }
-        guard let call = current.as(FunctionCallExprSyntax.self) else { return nil }
-
-        if let reference = call.calledExpression.as(DeclReferenceExprSyntax.self) {
-            self.name = reference.baseName.text
-            if BootstrapTerm.termForms.contains(name) {
-                guard let term = TermArgument.typePath(of: call) else {
-                    throw MacroError("Write \(name) with the related type as its argument: \(name)(Fauna.Animal)")
-                }
-                self.argument = .term(term)
-            } else {
-                self.argument = Self.argument(of: call)
-            }
-        } else if let specialized = call.calledExpression.as(GenericSpecializationExprSyntax.self),
-                  let reference = specialized.expression.as(DeclReferenceExprSyntax.self),
-                  BootstrapTerm.termForms.contains(reference.baseName.text) {
-            let name = reference.baseName.text
-            throw MacroError("Write \(name) with the related type as its argument: \(name)(Fauna.Animal)")
-        } else {
-            return nil
-        }
+        guard let call = current.as(FunctionCallExprSyntax.self),
+              let reference = call.calledExpression.as(DeclReferenceExprSyntax.self) else { return nil }
+        self.name = reference.baseName.text
         self.call = call
+        if ParsedEntity.Kind(rawValue: name) == nil,
+           let term = TermArgument.typePath(of: call, declaredNames: declaredNames) {
+            self.argument = .term(term)
+        } else {
+            self.argument = Self.argument(of: call)
+        }
     }
 
     /// The value of the first string literal argument, with escapes resolved.
@@ -70,11 +59,18 @@ struct DeclarationCall {
 
 /// The related type given to a term annotation: `Fauna.Animal` in
 /// `Domain(Fauna.Animal)`.
+///
+/// Which annotations relate terms is read from how they are written, not
+/// from a list of annotation names: an annotation whose only argument names
+/// a type relates the declared term to that type. Annotations that carry
+/// text take a string literal, which the macro reads at compile time for
+/// DocC, so a name in that position is always a type.
 enum TermArgument {
     /// The type spelling of a call's only argument, when the call is
-    /// `Name(Path.To.Type)`: one unlabeled argument that is a plain type path,
-    /// with no trailing closure. A `.self` path is not a type path.
-    static func typePath(of call: FunctionCallExprSyntax) -> String? {
+    /// `Name(Path.To.Type)`: one unlabeled argument that is a qualified type
+    /// path (or the bare name of a term this ontology declares), with no
+    /// trailing closure. A `.self` path is not a type path.
+    static func typePath(of call: FunctionCallExprSyntax, declaredNames: Set<String>) -> String? {
         guard call.trailingClosure == nil,
               call.additionalTrailingClosures.isEmpty,
               call.arguments.count == 1,
@@ -82,10 +78,13 @@ enum TermArgument {
               argument.label == nil,
               let components = components(of: argument.expression),
               components.last != "self" else { return nil }
+        if components.count == 1, !declaredNames.contains(components[0]) { return nil }
         return components.joined(separator: ".")
     }
 
-    private static func components(of expression: ExprSyntax) -> [String]? {
+    /// The components of a member path such as `Fauna.Animal`, including a
+    /// trailing `self`.
+    static func components(of expression: ExprSyntax) -> [String]? {
         if let reference = expression.as(DeclReferenceExprSyntax.self), reference.argumentNames == nil {
             return [reference.baseName.text]
         }

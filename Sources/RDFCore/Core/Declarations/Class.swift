@@ -1,6 +1,8 @@
 import IRIKit
 
-/// Declares an RDFS class. The `@Ontology` macro generates a Swift type for it.
+/// Declares an RDFS class. The `@Ontology` macro generates a protocol for it,
+/// whose requirements are the properties with the class as `Domain`, and a
+/// final class whose instances are individuals of the class.
 ///
 /// `rdfs:Class`
 ///

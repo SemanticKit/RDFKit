@@ -1,116 +1,214 @@
 import Foundation
+import SwiftDiagnostics
 import SwiftSyntax
+import SwiftSyntaxMacros
 
-/// Generates one Swift type per declared term.
+/// Generates the Swift declarations for an ontology's terms.
 ///
-/// - A `Class` or `Datatype` becomes a struct whose stored properties are the
-///   ontology's properties with that type (or a superclass) as `Domain`, each
-///   typed by its `Range`. A property whose range leads back to the type
-///   (`rdf:rest` on `RDF.List`) is stored out of line as an optional, so a
-///   finite chain of values can be built.
-/// - A `Property` becomes a term type that names its `Domain` and `Range` as
-///   type aliases.
-/// - A term that RDFCore already provides as a DSL form becomes an alias of
-///   that form.
-/// - A term named like a declaration form (`OWL.Class`) becomes a declaration
-///   form itself, because it shadows the RDFCore form inside its ontology.
+/// - A class becomes a protocol (`Fauna.Animal`) whose requirements are the
+///   properties with the class as `Domain`, typed by their `Range`: many
+///   values (`[any Fauna.Habitat]`) by default, at most one
+///   (`(any Fauna.Diet)?`) for an `owl:FunctionalProperty`. `SubClassOf`
+///   becomes protocol refinement; a class with no superclass refines
+///   ``RDFCore/Resource``.
+/// - Each class also gets an individual type, a final class named after the
+///   class (`Fauna.AnimalIndividual`) that conforms to the class protocol and
+///   stores every requirement. Its instances are individuals of the class:
+///   references, whose identity is the object.
+/// - A named individual becomes a static constant of the ontology
+///   (`Fauna.carnivore`), the one instance of a final class that conforms to
+///   all of its classes.
+/// - A datatype, `rdfs:Literal` and its subclasses become value types.
+/// - A property becomes a term type that names its `Domain` and `Range`.
+/// - A term that RDFCore already provides becomes an alias of that type.
 ///
 /// Each generated type's IRI is computed here from the namespace and emitted
 /// as a literal in its static metadata, for the boundary only. Generated code
 /// never builds an identity at runtime.
 struct EntityGenerator {
-    enum Shape: Equatable {
-        case alias(form: String, isGeneric: Bool)
-        case declarationForm
-        case value
-        case propertyTerm
-        case none
+    let model: OntologyModel
+    let context: any MacroExpansionContext
+
+    private var ontology: ParsedOntology { model.ontology }
+
+    static func generate(ontology: ParsedOntology, in context: some MacroExpansionContext) -> [DeclSyntax] {
+        EntityGenerator(model: OntologyModel(ontology: ontology), context: context).generate()
     }
 
-    static func shape(of declaration: ParsedEntity, in ontology: ParsedOntology) -> Shape {
-        if let form = BootstrapTerm.form(namespace: ontology.namespace, name: declaration.name) {
-            return .alias(form: form.type, isGeneric: form.isGeneric)
-        }
-        switch declaration.kind {
-        case .individual:
-            return .none
-        case .property:
-            return .propertyTerm
-        case .class, .datatype:
-            return BootstrapTerm.declarationForms.contains(declaration.name) ? .declarationForm : .value
-        }
-    }
-
-    static func generate(ontology: ParsedOntology) -> [DeclSyntax] {
-        let planner = StoredPropertyPlanner(ontology: ontology)
+    func generate() -> [DeclSyntax] {
+        diagnoseUndeclaredTerms()
         var generated: Set<String> = []
-        return ontology.declarations.compactMap { declaration in
+        return ontology.declarations.flatMap { declaration -> [DeclSyntax] in
             // A term declared twice gets one type.
-            guard generated.insert(declaration.name).inserted else { return nil }
-            let source: String?
-            switch shape(of: declaration, in: ontology) {
+            guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
+            let sources: [String]
+            switch shape {
             case .alias(let form, let isGeneric):
-                source = alias(declaration, form: form, isGeneric: isGeneric)
-            case .declarationForm:
-                source = declarationForm(declaration, in: ontology)
+                sources = [alias(declaration, form: form, isGeneric: isGeneric)]
+            case .classProtocol:
+                sources = classProtocol(declaration)
             case .value:
-                source = valueType(declaration, in: ontology, planner: planner)
+                sources = [valueType(declaration)]
             case .propertyTerm:
-                source = propertyTerm(declaration, in: ontology)
-            case .none:
-                source = nil
+                sources = [propertyTerm(declaration)]
+            case .individual:
+                sources = namedIndividual(declaration)
             }
-            return source.map { DeclSyntax(stringLiteral: $0) }
+            return sources.map { DeclSyntax(stringLiteral: $0) }
+        }
+    }
+
+    /// Reports, at the authored annotation, a related term written as a term
+    /// of this ontology that the ontology does not declare: `Fauna.Habitatt`.
+    private func diagnoseUndeclaredTerms() {
+        for declaration in ontology.declarations {
+            for annotation in declaration.annotations {
+                guard let spelling = annotation.term,
+                      let name = ontology.resolve(spelling).localName,
+                      ontology.declaration(named: name) == nil else { continue }
+                context.diagnose(Diagnostic(
+                    node: annotation.syntax,
+                    message: OntologyDiagnostic.undeclaredTerm(spelling, ontology: ontology.typeName)
+                ))
+            }
         }
     }
 
     // MARK: - Shapes
 
-    private static func alias(_ declaration: ParsedEntity, form: String, isGeneric: Bool) -> String {
+    private func alias(_ declaration: ParsedEntity, form: String, isGeneric: Bool) -> String {
         let name = SwiftIdentifier.escaped(declaration.name)
         let documentation = Documentation.docComment(for: declaration)
         if isGeneric {
-            return "\(documentation)public typealias \(name)<Term: RDFCore.Entity> = RDFCore.`\(form)`<Term>"
+            return "\(documentation)public typealias \(name)<Term> = RDFCore.`\(form)`<Term>"
         }
         return "\(documentation)public typealias \(name) = RDFCore.`\(form)`"
     }
 
-    private static func declarationForm(_ declaration: ParsedEntity, in ontology: ParsedOntology) -> String {
+    private func classProtocol(_ declaration: ParsedEntity) -> [String] {
+        let name = SwiftIdentifier.escaped(declaration.name)
+        let requirements = model.ownRequirements(of: declaration.name).map { requirement in
+            Documentation.docComment(for: requirement.declaration, indent: "    ")
+                + "    var \(requirement.name): \(requirement.declaredType) { get set }"
+        }.joined(separator: "\n\n")
+
+        let protocolSource = """
+        \(Documentation.docComment(for: declaration))public protocol \(name): \(model.refinements(of: declaration.name).joined(separator: ", ")) {\(requirements.isEmpty ? "}" : "\n" + requirements + "\n}")
         """
-        \(Documentation.docComment(for: declaration))public struct \(SwiftIdentifier.escaped(declaration.name)): RDFCore.Declaration {
-            public static let metadata: any RDFCore.ContentMetadata = \(Documentation.metadata(for: declaration, in: ontology))
+        guard model.knowsAllRequirements(of: declaration.name) else { return [protocolSource] }
 
-            public let localName: String
-            public let content: RDFCore.Content
+        let individualName = SwiftIdentifier.sanitized(declaration.name) + "Individual"
+        if ontology.declaration(named: individualName) != nil {
+            context.diagnose(Diagnostic(
+                node: declaration.syntax,
+                message: OntologyDiagnostic.individualTypeCollides(name: individualName, className: declaration.name)
+            ))
+            return [protocolSource]
+        }
+        let individual = individualClass(
+            documentation: "/// An individual of ``\(ontology.typeName)/\(SwiftIdentifier.sanitized(declaration.name))``.\n",
+            access: "public",
+            name: individualName,
+            conformances: ["\(ontology.typeName).\(name)"],
+            requirements: model.storedRequirements(ofClasses: [declaration.name]),
+            metadata: Documentation.metadata(for: declaration, in: ontology),
+            initializerAccess: "public"
+        )
+        return [protocolSource, individual]
+    }
 
-            public init(_ localName: String, @RDFCore.ContentBuilder _ content: () -> RDFCore.Content) {
-                self.localName = localName
-                self.content = content()
+    private func namedIndividual(_ declaration: ParsedEntity) -> [String] {
+        var classes: [String] = []
+        var localClasses: [String] = []
+        for annotation in declaration.annotations("Type") {
+            guard let spelling = annotation.term else { continue }
+            if let local = ontology.resolve(spelling).localName, ontology.declaration(named: local) == nil { return [] }
+            guard model.knowsAllRequirements(ofSpelling: spelling) else {
+                context.diagnose(Diagnostic(node: annotation.syntax, message: OntologyDiagnostic.individualOfForeignClass(spelling)))
+                return []
             }
+            let reference = ontology.resolve(spelling)
+            let qualified = ontology.spelling(of: reference)
+            if !classes.contains(qualified) { classes.append(qualified) }
+            if let local = reference.localName { localClasses.append(local) }
+        }
+        if classes.isEmpty { classes = ["RDFCore.Resource"] }
+
+        let name = SwiftIdentifier.escaped(declaration.name)
+        let typeName = "_\(SwiftIdentifier.sanitized(declaration.name))Individual"
+        let individual = individualClass(
+            documentation: "",
+            access: "private",
+            name: typeName,
+            conformances: classes,
+            requirements: model.storedRequirements(ofClasses: localClasses),
+            metadata: Documentation.metadata(for: declaration, in: ontology),
+            initializerAccess: "fileprivate"
+        )
+        let constant = """
+        \(Documentation.docComment(for: declaration))public static let \(name): any \(classes.joined(separator: " & ")) = \(typeName)()
+        """
+        return [constant, individual]
+    }
+
+    /// A final class whose instances are individuals of the given classes.
+    ///
+    /// Its property values are kept in one ``RDFCore/IndividualStorage``,
+    /// guarded by a mutex, so the class is `Sendable` as checked by the
+    /// compiler.
+    private func individualClass(
+        documentation: String,
+        access: String,
+        name: String,
+        conformances: [String],
+        requirements: [OntologyModel.PropertyRequirement],
+        metadata: String,
+        initializerAccess: String
+    ) -> String {
+        let memberAccess = access == "private" ? "fileprivate" : access
+        let fields = requirements.map { "        var \($0.name): \($0.declaredType)" }.joined(separator: "\n")
+        let parameters = requirements.map { "\($0.name): \($0.declaredType) = \($0.emptyValue)" }.joined(separator: ", ")
+        let arguments = requirements.map { "\($0.name): \($0.name)" }.joined(separator: ", ")
+        let accessors = requirements.map { requirement in
+            """
+            \(Documentation.docComment(for: requirement.declaration, indent: "    "))    \(memberAccess) var \(requirement.name): \(requirement.declaredType) {
+                    get { storage.withLock { $0.\(requirement.name) } }
+                    set { storage.withLock { $0.\(requirement.name) = newValue } }
+                }
+            """
+        }.joined(separator: "\n\n")
+
+        let values = fields.isEmpty ? "    private struct Values: Sendable {}" : "    private struct Values: Sendable {\n\(fields)\n    }"
+        return """
+        \(documentation)\(access) final class \(name): \(conformances.joined(separator: ", ")) {
+            \(memberAccess) static let metadata: any RDFCore.ContentMetadata = \(metadata)
+
+        \(values)
+
+            private let storage: RDFCore.IndividualStorage<Values>
+
+            /// Creates an individual with these property values.
+            \(initializerAccess) init(\(parameters)) {
+                storage = RDFCore.IndividualStorage(Values(\(arguments)))
+            }\(accessors.isEmpty ? "" : "\n\n" + accessors)
         }
         """
     }
 
-    private static func valueType(_ declaration: ParsedEntity, in ontology: ParsedOntology, planner: StoredPropertyPlanner) -> String {
-        let properties = planner.storedProperties(of: declaration.name)
-
-        let storage = properties.map { property in
-            let wrapper = property.isIndirect ? "@RDFCore.Indirect " : ""
-            return Documentation.docComment(for: property.declaration, indent: "    ")
-                + "    \(wrapper)public var \(SwiftIdentifier.escaped(property.name)): \(property.declaredType)"
+    private func valueType(_ declaration: ParsedEntity) -> String {
+        if let recursion = model.recursiveValueType(of: declaration.name) {
+            context.diagnose(Diagnostic(
+                node: recursion.property.syntax,
+                message: OntologyDiagnostic.recursiveValue(property: recursion.property.name, type: recursion.type)
+            ))
+        }
+        let requirements = model.ownRequirements(of: declaration.name)
+        let storage = requirements.map { requirement in
+            Documentation.docComment(for: requirement.declaration, indent: "    ")
+                + "    public var \(requirement.name): \(requirement.declaredType)"
         }.joined(separator: "\n\n")
-
-        let parameters = properties.map { property in
-            let name = SwiftIdentifier.escaped(property.name)
-            let label = SwiftIdentifier.argumentLabel(for: property.name)
-            let defaultValue = property.isIndirect ? " = nil" : ""
-            return (label == name ? name : "\(label) \(name)") + ": \(property.declaredType)\(defaultValue)"
-        }.joined(separator: ", ")
-
-        let assignments = properties.map { property in
-            let name = SwiftIdentifier.escaped(property.name)
-            return "        self.\(name) = \(name)"
-        }.joined(separator: "\n")
+        let parameters = requirements.map { "\($0.name): \($0.declaredType) = \($0.emptyValue)" }.joined(separator: ", ")
+        let assignments = requirements.map { "        self.\($0.name) = \($0.name)" }.joined(separator: "\n")
 
         return """
         \(Documentation.docComment(for: declaration))public struct \(SwiftIdentifier.escaped(declaration.name)): RDFCore.Entity {
@@ -121,13 +219,13 @@ struct EntityGenerator {
         """
     }
 
-    private static func propertyTerm(_ declaration: ParsedEntity, in ontology: ParsedOntology) -> String {
+    private func propertyTerm(_ declaration: ParsedEntity) -> String {
         var relations: [String] = []
         if let domain = declaration.term("Domain") {
-            relations.append("    /// The type this property applies to.\n    public typealias Domain = \(ontology.spelling(of: ontology.resolve(domain)))")
+            relations.append("    /// The type this property applies to.\n    public typealias Domain = \(model.valueType(ofRange: domain))")
         }
         if let range = declaration.term("Range") {
-            relations.append("    /// The type of this property's values.\n    public typealias Range = \(ontology.spelling(of: ontology.resolve(range)))")
+            relations.append("    /// The type of this property's values.\n    public typealias Range = \(model.valueType(ofRange: range))")
         }
         return """
         \(Documentation.docComment(for: declaration))public struct \(SwiftIdentifier.escaped(declaration.name)): RDFCore.Entity {

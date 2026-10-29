@@ -5,7 +5,7 @@ import IRIKit
 /// `rdfs:subPropertyOf`
 ///
 ///     SubPropertyOf(RDFS.seeAlso)
-public struct SubPropertyOf<Term: Entity>: TermAnnotation {
+public struct SubPropertyOf<Term>: TermAnnotation {
     public static var metadata: any ContentMetadata {
         RDFMetadata(
             id: "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",

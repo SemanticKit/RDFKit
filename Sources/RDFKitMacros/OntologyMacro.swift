@@ -16,7 +16,7 @@ public struct OntologyMacro: MemberMacro, MemberAttributeMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let ontology = try OntologyParser.parse(declaration: declaration)
-        return EntityGenerator.generate(ontology: ontology)
+        return EntityGenerator.generate(ontology: ontology, in: context)
     }
 
     public static func expansion(

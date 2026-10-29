@@ -1,3 +1,5 @@
+import SwiftSyntax
+
 /// An annotation read from a declaration's trailing closure.
 struct ParsedAnnotation {
     /// What the annotation was given.
@@ -15,6 +17,8 @@ struct ParsedAnnotation {
     /// The annotation form: `Label`, `Domain`, `SubClassOf`, ...
     let name: String
     let argument: Argument
+    /// The authored call, where diagnostics about this annotation point.
+    let syntax: Syntax
 
     /// The term spelling, when the annotation relates to a term.
     var term: String? {

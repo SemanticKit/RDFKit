@@ -1,6 +1,9 @@
 import IRIKit
 
-/// Declares a named individual.
+/// Declares a named individual. The `@Ontology` macro generates a static
+/// constant of the ontology for it, the one instance of a final class that
+/// conforms to the protocols of its classes: `Individual("nil")` becomes
+/// `RDF.nil`.
 ///
 /// `owl:NamedIndividual`
 ///

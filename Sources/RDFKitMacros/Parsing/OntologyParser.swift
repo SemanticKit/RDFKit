@@ -10,12 +10,13 @@ struct OntologyParser {
             throw MacroError("@Ontology requires a 'func content() -> Content' with a body")
         }
 
+        let declaredNames = Self.declaredNames(in: statements)
         var namespace: String?
         var declarations: [ParsedEntity] = []
 
         for statement in statements {
             guard let expression = statement.item.as(ExprSyntax.self),
-                  let call = try DeclarationCall(expression) else { continue }
+                  let call = DeclarationCall(expression, declaredNames: declaredNames) else { continue }
 
             if call.name == "Namespace" {
                 namespace = namespace ?? call.stringArgument
@@ -25,7 +26,12 @@ struct OntologyParser {
                   let name = call.stringArgument, !name.isEmpty else { continue }
 
             declarations.append(
-                ParsedEntity(name: name, kind: kind, annotations: try AnnotationParser.parse(from: call.call))
+                ParsedEntity(
+                    name: name,
+                    kind: kind,
+                    annotations: AnnotationParser.parse(from: call.call, declaredNames: declaredNames),
+                    syntax: Syntax(call.call)
+                )
             )
         }
 
@@ -38,6 +44,20 @@ struct OntologyParser {
             namespace: namespace,
             declarations: declarations
         )
+    }
+
+    /// The local names of the terms declared at the top level of a content
+    /// body: `Animal` for `Class("Animal")`.
+    static func declaredNames(in statements: CodeBlockItemListSyntax) -> Set<String> {
+        var names: Set<String> = []
+        for statement in statements {
+            guard let expression = statement.item.as(ExprSyntax.self),
+                  let call = DeclarationCall(expression, declaredNames: []),
+                  ParsedEntity.Kind(rawValue: call.name) != nil,
+                  let name = call.stringArgument else { continue }
+            names.insert(name)
+        }
+        return names
     }
 
     /// The ontology's `func content() -> Content`, whose body is the DSL.

@@ -1,6 +1,6 @@
 import IRIKit
 
-/// Declares an RDFS datatype. The `@Ontology` macro generates a Swift type for it.
+/// Declares an RDFS datatype. The `@Ontology` macro generates a value type for it.
 ///
 /// `rdfs:Datatype`
 ///

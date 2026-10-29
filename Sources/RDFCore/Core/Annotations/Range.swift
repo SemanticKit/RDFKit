@@ -1,11 +1,11 @@
 import IRIKit
 
-/// States that values of the declared property are instances of `Term`. The `@Ontology` macro types the generated stored property by `Term`.
+/// States that values of the declared property are instances of `Term`. The `@Ontology` macro types the values of the generated property requirement by `Term`.
 ///
 /// `rdfs:range`
 ///
 ///     Range(Fauna.Habitat)
-public struct Range<Term: Entity>: TermAnnotation {
+public struct Range<Term>: TermAnnotation {
     public static var metadata: any ContentMetadata {
         RDFMetadata(
             id: "http://www.w3.org/2000/01/rdf-schema#range",

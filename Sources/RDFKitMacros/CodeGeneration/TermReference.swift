@@ -31,13 +31,22 @@ extension ParsedOntology {
         }
     }
 
+    /// The qualified spelling of a term, `Fauna.Habitat` for the local term
+    /// `Habitat` however it was written, so that RDF, RDFS and OWL terms are
+    /// recognised the same way inside and outside their own ontology.
+    func canonical(_ spelling: String) -> String {
+        switch resolve(spelling) {
+        case .local(let name): "\(typeName).\(name)"
+        case .external(let spelling): spelling
+        }
+    }
+
     /// The boundary IRI of a local term: the namespace followed by the local
     /// name, computed once here at expansion time and emitted as a literal.
     func iri(of name: String) -> String {
         namespace + name
     }
 }
-
 
 enum SwiftIdentifier {
     private static let keywords: Set<String> = [
@@ -63,15 +72,11 @@ enum SwiftIdentifier {
         let identifier = sanitized(name)
         return keywords.contains(identifier) ? "`\(identifier)`" : identifier
     }
+}
 
-    /// The initializer label for a stored property: `hasHabitat` is passed as
-    /// `habitat:`.
-    static func argumentLabel(for propertyName: String) -> String {
-        let name = sanitized(propertyName)
-        let rest = name.dropFirst(3)
-        if name.hasPrefix("has"), let first = rest.first, first.isUppercase {
-            return escaped(first.lowercased() + rest.dropFirst())
-        }
-        return escaped(name)
+extension TermReference {
+    var localName: String? {
+        if case .local(let name) = self { return name }
+        return nil
     }
 }

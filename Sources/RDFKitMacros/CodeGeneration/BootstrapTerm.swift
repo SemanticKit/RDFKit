@@ -1,17 +1,16 @@
-/// Terms that RDFCore already provides as DSL forms.
+/// Terms that RDFCore already provides, and the RDF, RDFS and OWL terms whose
+/// meaning changes what the macro generates.
 ///
-/// RDF, RDFS and OWL describe themselves: `rdfs:Class` is declared with
-/// `Class(...)`, `rdfs:label` with `Label(...)`. When an ontology declares one
-/// of these terms, the macro does not generate a second Swift type for the same
-/// term. It aliases the RDFCore form, so one term has one Swift type.
+/// RDF, RDFS and OWL describe themselves: `rdfs:label` is declared with
+/// `Property("label")` and written in content as `Label(...)`. When an
+/// ontology declares one of the terms RDFCore provides, the macro does not
+/// generate a second Swift type for the same term. It aliases the RDFCore
+/// type, so one term has one Swift type.
 enum BootstrapTerm {
-    /// The RDFCore form for a term, and whether that form is generic over a term.
+    /// The RDFCore type for a term, and whether that type is generic over a term.
     static func form(namespace: String, name: String) -> (type: String, isGeneric: Bool)? {
         switch (namespace, name) {
-        case (rdfs, "Class"): ("Class", false)
-        case (rdf, "Property"): ("Property", false)
-        case (rdfs, "Datatype"): ("Datatype", false)
-        case (owl, "NamedIndividual"): ("Individual", false)
+        case (rdfs, "Resource"): ("Resource", false)
         case (rdfkit, "Namespace"): ("Namespace", false)
         case (rdfkit, "Prefix"): ("Prefix", false)
         case (rdf, "type"): ("Type", true)
@@ -27,11 +26,11 @@ enum BootstrapTerm {
         }
     }
 
-    /// The Swift value type that stores a literal of a datatype range.
+    /// The Swift value type that stores a literal of a literal range, by the
+    /// range's qualified spelling.
     ///
-    /// A property whose range is a literal datatype is stored as the Swift
-    /// value type for that datatype. Every other range is stored as its own
-    /// generated type.
+    /// A property whose range is one of these is stored as the Swift value
+    /// type. Every other range is stored as its own generated type.
     static func literalValueType(forRange spelling: String) -> String? {
         switch spelling {
         case "RDFS.Literal": "String"
@@ -40,14 +39,23 @@ enum BootstrapTerm {
         }
     }
 
-    /// DSL declaration forms. A generated term with one of these names shadows
-    /// the RDFCore form inside its ontology, so it is generated as a
-    /// declaration form itself (for example `OWL.Class`).
-    static let declarationForms: Set<String> = ["Class", "Property", "Datatype", "Individual"]
+    /// Whether a qualified spelling names `rdfs:Literal`, the class of
+    /// literal values. It and its subclasses are value types.
+    static func isLiteral(_ spelling: String) -> Bool {
+        spelling == "RDFS.Literal"
+    }
 
-    /// Annotation forms that relate the declared term to another term. They
-    /// are authored with the related type as the argument, `Domain(Fauna.Animal)`.
-    static let termForms: Set<String> = ["Type", "Domain", "Range", "SubClassOf", "SubPropertyOf"]
+    /// Whether a qualified spelling names `rdfs:Resource`, the root of every
+    /// class, which RDFCore provides as ``Resource`` with no requirements.
+    static func isResource(_ spelling: String) -> Bool {
+        spelling == "RDFS.Resource" || spelling == "RDFCore.Resource"
+    }
+
+    /// Whether a qualified spelling names `owl:FunctionalProperty`. A
+    /// property typed with it has at most one value.
+    static func isFunctionalProperty(_ spelling: String) -> Bool {
+        spelling == "OWL.FunctionalProperty"
+    }
 
     private static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     private static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
