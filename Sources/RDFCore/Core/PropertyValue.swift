@@ -1,42 +1,48 @@
-import Synchronization
-
 /// The value of a functional property of an individual.
 ///
 /// An `owl:FunctionalProperty` has at most one value, so the `@Ontology`
-/// macro stores it as a `PropertyValue` of its range: `lion.hasDiet` is a
+/// macro exposes it as a `PropertyValue` of its range: `lion.hasDiet` is a
 /// `PropertyValue<any Fauna.Diet>`.
 ///
-/// The value is guarded by a mutex. Each method holds the lock for the whole
-/// change; use ``update(_:)`` to read and change the value in one step.
-public final class PropertyValue<Value: Sendable>: PropertyStorage {
-    private let storage: Mutex<Value?>
+/// It is a view on the value the individual's ``Membership`` stores, and it
+/// holds the individual's graph, so it keeps working after the individual
+/// itself is released. Each change holds a lock for the whole change; use
+/// ``update(_:)`` to read and change the value in one step.
+///
+/// The value of a named individual is fixed; changing it stops the program.
+public struct PropertyValue<Value: Sendable>: Sendable {
+    private let store: ValueStore<Value>
+    private let graph: IndividualGraph?
 
-    /// Creates the property with this value, or with none.
-    public init(_ value: Value? = nil) {
-        storage = Mutex(value)
+    /// The value of the requirement `key` names, stored in `membership`.
+    ///
+    /// The default implementations of class protocol requirements call it:
+    /// `RDFCore.PropertyValue(\Self.hasDiet, of: membership)`.
+    public init<Root>(_ key: any KeyPath<Root, PropertyValue<Value>> & Sendable, of membership: Membership) {
+        store = membership.store(for: key)
+        graph = membership.graph
     }
 
     /// The value, if the property has one.
-    public var value: Value? { storage.withLock { $0 } }
+    public var value: Value? { store.values(in: graph).first }
 
     /// Sets the value, or removes it with `nil`.
     public func replace(with value: Value?) {
-        storage.withLock { $0 = value }
+        store.replace(with: value.map { [$0] } ?? [])
     }
 
     /// Removes the value.
     public func removeAll() {
-        // Release the value outside the lock: releasing an individual can
-        // release others, which must not run while this lock is held.
-        _ = storage.withLock { value in
-            let removed = value
-            value = nil
-            return removed
-        }
+        store.replace(with: [])
     }
 
     /// Reads and changes the value in one atomic step.
     public func update<Result: Sendable>(_ body: (inout Value?) -> Result) -> Result {
-        storage.withLock { body(&$0) }
+        store.update(in: graph) { values in
+            var value = values.first
+            let result = body(&value)
+            values = value.map { [$0] } ?? []
+            return result
+        }
     }
 }

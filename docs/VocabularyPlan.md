@@ -31,7 +31,7 @@ public struct OWL: Ontology {
 The vocabularies follow the same rules as any ontology:
 
 - Every class is a protocol: `RDFS.Class`, `RDF.Property`, `RDF.List`, `OWL.Thing`, `OWL.ObjectProperty`, `OWL.FunctionalProperty`. Its requirements are the properties the vocabulary declares with that class as domain (`RDF.List` requires `first` and `rest`; `OWL.Thing` requires `sameAs` and `differentFrom`), and `SubClassOf` becomes refinement (`OWL.Class` refines `RDFS.Class`).
-- Classes whose superclasses are all declared in the same vocabulary, or are `rdfs:Resource`, get an individual type (`RDF.ListIndividual`). Classes that refine another vocabulary's class (`OWL.Class` refines `RDFS.Class`) are protocols only, and so is `OWL.Nothing`, the class with no individuals.
+- Every class but `OWL.Nothing`, the class with no individuals, gets an individual type (`RDF.ListIndividual`, `OWL.ThingIndividual`). That includes classes that refine another vocabulary's class: `OWL.ClassIndividual` has `subClassOf` from `RDFS.Class` and `disjointWith` from `OWL.Class`, because `@StoredRequirements` implements each class protocol's requirements where the protocol is declared.
 - Named individuals are static constants: `RDF.nil` is the one empty list.
 - `rdfs:Literal` and the datatypes (`RDF.HTML`, `RDF.langString`, `XSD.nonNegativeInteger`) are value types that store the literal: its lexical form, with the language tag and base direction RDF allows on strings. A property whose range is a datatype holds that datatype's type, so each term has one Swift type: `XSD.nonNegativeInteger("14")`, `RDF.langString("Löwe", languageTag: "de")`.
 - Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range.

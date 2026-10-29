@@ -40,8 +40,11 @@ import RDFCore
 /// - `Fauna.AnimalIndividual` and `Fauna.HabitatIndividual`, final classes
 ///   whose instances are individuals. An individual is a reference, and its
 ///   identity is the object. It is created in an `RDFCore.IndividualGraph`,
-///   which keeps it alive and, when released, frees the cycles among its
-///   individuals:
+///   which stores its values; the graph lives while any of its individuals
+///   does, and frees the cycles among them when it goes. Each class
+///   protocol carries ``StoredRequirements()``, so an individual type has
+///   the properties of every class it conforms to, including classes of
+///   other ontologies:
 ///
 ///       let graph = IndividualGraph()
 ///       let savanna = Fauna.HabitatIndividual(in: graph)

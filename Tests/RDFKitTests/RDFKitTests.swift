@@ -37,4 +37,19 @@ struct RDFKitTests {
         let superclass = try #require(predator.subClassOf.first)
         #expect(superclass === animal)
     }
+
+    @Test("An OWL class is an RDFS class, with the properties of both")
+    func owlClassHasRDFSClassProperties() throws {
+        let graph = IndividualGraph()
+        // `OWL.Class` refines `RDFS.Class`, which another ontology declares.
+        let animal = OWL.ClassIndividual(in: graph)
+        let plant = OWL.ClassIndividual(in: graph)
+        let predator = OWL.ClassIndividual(in: graph, disjointWith: [plant])
+        predator.subClassOf.append(animal)
+
+        let rdfsClass: any RDFS.Class = predator
+        let superclass = try #require(rdfsClass.subClassOf.first)
+        #expect(superclass === animal)
+        #expect(predator.disjointWith.first === plant)
+    }
 }

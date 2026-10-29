@@ -86,13 +86,13 @@ An ontology's `content` property produces a `[any Node]` — an ordered list of 
 
 ### Key Design Rules
 
-See `DSL_INVARIANTS.md` for the full set. The essential ones:
+See `docs/DslInvariants.md` for the full set. The essential ones:
 
 - **DSL terms match RDF/RDFS/OWL vocabulary names 1:1** — `Class` = `rdfs:Class`, `Label` = `rdfs:label`
 - **Ontology declarations are the source of truth** — not generated types
 - **Child declarations do not know parent context** — consumers walking the tree determine namespace, aliases, parent ontology
-- **Term identity is RDF IRI identity** — Swift type identity is never term identity
-- **Protocol-oriented, not class-per-term** — protocols define roles, structs conform
+- **Inside the runtime, the type system is term identity** — terms refer to each other as types, never as IRIs or strings; an IRI is a static projection read only at the boundary (I/O, SHACL/SPARQL translation, WebID)
+- **Protocol-oriented, not class-per-term** — a class is a protocol (`SubClassOf` is refinement), individuals are final classes that conform to their classes' protocols, and datatypes are value types; see `docs/MacroDesign.md`
 
 ## Package Structure
 

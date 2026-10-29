@@ -45,10 +45,9 @@ struct OntologyModel {
             return valueType.hasPrefix("any ") ? "(\(valueType))?" : "\(valueType)?"
         }
 
-        /// The storage of the values on an individual: many values by
-        /// default, at most one for a functional property, guarded by a mutex
-        /// so that every change is atomic.
-        var storageType: String {
+        /// The view of the values on an individual: many values by default,
+        /// at most one for a functional property.
+        var viewType: String {
             isFunctional ? "RDFCore.PropertyValue<\(valueType)>" : "RDFCore.PropertyValues<\(valueType)>"
         }
 
@@ -80,46 +79,50 @@ struct OntologyModel {
         return result.isEmpty ? ["RDFCore.Resource"] : result
     }
 
-    /// Whether every class a class refines, transitively, is declared in this
-    /// ontology or is `rdfs:Resource`, so that the macro knows every
-    /// requirement an individual of the class must store. `owl:Nothing` and
-    /// its subclasses have no individuals, so they have no individual type.
-    func knowsAllRequirements(of className: String) -> Bool {
+    /// Whether a class can have individuals, so that it gets an individual
+    /// type: every class but `owl:Nothing` and its subclasses. The
+    /// superclasses may be declared in other ontologies; their requirements
+    /// are implemented by `@StoredRequirements` where they are declared.
+    func hasIndividuals(_ className: String) -> Bool {
         var visited: Set<String> = []
         var pending = [className]
         while let current = pending.popLast() {
             guard visited.insert(current).inserted, let declaration = ontology.declaration(named: current) else { continue }
             if BootstrapTerm.isNothing("\(ontology.typeName).\(current)") { return false }
             for spelling in declaration.terms("SubClassOf") {
-                let canonical = ontology.canonical(spelling)
-                if BootstrapTerm.isResource(canonical) { continue }
-                if BootstrapTerm.isNothing(canonical) { return false }
-                guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
-                pending.append(name)
+                if BootstrapTerm.isNothing(ontology.canonical(spelling)) { return false }
+                if let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol { pending.append(name) }
             }
         }
         return true
     }
 
-    /// Whether a class spelling, local or foreign, has an individual type
-    /// this macro can generate.
-    func knowsAllRequirements(ofSpelling spelling: String) -> Bool {
-        if BootstrapTerm.isResource(ontology.canonical(spelling)) { return true }
-        guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
-        return knowsAllRequirements(of: name)
+    /// The name every individual type uses for its ``RDFCore/Membership``,
+    /// which no requirement can have.
+    static let reservedName = "membership"
+
+    /// Whether a property's `Domain` is a class of this ontology, so that it
+    /// is a requirement of that class protocol.
+    func hasClassDomain(_ property: ParsedEntity) -> Bool {
+        property.terms("Domain").contains { spelling in
+            guard let name = ontology.resolve(spelling).localName else { return false }
+            return shapes[name] == .classProtocol
+        }
     }
 
     /// The properties whose `Domain` is this class, in declaration order.
     func ownRequirements(of className: String) -> [PropertyRequirement] {
         ontology.properties.compactMap { property in
+            guard property.name != Self.reservedName || shapes[className] != .classProtocol else { return nil }
             let domains = property.terms("Domain").compactMap { ontology.resolve($0).localName }
             guard domains.contains(className) else { return nil }
             return requirement(for: property)
         }
     }
 
-    /// Every requirement an individual of all these classes stores: theirs
-    /// and their local superclasses', each once, superclasses first.
+    /// The requirements an individual type's initializer takes values for:
+    /// those of these classes and of their superclasses declared in this
+    /// ontology, each once, superclasses first.
     func storedRequirements(ofClasses classNames: [String]) -> [PropertyRequirement] {
         var order: [String] = []
         var visited: Set<String> = []

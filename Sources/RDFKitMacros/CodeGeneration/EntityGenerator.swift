@@ -12,8 +12,11 @@ import SwiftSyntaxMacros
 ///   `owl:FunctionalProperty`. `SubClassOf` becomes protocol refinement; a
 ///   class with no superclass refines ``RDFCore/Resource``.
 /// - Each class also gets an individual type, a final class named after the
-///   class (`Fauna.AnimalIndividual`) that conforms to the class protocol and
-///   stores every requirement. Its instances are individuals of the class:
+///   class (`Fauna.AnimalIndividual`) that conforms to the class protocol.
+///   `@StoredRequirements` on each class protocol implements its
+///   requirements for every individual type, in any module, so an
+///   individual of a class that refines another ontology's class has that
+///   class's properties too. Its instances are individuals of the class:
 ///   references, whose identity is the object, created in an
 ///   ``RDFCore/IndividualGraph`` that owns their lifetime.
 /// - A named individual becomes a static constant of the ontology
@@ -40,9 +43,25 @@ struct EntityGenerator {
     func generate() -> [DeclSyntax] {
         diagnoseUndeclaredTerms()
         var generated: Set<String> = []
+        var identifiers: [String: String] = [:]
         return ontology.declarations.flatMap { declaration -> [DeclSyntax] in
-            // A term declared twice gets one type.
-            guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
+            guard generated.insert(declaration.name).inserted else {
+                context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.duplicateDeclaration(declaration.name)))
+                return []
+            }
+            let identifier = SwiftIdentifier.sanitized(declaration.name)
+            if let other = identifiers[identifier] {
+                context.diagnose(Diagnostic(
+                    node: declaration.syntax,
+                    message: OntologyDiagnostic.identifierCollides(declaration.name, with: other, identifier: identifier)
+                ))
+                return []
+            }
+            identifiers[identifier] = declaration.name
+            if declaration.kind == .property, declaration.name == OntologyModel.reservedName, model.hasClassDomain(declaration) {
+                context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.reservedPropertyName(declaration.name)))
+            }
+            guard let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
             case .alias(let form, let isGeneric):
@@ -91,13 +110,14 @@ struct EntityGenerator {
         let name = SwiftIdentifier.escaped(declaration.name)
         let requirements = model.ownRequirements(of: declaration.name).map { requirement in
             Documentation.docComment(for: requirement.declaration, indent: "    ")
-                + "    var \(requirement.name): \(requirement.storageType) { get }"
+                + "    var \(requirement.name): \(requirement.viewType) { get }"
         }.joined(separator: "\n\n")
 
         let protocolSource = """
-        \(Documentation.docComment(for: declaration))public protocol \(name): \(model.refinements(of: declaration.name).joined(separator: ", ")) {\(requirements.isEmpty ? "}" : "\n" + requirements + "\n}")
+        \(Documentation.docComment(for: declaration))@StoredRequirements
+        public protocol \(name): \(model.refinements(of: declaration.name).joined(separator: ", ")) {\(requirements.isEmpty ? "}" : "\n" + requirements + "\n}")
         """
-        guard model.knowsAllRequirements(of: declaration.name) else { return [protocolSource] }
+        guard model.hasIndividuals(declaration.name) else { return [protocolSource] }
 
         let individualName = SwiftIdentifier.sanitized(declaration.name) + "Individual"
         if ontology.declaration(named: individualName) != nil {
@@ -121,18 +141,12 @@ struct EntityGenerator {
 
     private func namedIndividual(_ declaration: ParsedEntity) -> [String] {
         var classes: [String] = []
-        var localClasses: [String] = []
         for annotation in declaration.annotations("Type") {
             guard let spelling = annotation.term else { continue }
-            if let local = ontology.resolve(spelling).localName, ontology.declaration(named: local) == nil { return [] }
-            guard model.knowsAllRequirements(ofSpelling: spelling) else {
-                context.diagnose(Diagnostic(node: annotation.syntax, message: OntologyDiagnostic.individualOfForeignClass(spelling)))
-                return []
-            }
             let reference = ontology.resolve(spelling)
+            if let local = reference.localName, ontology.declaration(named: local) == nil { return [] }
             let qualified = ontology.spelling(of: reference)
             if !classes.contains(qualified) { classes.append(qualified) }
-            if let local = reference.localName { localClasses.append(local) }
         }
         if classes.isEmpty { classes = ["RDFCore.Resource"] }
 
@@ -143,7 +157,7 @@ struct EntityGenerator {
             access: "private",
             name: typeName,
             conformances: classes,
-            requirements: model.storedRequirements(ofClasses: localClasses),
+            requirements: [],
             metadata: Documentation.metadata(for: declaration, in: ontology),
             isNamed: true
         )
@@ -155,12 +169,19 @@ struct EntityGenerator {
 
     /// A final class whose instances are individuals of the given classes.
     ///
-    /// Each property is a `let` holding an ``RDFCore/PropertyValues`` or
-    /// ``RDFCore/PropertyValue``, which guard the values with a mutex, so the
-    /// class is `Sendable` as checked by the compiler and every change to a
-    /// property is atomic. An individual of a class is created in an
-    /// ``RDFCore/IndividualGraph``, which owns its lifetime; a named
-    /// individual is a static constant and belongs to no graph.
+    /// The class stores nothing but its ``RDFCore/Membership``: every
+    /// requirement of its class protocols, from this ontology or another, is
+    /// implemented by `@StoredRequirements` on that protocol and stored in
+    /// the membership, guarded by a mutex. So the class is `Sendable` as
+    /// checked by the compiler and every change to a property is atomic.
+    ///
+    /// An individual of a class is created in an ``RDFCore/IndividualGraph``
+    /// and holds its membership: the graph lives while any of its
+    /// individuals does. Its initializer takes the values of the properties
+    /// declared in this ontology; properties inherited from another
+    /// ontology's classes start empty. A named individual is a static
+    /// constant, belongs to no graph and has fixed values, so nothing one
+    /// graph asserts reaches another.
     private func individualClass(
         documentation: String,
         access: String,
@@ -171,36 +192,41 @@ struct EntityGenerator {
         isNamed: Bool
     ) -> String {
         let memberAccess = access == "private" ? "fileprivate" : access
-        let properties = requirements.map { requirement in
-            Documentation.docComment(for: requirement.declaration, indent: "    ")
-                + "    \(memberAccess) let \(requirement.name): \(requirement.storageType)"
-        }.joined(separator: "\n\n")
-
-        let initializer: String
+        var members: [String] = []
+        members.append("    \(memberAccess) static let metadata: any RDFCore.ContentMetadata = \(metadata)")
         if isNamed {
-            let assignments = requirements.map { "        self.\($0.name) = \($0.storageType)()" }.joined(separator: "\n")
-            initializer = """
-                fileprivate init() {\(assignments.isEmpty ? "}" : "\n" + assignments + "\n    }")
-            """
+            members.append("    \(memberAccess) let membership = RDFCore.Membership.fixed()")
+            members.append("    fileprivate init() {}")
         } else {
+            members.append("    /// This individual's place in its graph, which stores its property values.\n    public let membership: RDFCore.Membership")
+            members.append("""
+                private init(membership: RDFCore.Membership) {
+                    self.membership = membership
+                }
+            """)
             let parameters = (["in graph: RDFCore.IndividualGraph"] + requirements.map {
                 "\($0.name): \($0.declaredType) = \($0.emptyValue)"
             }).joined(separator: ", ")
-            let assignments = requirements.map { "        self.\($0.name) = \($0.storageType)(\($0.name))" }
-            let storages = requirements.map { "self.\($0.name)" }.joined(separator: ", ")
-            initializer = """
+            let assignments = requirements.map { requirement in
+                requirement.isFunctional
+                    ? "        self.\(requirement.name).replace(with: \(requirement.name))"
+                    : "        self.\(requirement.name).append(contentsOf: \(requirement.name))"
+            }
+            let body = [
+                "        self.init(membership: RDFCore.Membership(in: graph) { \(name)(membership: $0) })",
+                "        graph.insert(self)",
+            ] + assignments
+            members.append("""
                 /// Creates an individual in a graph, with these property values.
-                public init(\(parameters)) {
-            \((assignments + ["        graph.insert(self, properties: [\(storages)])"]).joined(separator: "\n"))
+                public convenience init(\(parameters)) {
+            \(body.joined(separator: "\n"))
                 }
-            """
+            """)
         }
 
         return """
-        \(documentation)\(access) final class \(name): \(conformances.joined(separator: ", ")) {
-            \(memberAccess) static let metadata: any RDFCore.ContentMetadata = \(metadata)
-        \(properties.isEmpty ? "" : "\n" + properties + "\n")
-        \(initializer)
+        \(documentation)\(access) final class \(name): \((conformances + ["RDFCore.StoredIndividual"]).joined(separator: ", ")) {
+        \(members.joined(separator: "\n\n"))
         }
         """
     }

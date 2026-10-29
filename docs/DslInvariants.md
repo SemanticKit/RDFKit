@@ -4,15 +4,15 @@
 
 1. **RDF is self-describing.** RDF, RDFS, and OWL are declared ontology values. Their content drives the DSL.
 
-2. **Protocol-oriented, not class-per-term.** Protocols define roles. Structs conform. Extensions provide behavior. The compiler enforces structure.
+2. **Protocol-oriented, not class-per-term.** Protocols define roles; extensions provide behavior; the compiler enforces structure. An OWL/RDFS class is a protocol whose requirements are the properties with the class as domain, and `SubClassOf` is refinement. Individuals are references, final classes that conform to their classes' protocols, so one individual can belong to several classes and graphs of individuals can have cycles. Datatypes and literals are value types. No hand-written file or type per term: the macro generates them from the ontology's content.
 
 3. **DSL terms match RDF/RDFS/OWL vocabulary names 1:1.** `Class` = `rdfs:Class`, `Label` = `rdfs:label`. No abstraction layers.
 
-4. **Ontology declarations are the source of truth.** Generated term structs are not the source of truth. The content tree IS the ontology.
+4. **Ontology declarations are the source of truth.** Generated types are not the source of truth. The content tree IS the ontology.
 
 5. **Child declarations do not know parent context.** Consumers walking the content tree determine namespace, aliases, parent ontology, subject, and output form.
 
-6. **Term identity is RDF IRI identity.** Swift type identity is never term identity.
+6. **Inside the runtime, the type system is term identity.** A term is its Swift type, and types refer to each other as types: a property whose range is `Fauna.Habitat` is typed `Fauna.Habitat`, never `IRI` or `String`. An individual's identity is the object. An IRI is a static projection of a type, computed from the namespace when the macro expands and kept in the type's `metadata`. It is read only at the boundary: I/O (Turtle, N-Triples, HTTP, pods), translation into non-Swift expression languages (SHACL, SPARQL, HTTP signature bases, ACL documents), and identity that external systems dereference (WebID). Decoders turn IRIs into types on the way in. Registries or dictionaries keyed by IRI, string term names, and identity built by string interpolation are design errors.
 
 7. **The type system does the work.** Not runtime walking, not resolver structs, not string concatenation. If something needs to be known, the type should already know it.
 
@@ -22,7 +22,8 @@ Only the declaration machinery needed to author ontologies:
 - Protocols and conformances
 - Result builders (parameter packs, no manual arity)
 - Literal expressibility
-- Value types (Namespace, Prefix, TermDeclaration)
+- Value types (Namespace, Prefix, the declaration forms)
+- The runtime of generated individuals (Resource, IndividualGraph, PropertyValues, PropertyValue)
 - Content modifiers (type-safe, target-specific)
 
 ## What Does NOT Belong

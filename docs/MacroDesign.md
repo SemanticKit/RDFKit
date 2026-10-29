@@ -6,7 +6,7 @@
 
 | DSL | Generated |
 |---|---|
-| `Class("Animal")` | `protocol Animal`, and the individual type `final class AnimalIndividual: Animal` |
+| `Class("Animal")` | `protocol Animal`, the default implementation of its requirements for stored individuals, and the individual type `final class AnimalIndividual: Animal` |
 | `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: RDFCore.PropertyValues<any Y> { get }` on protocol `X`, and the term type `struct hasHabitat` |
 | `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X` |
@@ -63,30 +63,36 @@ The macro generates, among others:
 ```swift
 // Inside struct Fauna:
 /// The class of all animals.
+@StoredRequirements
 public protocol Animal: RDFCore.Resource {
     var hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat> { get }
     var hasDiet: RDFCore.PropertyValue<any Fauna.Diet> { get }
 }
 
+@StoredRequirements
 public protocol Predator: Fauna.Animal {
     var preysOn: RDFCore.PropertyValues<any Fauna.Animal> { get }
 }
 
 /// An individual of ``Fauna/Predator``.
-public final class PredatorIndividual: Fauna.Predator {
+public final class PredatorIndividual: Fauna.Predator, RDFCore.StoredIndividual {
     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(
         id: "https://fauna.example.org/ontology#Predator", name: "Predator")
 
-    public let hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat>
-    public let hasDiet: RDFCore.PropertyValue<any Fauna.Diet>
-    public let preysOn: RDFCore.PropertyValues<any Fauna.Animal>
+    /// This individual's place in its graph, which stores its property values.
+    public let membership: RDFCore.Membership
 
-    public init(in graph: RDFCore.IndividualGraph, hasHabitat: [any Fauna.Habitat] = [],
-                hasDiet: (any Fauna.Diet)? = nil, preysOn: [any Fauna.Animal] = []) {
-        self.hasHabitat = RDFCore.PropertyValues<any Fauna.Habitat>(hasHabitat)
-        self.hasDiet = RDFCore.PropertyValue<any Fauna.Diet>(hasDiet)
-        self.preysOn = RDFCore.PropertyValues<any Fauna.Animal>(preysOn)
-        graph.insert(self, properties: [self.hasHabitat, self.hasDiet, self.preysOn])
+    private init(membership: RDFCore.Membership) {
+        self.membership = membership
+    }
+
+    public convenience init(in graph: RDFCore.IndividualGraph, hasHabitat: [any Fauna.Habitat] = [],
+                            hasDiet: (any Fauna.Diet)? = nil, preysOn: [any Fauna.Animal] = []) {
+        self.init(membership: RDFCore.Membership(in: graph) { PredatorIndividual(membership: $0) })
+        graph.insert(self)
+        self.hasHabitat.append(contentsOf: hasHabitat)
+        self.hasDiet.replace(with: hasDiet)
+        self.preysOn.append(contentsOf: preysOn)
     }
 }
 
@@ -97,6 +103,16 @@ public struct hasHabitat: RDFCore.Entity {
         id: "https://fauna.example.org/ontology#hasHabitat", name: "hasHabitat")
     public typealias Domain = any Fauna.Animal
     public typealias Range = any Fauna.Habitat
+}
+
+// At file scope, from @StoredRequirements on each class protocol:
+extension Fauna.Animal where Self: RDFCore.StoredIndividual {
+    public var hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat> {
+        RDFCore.PropertyValues(\Self.hasHabitat, of: membership)
+    }
+    public var hasDiet: RDFCore.PropertyValue<any Fauna.Diet> {
+        RDFCore.PropertyValue(\Self.hasDiet, of: membership)
+    }
 }
 ```
 
@@ -121,15 +137,21 @@ A class is a set of individuals, and an individual can be in several classes. A 
 
 An individual is an instance of a final class. Its identity inside the runtime is the object itself: the zebra a lion preys on is the zebra that lives in the savanna, not a copy of it, so a graph with cycles is built with ordinary references. No IRI or name stands in for an individual.
 
-Each class protocol gets an individual type named after the class, `AnimalIndividual`, that conforms to the protocol and stores every requirement of the class and its superclasses. A named individual declared with `Individual("carnivore")` becomes a static constant of the ontology, the one instance of a private final class that conforms to all of its classes, so `Fauna.carnivore` is the same object wherever it is used.
+Each class protocol gets an individual type named after the class, `AnimalIndividual`, that conforms to the protocol and to `RDFCore.StoredIndividual`. A named individual declared with `Individual("carnivore")` becomes a static constant of the ontology, the one instance of a private final class that conforms to all of its classes, so `Fauna.carnivore` is the same object wherever it is used. `owl:Nothing` and its subclasses have no individuals, so they get no individual type.
 
-The macro knows the requirements of the classes the ontology itself declares. A class that refines another ontology's class (other than `rdfs:Resource`) is generated as a protocol only, as is `owl:Nothing`, which has no individuals, and a named individual of such a class is reported as an error at its `Type(...)` annotation.
+An individual type stores only its `RDFCore.Membership`. `@Ontology` attaches `@StoredRequirements` to every class protocol it generates, and that extension macro implements each requirement of the protocol for `StoredIndividual`: the values live in the membership under the requirement's own key path (`\Self.hasHabitat`). The key is the requirement itself, a type-level identity, not a name: a property inherited along two paths (a `Mesopredator` is a predator and a prey, both animals) has one store. Because the implementations come with the protocol, an individual type has the requirements of every class it conforms to, declared in its own ontology or in another: `Fauna.Habitat` refines `OWL.Thing`, so `Fauna.HabitatIndividual` has `sameAs`; `OWL.ClassIndividual` has `subClassOf` from `RDFS.Class`; and `Individual("faunaOntology") { Type(OWL.Ontology) }` is a named individual of OWL's class. The individual type's initializer takes the values of the properties its own ontology declares; inherited properties of other ontologies' classes start empty and are set through their views.
 
-Individuals are `Sendable` as checked by the compiler. Each property of an individual is a `let` holding an `RDFCore.PropertyValues` or `RDFCore.PropertyValue`, which guard the values with a mutex. Every method holds the lock for the whole change, so a read-modify-write such as `savanna.inhabitedBy.append(zebra)` is atomic and concurrent appends from many tasks all land; `update { values in ... }` does any other change in one step. Reads (`values`, `first`, `count`, iteration) see one snapshot.
+Individuals are `Sendable` as checked by the compiler, with no `@unchecked`. Each property is read through an `RDFCore.PropertyValues` or `RDFCore.PropertyValue` view, and the store behind it guards the values with a mutex. Every method holds the lock for the whole change, so a read-modify-write such as `savanna.inhabitedBy.append(zebra)` is atomic and concurrent appends from many tasks all land; `update { values in ... }` does any other change in one step. Reads (`values`, `first`, `count`, iteration) see one snapshot. A property cannot be named `membership`, which every individual type uses; the macro reports it at the declaration.
 
 ## Individuals Live in a Graph
 
-Properties link individuals in cycles (`hasHabitat` and `inhabitedBy`, `owl:sameAs`), and a cycle of strong references never frees itself. So each individual type is created in an `RDFCore.IndividualGraph`: `Fauna.PredatorIndividual(in: graph)`. The graph owns the lifetime of its individuals. It keeps them alive while it lives, lists them in `individuals`, and when it is released it removes every property value of every individual in it. That breaks every cycle, and the individuals are freed once nothing else holds them. An individual still held after its graph is gone keeps its identity but has no values. Named individuals such as `Fauna.carnivore` are static constants and belong to no graph.
+Properties link individuals in cycles (`hasHabitat` and `inhabitedBy`, `owl:sameAs`), and a cycle of strong references never frees itself. So each individual type is created in an `RDFCore.IndividualGraph`: `Fauna.PredatorIndividual(in: graph)`. The graph owns what its individuals store, and every individual holds its graph:
+
+- A store keeps an individual of its graph as the graph's node for it, not as the object. Values link nodes, so the objects never hold each other, and an individual object is freed as soon as nothing outside the graph holds it. Reading the value again gives back the same object while anything holds it, and otherwise a new object of the same type on the same node, with the same values.
+- An individual, and any property view of one (`let names = lion.commonName`), holds its graph. So the graph and everything in it stay alive while anything holds one of its individuals: a function can build a graph, return one individual and drop the graph, and the individual keeps its values and everything they link to.
+- Once nothing holds the graph or any of its individuals, the graph is released, empties every store, and so breaks every cycle among its nodes. Everything is freed together.
+
+A value links individuals of one graph; storing an individual of another graph stops the program. Named individuals such as `Fauna.carnivore` are static constants, belong to no graph and can be stored in any graph. Their own values are fixed: changing them stops the program, so nothing one graph asserts reaches another.
 
 ## Properties Are Many-Valued
 
@@ -158,8 +180,9 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 
 - `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`, with a fix-it to `Domain(Fauna.Animal)`;
 - a related term written as a term of this ontology that it does not declare (`Fauna.Habitatt`);
+- a term declared twice, at the second declaration, and two local names that become the same Swift identifier (`version-1` and `version_1`);
 - a class whose individual type name is taken by a declared term;
-- a named individual of a class whose requirements the macro cannot see;
+- a property named `membership` with a class as its domain;
 - a functional property that would make a value type contain itself.
 
 ## Testing

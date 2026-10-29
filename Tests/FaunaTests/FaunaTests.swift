@@ -69,19 +69,98 @@ struct FaunaTests {
     func releasedCycleIsFreed() {
         weak var lion: Fauna.PredatorIndividual?
         weak var savanna: Fauna.HabitatIndividual?
+        weak var released: IndividualGraph?
+        weak var diet: TrackedDiet?
         do {
             let graph = IndividualGraph()
             let home = Fauna.HabitatIndividual(in: graph)
             let hunter = Fauna.PredatorIndividual(in: graph, hasHabitat: [home])
             home.inhabitedBy.append(hunter)
             hunter.preysOn.append(hunter)
+            // The cycle holds a value that is not an individual of the graph.
+            let tracked = TrackedDiet()
+            hunter.hasDiet.replace(with: tracked)
             lion = hunter
             savanna = home
+            released = graph
+            diet = tracked
             #expect(lion != nil)
             #expect(savanna != nil)
         }
         #expect(lion == nil)
         #expect(savanna == nil)
+        #expect(released == nil)
+        // The values the cycle held are freed with it.
+        #expect(diet == nil)
+    }
+
+    @Test("An individual keeps its graph and what it links to", .tags(.generated, .property))
+    func individualKeepsItsGraph() throws {
+        weak var released: IndividualGraph?
+        func makeLion() -> Fauna.PredatorIndividual {
+            // The graph is dropped when this returns; the lion still holds it.
+            let graph = IndividualGraph()
+            released = graph
+            let savanna = Fauna.HabitatIndividual(in: graph)
+            let lion = Fauna.PredatorIndividual(in: graph, hasHabitat: [savanna], commonName: ["Lion"])
+            savanna.inhabitedBy.append(lion)
+            return lion
+        }
+
+        do {
+            let lion = makeLion()
+            let home = try #require(lion.hasHabitat.first)
+            let resident = try #require(home.inhabitedBy.first)
+            #expect(resident === lion)
+            #expect(lion.commonName.values == ["Lion"])
+            #expect(released != nil)
+
+            // A property view keeps the graph too.
+            let names = lion.commonName
+            withExtendedLifetime(names) {}
+        }
+        #expect(released == nil)
+    }
+
+    @Test("A class that refines another ontology's class has that class's properties", .tags(.generated, .property))
+    func foreignSuperclassRequirements() throws {
+        let graph = IndividualGraph()
+        // `Fauna.Habitat` refines `OWL.Thing`, so a habitat has owl:sameAs
+        // and owl:differentFrom, which OWL declares.
+        let serengeti = Fauna.HabitatIndividual(in: graph)
+        let savanna = Fauna.HabitatIndividual(in: graph)
+        let desert = Fauna.HabitatIndividual(in: graph)
+        serengeti.sameAs.append(savanna)
+        serengeti.differentFrom.append(desert)
+
+        let thing: any OWL.Thing = serengeti
+        let same = try #require(thing.sameAs.first)
+        #expect(same === savanna)
+        #expect(thing.differentFrom.first === desert)
+        #expect(savanna.sameAs.isEmpty)
+    }
+
+    @Test("A named individual can be of another ontology's class", .tags(.generated))
+    func namedIndividualOfForeignClass() {
+        let ontology: any OWL.Ontology = Fauna.faunaOntology
+        #expect(ontology === Fauna.faunaOntology)
+        #expect(ontology.imports.isEmpty)
+        #expect(type(of: ontology).metadata.id == IRI("https://fauna.example.org/ontology#faunaOntology"))
+    }
+
+    @Test("A named individual's values are fixed", .tags(.generated, .property))
+    func namedIndividualValuesAreFixed() async {
+        await #expect(processExitsWith: .failure) {
+            Fauna.faunaOntology.imports.append(Fauna.faunaOntology)
+        }
+    }
+
+    @Test("A value links individuals of one graph", .tags(.generated, .property))
+    func valuesStayInTheirGraph() async {
+        await #expect(processExitsWith: .failure) {
+            let lion = Fauna.PredatorIndividual(in: IndividualGraph())
+            lion.hasHabitat.append(Fauna.HabitatIndividual(in: IndividualGraph()))
+        }
     }
 
     @Test("Properties are many-valued unless they are functional", .tags(.generated, .property, .characteristic))
@@ -209,7 +288,7 @@ struct FaunaTests {
         #expect(content.filter { $0 is RDFCore.Class }.count == 6)
         #expect(content.filter { $0 is RDFCore.Datatype }.count == 1)
         #expect(content.filter { $0 is RDFCore.Property }.count == 8)
-        #expect(content.filter { $0 is RDFCore.Individual }.count == 3)
+        #expect(content.filter { $0 is RDFCore.Individual }.count == 4)
     }
 
     @Test("A term's IRI is projected from the namespace at the boundary", .tags(.boundary))
@@ -223,4 +302,10 @@ struct FaunaTests {
         #expect(Fauna.hasHabitat.metadata.id == IRI("https://fauna.example.org/ontology#hasHabitat"))
         #expect(Fauna.hasHabitat.metadata.label == "has habitat")
     }
+}
+
+/// A diet that is not an individual of any graph, so that a test can see
+/// when the values an individual stores are freed.
+private final class TrackedDiet: Fauna.Diet {
+    static let metadata: any ContentMetadata = Fauna.DietIndividual.metadata
 }

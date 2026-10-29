@@ -26,11 +26,24 @@ struct OntologyDiagnostic: DiagnosticMessage {
         )
     }
 
-    /// A named individual of a class that refines another ontology's class.
-    static func individualOfForeignClass(_ spelling: String) -> Self {
+    /// A property whose name individuals use for their graph membership.
+    static func reservedPropertyName(_ property: String) -> Self {
         Self(
-            message: "@Ontology generates the properties of individuals whose classes and superclasses are declared in this ontology (or are RDFS.Resource); '\(spelling)' is not",
-            id: "individualOfForeignClass"
+            message: "Individuals keep their place in their graph as 'membership', so a property with a class as its domain cannot be named '\(property)'",
+            id: "reservedPropertyName"
+        )
+    }
+
+    /// A term declared a second time.
+    static func duplicateDeclaration(_ name: String) -> Self {
+        Self(message: "'\(name)' is already declared in this ontology", id: "duplicateDeclaration")
+    }
+
+    /// Two local names that become the same Swift identifier.
+    static func identifierCollides(_ name: String, with other: String, identifier: String) -> Self {
+        Self(
+            message: "'\(name)' and '\(other)' would both be the Swift type '\(identifier)'; rename one of them",
+            id: "identifierCollides"
         )
     }
 
