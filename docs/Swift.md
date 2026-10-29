@@ -69,16 +69,12 @@ protocol RDFPredicate: Node, Predicate {}
 ## Custom Type Conformances
 
 ```swift
-// Define a custom type that conforms to RDF terms
-struct Person: Resource, NamedIndividual {
-    let name: String
-    let age: Int
-    
-    // Conform to RDF terms
-    var rdfType: RDFS.Class { .Person }
-    var rdfLabel: String { name }
-    var rdfComment: String { "A person named \(name)" }
-}
+// An individual is a reference whose type conforms to its classes' protocols.
+// @Ontology generates one for every class, created in a graph:
+let graph = IndividualGraph()
+let alice = People.PersonIndividual(in: graph, name: ["Alice"])
+let bob = People.PersonIndividual(in: graph, name: ["Bob"], knows: [alice])
+bob.knows.first === alice   // the same object
 ```
 
 ## Usage Patterns

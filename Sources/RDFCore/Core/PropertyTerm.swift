@@ -1,20 +1,22 @@
-/// A property, as the type that names it.
+/// A property whose values an individual keeps under the property's term.
 ///
-/// The `@Ontology` macro generates a property term type for every property an
-/// ontology declares, such as `Foaf.knows`. The type is the property's
-/// identity inside the runtime: an individual keeps the values of a property
-/// under the property's term type, so two ontologies that describe the same
-/// individual never mix up their values, and no IRI or name stands in for the
-/// property.
+/// A property whose `Domain` is a class of its own ontology is a requirement
+/// of that class's protocol: `alice.knows`. A property whose domain is
+/// another ontology's class, or that has no domain, cannot add a requirement
+/// to a protocol it does not declare. Its term type conforms to
+/// `PropertyTerm` instead, and the `@Ontology` macro gives the term a static
+/// subscript that takes the subject, typed by the property's `Domain`, and
+/// returns a view of its values, typed by the property's `Range`:
 ///
-/// Read and write a property's values through its term, with the subject as
-/// the subscript argument. The subscript takes the property's `Domain`, so
-/// only individuals the property applies to are accepted, and returns its
-/// ``PropertyKey/Value``, typed by its `Range`:
+///     Cert.key[alice].append(aliceKey)   // cert:key has the domain foaf:Agent
+///     Solid.oidcIssuer[alice].values      // solid:oidcIssuer has no domain
 ///
-///     Foaf.knows[alice] = [bob]
-///     Cert.key[alice] = [aliceKey]   // cert:key has the domain foaf:Agent
-///
-/// A property whose domain is a class the same ontology declares is also a
-/// member of that class's protocol, `alice.knows`.
-public protocol PropertyTerm: Entity, PropertyKey {}
+/// The term type is the key its values are kept under, so two ontologies that
+/// describe the same individual never mix up their values, and no IRI or name
+/// stands in for the property. A term's initializer is private to its
+/// generated type, so its values are reached only through the subscript,
+/// which checks the domain.
+public protocol PropertyTerm: Entity, Hashable {
+    /// The type of one value: the property's `Range`.
+    associatedtype Range: Sendable
+}

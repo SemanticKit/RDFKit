@@ -6,6 +6,6 @@ struct RDFKitMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         OntologyMacro.self,
         OntologyContentMacro.self,
-        ClassPropertiesMacro.self
+        StoredRequirementsMacro.self
     ]
 }

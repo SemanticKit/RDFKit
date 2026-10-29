@@ -26,6 +26,35 @@ struct OntologyDiagnostic: DiagnosticMessage {
         )
     }
 
+    /// The constant that stands for a class as a value would have the name of a declared term.
+    static func classValueCollides(name: String, className: String, with other: String) -> Self {
+        Self(
+            message: "'\(other)' is declared in this ontology, so the value of the class '\(className)' cannot be named '\(name)'",
+            id: "classValueName"
+        )
+    }
+
+    /// A property whose name individuals use for their graph membership.
+    static func reservedPropertyName(_ property: String) -> Self {
+        Self(
+            message: "Individuals keep their place in their graph as 'membership', so a property with a class as its domain cannot be named '\(property)'",
+            id: "reservedPropertyName"
+        )
+    }
+
+    /// A term declared a second time.
+    static func duplicateDeclaration(_ name: String) -> Self {
+        Self(message: "'\(name)' is already declared in this ontology", id: "duplicateDeclaration")
+    }
+
+    /// Two local names that become the same Swift identifier.
+    static func identifierCollides(_ name: String, with other: String, identifier: String) -> Self {
+        Self(
+            message: "'\(name)' and '\(other)' would both be the Swift type '\(identifier)'; rename one of them",
+            id: "identifierCollides"
+        )
+    }
+
     /// A functional property that would make a value type contain itself.
     static func recursiveValue(property: String, type: String) -> Self {
         Self(

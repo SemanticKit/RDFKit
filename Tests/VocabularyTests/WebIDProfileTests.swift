@@ -12,13 +12,14 @@ struct WebIDProfileTests {
 
     /// Alice, Bob and Carol know each other in a cycle, and Alice has an RSA key.
     private func profile() -> (alice: Foaf.PersonIndividual, bob: Foaf.PersonIndividual, carol: Foaf.PersonIndividual, key: Cert.RSAPublicKeyIndividual) {
-        let alice = Foaf.PersonIndividual(firstName: ["alice"])
-        let bob = Foaf.PersonIndividual(firstName: ["bob"], knows: [alice])
-        let carol = Foaf.PersonIndividual(firstName: ["carol"], knows: [bob])
-        alice.knows = [carol]
+        let graph = IndividualGraph()
+        let alice = Foaf.PersonIndividual(in: graph, firstName: ["alice"])
+        let bob = Foaf.PersonIndividual(in: graph, firstName: ["bob"], knows: [alice])
+        let carol = Foaf.PersonIndividual(in: graph, firstName: ["carol"], knows: [bob])
+        alice.knows.append(carol)
 
-        let key = Cert.RSAPublicKeyIndividual(identity: [alice], modulus: [[0xC2, 0x4F, 0x9A, 0x01]], exponent: [65537])
-        Cert.key[alice] = [key]
+        let key = Cert.RSAPublicKeyIndividual(in: graph, identity: [alice], modulus: [XSD.hexBinary("C24F9A01")], exponent: ["65537"])
+        Cert.key[alice].append(key)
         return (alice, bob, carol, key)
     }
 
@@ -36,7 +37,7 @@ struct WebIDProfileTests {
 
         // A change made through the cycle is a change to the person.
         third.firstName.append("Alice")
-        #expect(alice.firstName == ["alice", "Alice"])
+        #expect(alice.firstName.values == ["alice", "Alice"])
     }
 
     @Test("A person is an agent, a spatial thing and a contact person")
@@ -58,79 +59,102 @@ struct WebIDProfileTests {
         let (alice, _, _, key) = profile()
 
         // cert:key has the domain foaf:Agent and the ranges cert:Key and cert:PublicKey.
-        let keys = Cert.key[alice]
-        let found = try #require(keys.first)
+        let found = try #require(Cert.key[alice].first)
         #expect(found === key)
         #expect(found is any Cert.RSAPublicKey)
 
         let identity = try #require(key.identity.first)
         #expect(identity === alice)
 
-        // cert:exponent is an xsd:nonNegativeInteger, cert:modulus an xsd:hexBinary.
-        #expect(key.exponent == [65537])
-        #expect(key.modulus.first == [0xC2, 0x4F, 0x9A, 0x01])
+        // cert:exponent is an xsd:nonNegativeInteger; cert:modulus is a literal
+        // of xsd:hexBinary or xsd:base64Binary.
+        #expect(key.exponent.values == ["65537"])
+        let modulus = try #require(key.modulus.first as? XSD.hexBinary)
+        #expect(modulus == "C24F9A01")
     }
 
     @Test("Another ontology's properties apply to the same person")
     func otherOntologiesDescribeTheSamePerson() throws {
         let (alice, bob, _, _) = profile()
-        let issuer = Foaf.DocumentIndividual()
-        let inbox = LDP.BasicContainerIndividual()
-        let account = Solid.AccountIndividual()
+        let graph = try #require(alice.membership.graph)
+        let issuer = Foaf.DocumentIndividual(in: graph)
+        let inbox = LDP.BasicContainerIndividual(in: graph)
+        let account = Solid.AccountIndividual(in: graph)
 
         // foaf:name has the domain owl:Thing; solid:oidcIssuer, solid:account
         // and ldp:inbox have no domain.
-        Foaf.name[alice] = ["Alice"]
-        Solid.oidcIssuer[alice] = [issuer]
-        Solid.account[alice] = [account]
-        LDP.inbox[alice] = [inbox]
+        Foaf.name[alice].append("Alice")
+        Solid.oidcIssuer[alice].append(issuer)
+        Solid.account[alice].append(account)
+        LDP.inbox[alice].append(inbox)
 
-        #expect(Foaf.name[alice] == ["Alice"])
+        #expect(Foaf.name[alice].values == ["Alice"])
         #expect(Foaf.name[bob].isEmpty)
-        #expect(try #require(Solid.oidcIssuer[alice].first) === issuer)
-        #expect(try #require(Solid.account[alice].first) === account)
-        #expect(try #require(LDP.inbox[alice].first) === inbox)
-
-        // A property is the same values through its term and its class member.
-        Foaf.knows[alice].append(bob)
-        #expect(alice.knows.count == 2)
-        #expect(alice.knows.last === bob)
+        #expect(Solid.oidcIssuer[alice].first === issuer)
+        #expect(Solid.account[alice].first === account)
+        #expect(LDP.inbox[alice].first === inbox)
+        #expect(Solid.account[bob].isEmpty)
     }
 
     @Test("The profile document's primary topic is the person")
     func profileDocumentIsAboutThePerson() throws {
         let (alice, _, _, _) = profile()
-        let document = Foaf.PersonalProfileDocumentIndividual(primaryTopic: alice)
-        Foaf.isPrimaryTopicOf[alice] = [document]
+        let graph = try #require(alice.membership.graph)
+        let document = Foaf.PersonalProfileDocumentIndividual(in: graph, primaryTopic: alice)
+        Foaf.isPrimaryTopicOf[alice].append(document)
 
         // foaf:primaryTopic is functional: at most one value.
-        let topic = try #require(document.primaryTopic)
+        let topic = try #require(document.primaryTopic.value)
         #expect(topic === alice)
-        #expect(try #require(Foaf.isPrimaryTopicOf[alice].first) === document)
-        #expect(document is any Foaf.Document)
+        #expect(Foaf.isPrimaryTopicOf[alice].first === document)
+        let asDocument: any Foaf.Document = document
+        #expect(asDocument === document)
     }
 
     @Test("Profiles can be shared across tasks")
-    func profilesAreSendable() async {
+    func profilesAreSendable() async throws {
         let (alice, _, _, _) = profile()
-        let friends = (0..<20).map { _ in Foaf.PersonIndividual() }
+        let graph = try #require(alice.membership.graph)
+        let friends = (0..<20).map { _ in Foaf.PersonIndividual(in: graph) }
 
-        // cert:key is inverse functional: each key identifies one agent, so
-        // every friend gets a key of its own whose identity is that friend.
+        // Values written from many tasks are all kept, each on its own individual.
         await withTaskGroup { group in
             for (index, friend) in friends.enumerated() {
                 group.addTask {
-                    friend.knows = [alice]
-                    let key = Cert.RSAPublicKeyIndividual(identity: [friend], modulus: [[0xC2, UInt8(index)]], exponent: [65537])
-                    Cert.key[friend] = [key]
+                    friend.knows.append(alice)
+                    alice.knows.append(friend)
+                    let key = Cert.RSAPublicKeyIndividual(in: graph, identity: [friend], exponent: [XSD.nonNegativeInteger("\(index)")])
+                    Cert.key[friend].append(key)
                 }
             }
         }
         #expect(friends.allSatisfy { $0.knows.first === alice })
+        #expect(alice.knows.count == friends.count + 1)
         #expect(friends.allSatisfy { friend in
             Cert.key[friend].count == 1 && Cert.key[friend].allSatisfy { key in
                 key.identity.count == 1 && key.identity.first === friend
             }
         })
+    }
+
+    @Test("Concurrent changes to a property of another ontology all land", .tags(.property))
+    func concurrentTermChangesAreAtomic() async {
+        let graph = IndividualGraph()
+        let alice = Foaf.PersonIndividual(in: graph)
+        let tasks = 8
+        let perTask = 500
+
+        await withTaskGroup { group in
+            for task in 0..<tasks {
+                group.addTask {
+                    for index in 0..<perTask {
+                        Foaf.name[alice].append(RDFS.Literal("\(task)-\(index)"))
+                        alice.firstName.update { $0.append(RDFS.Literal("\(task)-\(index)")) }
+                    }
+                }
+            }
+        }
+        #expect(Foaf.name[alice].count == tasks * perTask)
+        #expect(alice.firstName.count == tasks * perTask)
     }
 }

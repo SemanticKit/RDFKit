@@ -6,15 +6,15 @@
 
 | DSL | Generated |
 |---|---|
-| `Class("Animal")` | `protocol Animal`, and the individual type `final class AnimalIndividual: Animal` |
-| `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `subscript(property: Fauna.hasHabitat) -> [any Y] { get set }` on protocol `X`, keyed by the term type, with the named member `hasHabitat` from `@ClassProperties`, and the term type `struct hasHabitat: PropertyTerm`, which reads and writes the values of any subject: `Fauna.hasHabitat[lion]` |
-| a property whose `Domain` is another ontology's class, `rdfs:Resource` or `owl:Thing`, or that has no `Domain` | the term type only: `Cert.key[alice]`, `Foaf.name[alice]` |
-| several `Domain`s | a requirement on each, and a term subscript for each and for a subject in all of them (see [Several Domains](#several-domains)) |
-| several `Range`s | values in all of them: `any Cert.Key & Cert.PublicKey` |
-| `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `subscript(property: Fauna.hasDiet) -> (any Diet)? { get set }` |
+| `Class("Animal")` | `protocol Animal`, the default implementation of its requirements for stored individuals, and the individual type `final class AnimalIndividual: Animal` |
+| `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: RDFCore.PropertyValues<any Y> { get }` on protocol `X`, and the term type `struct hasHabitat` |
+| a property whose `Domain` is another ontology's class, `rdfs:Resource` or `owl:Thing`, or that has no `Domain` | the term type `struct key: RDFCore.PropertyTerm`, with a static subscript that takes the subject: `Cert.key[alice]` (see [Properties of Another Ontology's Classes](#properties-of-another-ontologys-classes)) |
+| several `Domain`s, several `Range`s | a requirement on each domain class; values in every range, `any Cert.Key & Cert.PublicKey` (see [Several Domains and Ranges](#several-domains-and-ranges)) |
+| `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X` |
-| `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X` (`X` may be another ontology's class) |
-| `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) |
+| `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X` |
+| `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) that stores the literal and conforms to `RDFCore.LiteralValue` |
+| every `Class(...)` and `Datatype(...)` | also `static let animalClass: any RDFS.Class`, the class as a value (see [Classes Are Also Values](#classes-are-also-values)) |
 | `Label`, `Comment` | DocC on the generated declaration, and the term's static `metadata` |
 | a term RDFCore provides (`rdfs:label`, `rdfs:domain`, `rdfs:Resource`, ...) | a type alias of the RDFCore type |
 
@@ -66,74 +66,70 @@ The macro generates, among others:
 ```swift
 // Inside struct Fauna:
 /// The class of all animals.
-@ClassProperties
+@StoredRequirements
 public protocol Animal: RDFCore.Resource {
-    subscript(property: Fauna.hasHabitat) -> [any Fauna.Habitat] { get set }
-    subscript(property: Fauna.hasDiet) -> (any Fauna.Diet)? { get set }
+    var hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat> { get }
+    var hasDiet: RDFCore.PropertyValue<any Fauna.Diet> { get }
 }
 
-@ClassProperties
+@StoredRequirements
 public protocol Predator: Fauna.Animal {
-    subscript(property: Fauna.preysOn) -> [any Fauna.Animal] { get set }
+    var preysOn: RDFCore.PropertyValues<any Fauna.Animal> { get }
 }
 
 /// An individual of ``Fauna/Predator``.
-public final class PredatorIndividual: Fauna.Predator {
+public final class PredatorIndividual: Fauna.Predator, RDFCore.StoredIndividual {
     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(
         id: "https://fauna.example.org/ontology#Predator", name: "Predator")
 
-    public let propertyValues = RDFCore.IndividualStorage()
+    /// This individual's place in its graph, which stores its property values.
+    public let membership: RDFCore.Membership
 
-    public init(hasHabitat: [any Fauna.Habitat] = [], hasDiet: (any Fauna.Diet)? = nil, preysOn: [any Fauna.Animal] = []) {
-        if !hasHabitat.isEmpty { propertyValues[Fauna.hasHabitat()] = hasHabitat }
-        if hasDiet != nil { propertyValues[Fauna.hasDiet()] = hasDiet }
-        if !preysOn.isEmpty { propertyValues[Fauna.preysOn()] = preysOn }
+    private init(membership: RDFCore.Membership) {
+        self.membership = membership
+    }
+
+    public convenience init(in graph: RDFCore.IndividualGraph, hasHabitat: [any Fauna.Habitat] = [],
+                            hasDiet: (any Fauna.Diet)? = nil, preysOn: [any Fauna.Animal] = []) {
+        self.init(membership: RDFCore.Membership(in: graph) { PredatorIndividual(membership: $0) })
+        graph.insert(self)
+        self.hasHabitat.append(contentsOf: hasHabitat)
+        self.hasDiet.replace(with: hasDiet)
+        self.preysOn.append(contentsOf: preysOn)
     }
 }
 
 public static let carnivore: any Fauna.Diet = _carnivoreIndividual()
 
-public struct hasHabitat: RDFCore.PropertyTerm {
+public struct hasHabitat: RDFCore.Entity {
     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(
         id: "https://fauna.example.org/ontology#hasHabitat", name: "hasHabitat")
     public typealias Domain = any Fauna.Animal
     public typealias Range = any Fauna.Habitat
-    public typealias Value = [any Fauna.Habitat]
-    public static var noValues: Value { [] }
-    public init() {}
-
-    public static subscript(subject: any Fauna.Animal) -> Value {
-        get { subject.propertyValues[Self()] }
-        set { subject.propertyValues[Self()] = newValue }
-    }
 }
 
-// At file scope, from @ClassProperties on Fauna.Animal:
-extension Fauna.Animal {
-    public subscript(property: Fauna.hasHabitat) -> [any Fauna.Habitat] {
-        get { propertyValues[property] }
-        set { propertyValues[property] = newValue }
+// At file scope, from @StoredRequirements on each class protocol:
+extension Fauna.Animal where Self: RDFCore.StoredIndividual {
+    public var hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat> {
+        RDFCore.PropertyValues(\Self.hasHabitat, of: membership)
     }
-
-    public var hasHabitat: [any Fauna.Habitat] {
-        get { self[Fauna.hasHabitat()] }
-        set { self[Fauna.hasHabitat()] = newValue }
+    public var hasDiet: RDFCore.PropertyValue<any Fauna.Diet> {
+        RDFCore.PropertyValue(\Self.hasDiet, of: membership)
     }
-    // hasDiet likewise
 }
 ```
 
 Code that uses the model reads as ordinary Swift:
 
 ```swift
-let savanna = Fauna.HabitatIndividual()
-let lion = Fauna.PredatorIndividual(hasHabitat: [savanna], hasDiet: Fauna.carnivore)
-let zebra = Fauna.AnimalIndividual(hasHabitat: [savanna])
-savanna.inhabitedBy = [lion, zebra]
-lion.preysOn = [zebra]
+let graph = IndividualGraph()
+let savanna = Fauna.HabitatIndividual(in: graph)
+let lion = Fauna.PredatorIndividual(in: graph, hasHabitat: [savanna], hasDiet: Fauna.carnivore)
+let zebra = Fauna.AnimalIndividual(in: graph, hasHabitat: [savanna])
+savanna.inhabitedBy.append(contentsOf: [lion, zebra])
+lion.preysOn.append(zebra)
 
-lion.preysOn[0] === savanna.inhabitedBy[1]   // true: the same zebra
-Fauna.preysOn[lion] == lion.preysOn          // the same values, through the term
+lion.preysOn.first === savanna.inhabitedBy.last   // true: the same zebra
 ```
 
 ## Classes Are Protocols
@@ -144,37 +140,60 @@ A class is a set of individuals, and an individual can be in several classes. A 
 
 An individual is an instance of a final class. Its identity inside the runtime is the object itself: the zebra a lion preys on is the zebra that lives in the savanna, not a copy of it, so a graph with cycles is built with ordinary references. No IRI or name stands in for an individual.
 
-Each class protocol gets an individual type named after the class, `AnimalIndividual`, that conforms to the protocol and takes every property of the class and its superclasses in its initializer. It stores only the properties given values. A named individual declared with `Individual("carnivore")` becomes a static constant of the ontology, the one instance of a private final class that conforms to all of its classes, so `Fauna.carnivore` is the same object wherever it is used.
+Each class protocol gets an individual type named after the class, `AnimalIndividual`, that conforms to the protocol and to `RDFCore.StoredIndividual`. A named individual declared with `Individual("carnivore")` becomes a static constant of the ontology, the one instance of a private final class that conforms to all of its classes, so `Fauna.carnivore` is the same object wherever it is used. `owl:Nothing` and its subclasses have no individuals, so they get no individual type.
 
-Every class gets an individual type, also one that refines another ontology's class, except `owl:Nothing`, which has no individuals. `Foaf.PersonIndividual` conforms to `Geo.SpatialThing` and `Contact.Person`, whose requirements the FOAF ontology cannot see: see [Properties Are Kept by Their Term](#properties-are-kept-by-their-term). A named individual can be of another ontology's class too.
+An individual type stores only its `RDFCore.Membership`. `@Ontology` attaches `@StoredRequirements` to every class protocol it generates, and that extension macro implements each requirement of the protocol for `StoredIndividual`: the values live in the membership under the requirement's own key path (`\Self.hasHabitat`). The key is the requirement itself, a type-level identity, not a name: a property inherited along two paths (a `Mesopredator` is a predator and a prey, both animals) has one store. Because the implementations come with the protocol, an individual type has the requirements of every class it conforms to, declared in its own ontology or in another: `Fauna.Habitat` refines `OWL.Thing`, so `Fauna.HabitatIndividual` has `sameAs`; `OWL.ClassIndividual` has `subClassOf` from `RDFS.Class`; and `Individual("faunaOntology") { Type(OWL.Ontology) }` is a named individual of OWL's class. The individual type's initializer takes the values of the properties its own ontology declares; inherited properties of other ontologies' classes start empty and are set through their views.
 
-Individuals are `Sendable` as checked by the compiler: the property values of an individual live in one `RDFCore.IndividualStorage`, a mutex, and each read and each write of a property takes the lock.
+Individuals are `Sendable` as checked by the compiler, with no `@unchecked`. Each property is read through an `RDFCore.PropertyValues` or `RDFCore.PropertyValue` view, and the store behind it guards the values with a mutex. Every method holds the lock for the whole change, so a read-modify-write such as `savanna.inhabitedBy.append(zebra)` is atomic and concurrent appends from many tasks all land; `update { values in ... }` does any other change in one step. Reads (`values`, `first`, `count`, iteration) see one snapshot. A property cannot be named `membership`, which every individual type uses; the macro reports it at the declaration.
 
-## Properties Are Kept by Their Term
+## Individuals Live in a Graph
 
-An individual keeps the values of each property under the property's term type: `propertyValues[Fauna.hasHabitat()]`. `RDFCore.IndividualStorage` finds them by the type, never by an IRI or a name, so one individual holds the values of properties from any number of ontologies without mixing them up.
+Properties link individuals in cycles (`hasHabitat` and `inhabitedBy`, `owl:sameAs`), and a cycle of strong references never frees itself. So each individual type is created in an `RDFCore.IndividualGraph`: `Fauna.PredatorIndividual(in: graph)`. The graph owns what its individuals store, and every individual holds its graph:
 
-Each property term type conforms to `RDFCore.PropertyTerm` and has a static subscript that takes a subject of its `Domain`: `Fauna.hasHabitat[lion]`. This is how a property is used on a class of another ontology. `cert:key` has the domain `foaf:Agent`, and the cert ontology cannot add a requirement to the FOAF protocol, so a key is written `Cert.key[alice] = [key]`. A property with no domain, or the domain `rdfs:Resource` or `owl:Thing` of another ontology, takes any resource: `Solid.oidcIssuer[alice]`, `Foaf.name[alice]`. A property with several domains has a subscript for each, and one for a subject in all of them.
+- A store keeps an individual of its graph as the graph's node for it, not as the object. Values link nodes, so the objects never hold each other, and an individual object is freed as soon as nothing outside the graph holds it. Reading the value again gives back the same object while anything holds it, and otherwise a new object of the same type on the same node, with the same values.
+- An individual, and any property view of one (`let names = lion.commonName`), holds its graph. So the graph and everything in it stay alive while anything holds one of its individuals: a function can build a graph, return one individual and drop the graph, and the individual keeps its values and everything they link to.
+- Once nothing holds the graph or any of its individuals, the graph is released, empties every store, and so breaks every cycle among its nodes. Everything is freed together.
 
-A macro can extend only the type it is attached to, so `@Ontology` attaches the extension macro `@ClassProperties` to each class protocol it generates. `@ClassProperties` gives every requirement of the protocol a default implementation that reads and writes the same storage, and a member named after the property that reads and writes through it. That is what lets an individual type of one ontology conform to another ontology's class: `Cert.X509CertificateIndividual` conforms to `Foaf.Document` and has its `primaryTopic`. The individual types implement no requirement themselves.
+A value links individuals of one graph; storing an individual of another graph stops the program. Named individuals such as `Fauna.carnivore` are static constants, belong to no graph and can be stored in any graph. Their own values are fixed: changing them stops the program, so nothing one graph asserts reaches another.
 
-A requirement is a subscript keyed by the property's term type, not a member named after the property, because Swift lets one member satisfy every requirement with its name. Two ontologies may each declare a property `commonName`; when `Zoo.Resident` refines `Fauna.Animal`, a member requirement `commonName` would be answered by one witness for both, and `Fauna.commonName[leo]` and `(leo as any Fauna.Animal).commonName` would read different values. Keyed by `Fauna.commonName` and `Zoo.commonName`, they are two requirements, and the named members are protocol extension members, not requirements, so each reads its own term: `(leo as any Fauna.Animal).commonName` reads `Fauna.commonName`, `(leo as any Zoo.Resident).commonName` reads `Zoo.commonName`. `Tests/FaunaTests/ZooTests.swift` checks this.
+## Properties of Another Ontology's Classes
 
-### Several Domains
+A protocol's requirements are fixed where the protocol is declared, so an ontology cannot add a requirement to another ontology's class. `cert:key` has the domain `foaf:Agent`, `foaf:name` the domain `owl:Thing`, and most Solid terms have no domain at all. Such a property's term type conforms to `RDFCore.PropertyTerm` and has a static subscript that takes the subject, typed by the property's domain, and returns the same `PropertyValues` or `PropertyValue` view a requirement does:
 
-RDFS reads several `rdfs:domain`s as an intersection: a subject of the property is in every domain. The macro departs from that on purpose and makes the property a requirement of each domain class, with a term subscript for each domain and one for a subject in all of them. The published vocabularies use several domains to mean a union: `cert:modulus` has the domains `cert:RSAKey` and `cert:DSAKey`, and its comment reads "The modulus of an RSA public and private key. Or the modulus of a DSA Key." Under the intersection reading, an RSA public key with a modulus would also be a DSA key, so the macro follows the vocabulary's evident meaning instead. Several `Range`s keep the RDFS reading, values in all of them: where a vocabulary here means a union of ranges, as `cert:modulus` does with `xsd:hexBinary` and `xsd:base64Binary`, the ranges store the same Swift value type, `[UInt8]`, so the two readings agree.
+```swift
+Cert.key[alice].append(aliceKey)      // cert:key: foaf:Agent -> cert:Key and cert:PublicKey
+Solid.oidcIssuer[alice].values        // no domain: any RDFCore.Resource
+Foaf.name[alice].append("Alice")      // the domain owl:Thing of another ontology: any resource
+```
 
-The term types of `rdfs:subClassOf` and the other annotations RDFCore provides are aliases of RDFCore types, not property terms, so a requirement made from one of them keeps its values under a key type the macro generates beside the alias, `RDFS._subClassOfValues`.
+The values live in the subject's membership under the term itself, not a key path, so the values of two ontologies' properties never mix, and the term's identity is its type, never an IRI or a name. A property with no domain, or the domain `rdfs:Resource`, or another ontology's `owl:Thing`, takes any resource; every individual is one, but another ontology's classes need not say they refine `owl:Thing`. The term's initializer is private to the generated type, so the subscript, which checks the domain, is the only way to its values. Every change through the view is atomic, as for a requirement.
+
+## Several Domains and Ranges
+
+RDFS reads several `rdfs:domain`s as an intersection: a subject of the property is in every domain. The macro departs from that on purpose and makes the property a requirement of each domain class, because the published vocabularies use several domains to mean a union: `cert:modulus` has the domains `cert:RSAKey` and `cert:DSAKey`, and its comment reads "The modulus of an RSA public and private key. Or the modulus of a DSA Key." Under the intersection reading an RSA key with a modulus would also be a DSA key. The term's `Domain` type alias is the composition, a subject in all of them.
+
+Several `Range`s keep the RDFS reading: a value is in all of them, so class ranges become a protocol composition, `any Cert.Key & Cert.PublicKey`. A literal has one datatype, so a property with several datatype ranges (`cert:modulus` is `xsd:hexBinary` or `xsd:base64Binary`) holds literals of any of them, `any RDFCore.LiteralValue`, and a reader casts to the datatype it finds: `key.modulus.first as? XSD.hexBinary`.
+
+## Classes Are Also Values
+
+Some properties take a class as their value: `acl:agentClass foaf:Agent` grants access to every agent, `acl:mode acl:Read` names an access mode, and `solid:forClass` registers a class in a type index. A class protocol is a type, not a value, and a metatype or an IRI would stand in for the class, so for every `Class(...)` and `Datatype(...)` the macro also generates a static constant that is the class as a value: an individual of the class's `rdf:type`, at the class's IRI.
+
+```swift
+let publicRead = ACL.AuthorizationIndividual(in: graph, accessTo: [document], agentClass: [Foaf.agentClass], mode: [ACL.readClass])
+publicRead.agentClass.first === Foaf.agentClass   // true: one object
+```
+
+The constant is named after the class with a lowercase first word and `Class`: `Foaf.agentClass`, `Cert.rsaPublicKeyClass`, `XSD.nonNegativeIntegerClass`. It conforms to the classes the declaration's `Type(...)` names, or to `RDFS.Class` when it names none, so `Foaf.agentClass` is `any RDFS.Class & OWL.Class`. Like a named individual it belongs to no graph and its own values are fixed. It is not an individual of the class it names: `Foaf.agentClass is any Foaf.Agent` is false.
 
 ## Properties Are Many-Valued
 
-A property has any number of values unless it is functional, so its requirement is an array of its range: `[any Fauna.Habitat]`, `[String]`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is optional: `(any Fauna.Diet)?`, `String?`.
+A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
 
-Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is a Swift value type: `RDFS.Literal` and `XSD.string` are `String`, `XSD.nonNegativeInteger` is `UInt`, `XSD.hexBinary` and `XSD.base64Binary` are `[UInt8]`. A property without a `Range`, or with the range `rdfs:Resource` or another ontology's `owl:Thing`, holds `any RDFCore.Resource`. A property with several ranges holds values that are in all of them: `any Cert.Key & Cert.PublicKey`.
+Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is the datatype's value type: `RDFS.Literal`, `XSD.nonNegativeInteger`, `Fauna.Kilograms`. A property without a `Range`, or with the range `rdfs:Resource` or another ontology's `owl:Thing`, holds `any RDFCore.Resource`. For several ranges see [Several Domains and Ranges](#several-domains-and-ranges).
 
 ## Datatypes Are Values
 
-Literals have no identity, so `Datatype(...)` declarations, `rdfs:Literal` and the classes that are subclasses of it become structs. A functional property of a value type cannot range over the value type itself, because the struct would contain itself; the macro reports that at the property.
+Literals have no identity, so `Datatype(...)` declarations, `rdfs:Literal` and the classes that are subclasses of it become structs. Each struct is the datatype, and an instance stores one literal of it: the lexical form, and the language tag and base direction RDF allows on strings (`RDFCore.LiteralValue`). `Fauna.Kilograms("190.5")` is a literal whose datatype is `Fauna.Kilograms`, and string literals convert, so `scientificName: "Panthera leo"` stores an `RDFS.Literal`. Two literals are equal when their lexical forms, language tags and directions are. A functional property of a value type cannot range over the value type itself, because the struct would contain itself; the macro reports that at the property.
 
 ## Terms Refer to Each Other as Types
 
@@ -193,9 +212,11 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 
 - `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`, with a fix-it to `Domain(Fauna.Animal)`;
 - a related term written as a term of this ontology that it does not declare (`Fauna.Habitatt`);
-- a class whose individual type name is taken by a declared term;
+- a term declared twice, at the second declaration, and two local names that become the same Swift identifier (`version-1` and `version_1`);
+- a class whose individual type name is taken by a declared term, and a class whose value's name is (`animalClass`);
+- a property named `membership` with a class as its domain;
 - a functional property that would make a value type contain itself.
 
 ## Testing
 
-`Tests/RDFKitMacrosTests` pins the member expansion, the `@ClassProperties` default implementations, the `content()` rewrite, the `#sourceLocation` lines and the diagnostics with `SwiftSyntaxMacrosGenericTestSupport`. `Tests/FaunaTests` uses the generated Fauna model as ordinary Swift. `Tests/VocabularyTests` uses the FOAF, cert, ACL, ACP, LDP and Solid vocabularies the same way, and builds a WebID profile across them.
+`Tests/RDFKitMacrosTests` pins the member expansion, the `content()` rewrite, the `#sourceLocation` lines and the diagnostics with `SwiftSyntaxMacrosGenericTestSupport`. `Tests/FaunaTests` uses the generated Fauna model as ordinary Swift, and `Tests/VocabularyTests` the Solid vocabularies, across ontologies.

@@ -30,29 +30,37 @@ import RDFCore
 ///
 /// - `Fauna.Animal` and `Fauna.Habitat`, protocols for the classes. A
 ///   class's requirements are the properties with it as `Domain`, typed by
-///   their `Range`: `Fauna.Animal` requires `hasHabitat: [any Fauna.Habitat]`.
-///   Properties are many-valued; one typed `OWL.FunctionalProperty` has at
-///   most one value (`(any Fauna.Habitat)?`). `SubClassOf(Fauna.Animal)`
+///   their `Range`: `Fauna.Animal` requires
+///   `hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat>`. Properties are
+///   many-valued; one typed `OWL.FunctionalProperty` has at most one value
+///   (`RDFCore.PropertyValue<any Fauna.Habitat>`). Every change to a
+///   property's values is atomic. `SubClassOf(Fauna.Animal)`
 ///   makes a class protocol refine `Fauna.Animal`, so one individual can
 ///   belong to several classes.
 /// - `Fauna.AnimalIndividual` and `Fauna.HabitatIndividual`, final classes
 ///   whose instances are individuals. An individual is a reference, and its
-///   identity is the object:
+///   identity is the object. It is created in an `RDFCore.IndividualGraph`,
+///   which stores its values; the graph lives while any of its individuals
+///   does, and frees the cycles among them when it goes. Each class
+///   protocol carries ``StoredRequirements()``, so an individual type has
+///   the properties of every class it conforms to, including classes of
+///   other ontologies:
 ///
-///       let savanna = Fauna.HabitatIndividual()
-///       let lion = Fauna.AnimalIndividual(hasHabitat: [savanna])
+///       let graph = IndividualGraph()
+///       let savanna = Fauna.HabitatIndividual(in: graph)
+///       let lion = Fauna.AnimalIndividual(in: graph, hasHabitat: [savanna])
+///       savanna.inhabitedBy.append(lion)
 ///
 /// - a static constant for each `Individual("name")`, `Fauna.name`.
-/// - value types for datatypes and literal classes.
+/// - value types for datatypes and literal classes, which store the literal.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
-///   and `Range` as type aliases. It is the key of the property's values in
-///   each individual's storage, and reads them for any subject in its
-///   domain: `Fauna.hasHabitat[lion]`. A property whose domain is another
-///   ontology's class is used this way: `Cert.key[alice]`.
-///
-/// Each class protocol carries ``ClassProperties()``, which gives its
-/// requirements default implementations, so an individual type of another
-/// ontology can conform to it.
+///   and `Range` as type aliases. A property whose domain is another
+///   ontology's class, or that has no domain, is no requirement; its term
+///   conforms to `RDFCore.PropertyTerm` and reads and writes the values of a
+///   subject through a static subscript: `Cert.key[alice].append(key)`.
+/// - for every class and datatype, a static constant that is the class as a
+///   value, an individual of its `rdf:type`: `Fauna.animalClass`. A property
+///   whose range is a class of classes holds it.
 ///
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion and kept in its static `metadata`, for the

@@ -115,12 +115,6 @@ public struct OWL: Ontology {
             Label("IrreflexiveProperty")
             Comment("The class of irreflexive properties.")
         }
-        Class("Individual") {
-            // Not defined by OWL 2. The LDP vocabulary types its named individuals
-            // with it; every rdf:type object is an rdfs:Class, so it is declared
-            // here, in its namespace's ontology, as a class and nothing more.
-            Type(RDFS.Class)
-        }
         Class("NamedIndividual") {
             Type(RDFS.Class)
             SubClassOf(OWL.Thing)

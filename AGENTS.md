@@ -8,7 +8,7 @@
 ## Architecture Documentation
 - All architecture docs live in `docs/` folder
 - Do not modify docs without user approval
-- Current docs: ARCHITECTURE_SPEC.md, ContentModifierDesign.md, DSL_INVARIANTS.md, MACRO_DESIGN.md, VocabularyPlan.md
+- Current docs: ArchitectureSpec.md, CodeGeneration.md, ContentModifierDesign.md, DslInvariants.md, MacroDesign.md, OrganizationPattern.md, Rdf12Concepts.md, Swift.md, VocabularyPlan.md
 
 ## Testing
 - Each protocol gets its own test file
@@ -37,8 +37,10 @@
 - Generated types conform to protocols, not use enums
 
 ## Code Generation
-- Macro reads protocol conformance to determine what to generate
-- `Class` in DSL generates a Swift class
-- `Property` in DSL generates a property
+- Macro reads the DSL content to determine what to generate (see docs/MacroDesign.md)
+- `Class` in DSL generates a protocol (requirements are the properties with it as `Domain`; `SubClassOf` is refinement) and a final-class individual type
+- `Individual` in DSL generates a static constant, the one instance of a final class conforming to its classes
+- `Datatype` in DSL generates a value type that stores the literal
+- `Property` in DSL generates a requirement on its domain's protocol, many-valued unless functional, and a property term type
 - Annotation protocols (Label, Comment) generate DocC documentation
 - Property characteristic protocols generate appropriate behaviors

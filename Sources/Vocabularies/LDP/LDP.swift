@@ -1,5 +1,6 @@
 import RDFCore
 import RDFKit
+import ReferencedVocabularies
 
 /// The W3C Linked Data Platform (LDP) vocabulary.
 ///
@@ -13,11 +14,12 @@ import RDFKit
 /// the DSL has no annotation for them yet.
 ///
 /// The published vocabulary types its individuals `owl:Individual` and gives
-/// `ldp:pageSortOrder` the range `rdf:Resource`. Neither term is defined by OWL
-/// or RDF, but both are used as classes, so RDFKit declares them as plain
-/// `rdfs:Class`es in their own namespaces' ontologies, `OWL.Individual` and
-/// `RDF.Resource`, and LDP uses them exactly as published. A value of
-/// `ldp:pageSortOrder` is `any RDF.Resource`.
+/// `ldp:pageSortOrder` the range `rdf:Resource`. Neither term is defined by OWL 2
+/// or RDF 1.2, so RDFKit's `OWL` and `RDF` ontologies do not declare them. Both
+/// are used as classes, so the referenced vocabularies declare them as plain
+/// `rdfs:Class`es, `LegacyOWL.Individual` and `LegacyRDF.Resource`, and LDP
+/// uses them exactly as published. A value of `ldp:pageSortOrder` is
+/// `any LegacyRDF.Resource`.
 @Ontology
 public struct LDP: Ontology {
     public init() {}
@@ -172,7 +174,7 @@ public struct LDP: Ontology {
         Property("pageSortOrder") {
             Type(RDF.Property)
             Domain(LDP.PageSortCriterion)
-            Range(RDF.Resource)
+            Range(LegacyRDF.Resource)
             Label("pageSortOrder")
             Comment("The ascending/descending/etc order used to order the members across pages in a page sequence.")
         }
@@ -186,43 +188,43 @@ public struct LDP: Ontology {
         }
 
         Individual("Ascending") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("Ascending")
             Comment("Ascending order.")
         }
 
         Individual("Descending") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("Descending")
             Comment("Descending order.")
         }
 
         Individual("MemberSubject") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("MemberSubject")
             Comment("Used to indicate default and typical behavior for ldp:insertedContentRelation, where the member-URI value in the membership triple added when a creation request is successful is the URI assigned to the newly created resource.")
         }
 
         Individual("PreferContainment") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("PreferContainment")
             Comment("URI identifying a LDPC's containment triples, for example to allow clients to express interest in receiving them.")
         }
 
         Individual("PreferEmptyContainer") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("PreferEmptyContainer")
             Comment("Archaic alias for ldp:PreferMinimalContainer")
         }
 
         Individual("PreferMembership") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("PreferMembership")
             Comment("URI identifying a LDPC's membership triples, for example to allow clients to express interest in receiving them.")
         }
 
         Individual("PreferMinimalContainer") {
-            Type(OWL.Individual)
+            Type(LegacyOWL.Individual)
             Label("PreferMinimalContainer")
             Comment("URI identifying the subset of a LDPC's triples present in an empty LDPC, for example to allow clients to express interest in receiving them. Currently this excludes containment and membership triples, but in the future other exclusions might be added. This definition is written to automatically exclude those new classes of triples.")
         }

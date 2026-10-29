@@ -5,15 +5,20 @@ import RDFKit
 ///
 /// `@Ontology` generates a protocol for every class: `Fauna.Animal`,
 /// `Fauna.Predator` and `Fauna.Prey` (both refine `Fauna.Animal`),
-/// `Fauna.Mesopredator` (refines both), `Fauna.Habitat` and `Fauna.Diet`.
-/// Each class also gets an individual type, such as `Fauna.PredatorIndividual`.
-/// The named diets are individuals: `Fauna.carnivore`, `Fauna.herbivore` and
-/// `Fauna.omnivore`.
+/// `Fauna.Mesopredator` (refines both), `Fauna.Habitat` (refines another
+/// ontology's class, `OWL.Thing`) and `Fauna.Diet`. Each class also gets an
+/// individual type, such as `Fauna.PredatorIndividual`. The named diets are
+/// individuals: `Fauna.carnivore`, `Fauna.herbivore` and `Fauna.omnivore`,
+/// and so is `Fauna.faunaOntology`, an individual of `OWL.Ontology`.
+///
+/// `Fauna.Kilograms` is a datatype: a value type that stores the literal.
 ///
 /// Properties are many-valued unless they are functional: an animal has
-/// any number of habitats and common names, and at most one diet and one
-/// scientific name. `hasHabitat` and `inhabitedBy` link animals and habitats
-/// both ways, so the graph of individuals has cycles.
+/// any number of habitats and common names, and at most one diet, one
+/// scientific name and one average mass. `hasHabitat` and `inhabitedBy` link
+/// animals and habitats both ways, so the graph of individuals has cycles.
+/// Individuals are created in an `RDFCore.IndividualGraph`, which owns their
+/// values and lives as long as any of them.
 @Ontology
 public struct Fauna: Ontology {
     public func content() -> Content {
@@ -49,6 +54,7 @@ public struct Fauna: Ontology {
 
         Class("Habitat") {
             Type(RDFS.Class)
+            SubClassOf(OWL.Thing)
             Label("Habitat")
             Comment("The class of natural habitats.")
         }
@@ -57,6 +63,12 @@ public struct Fauna: Ontology {
             Type(RDFS.Class)
             Label("Diet")
             Comment("The class of dietary classifications.")
+        }
+
+        Datatype("Kilograms") {
+            Type(RDFS.Datatype)
+            Label("kilograms")
+            Comment("A mass in kilograms, written as a decimal number.")
         }
 
         Individual("carnivore") {
@@ -75,6 +87,12 @@ public struct Fauna: Ontology {
             Type(Fauna.Diet)
             Label("omnivore")
             Comment("A diet of plants and animals.")
+        }
+
+        Individual("faunaOntology") {
+            Type(OWL.Ontology)
+            Label("Fauna ontology")
+            Comment("This ontology, as an individual of owl:Ontology.")
         }
 
         Property("hasHabitat") {
@@ -137,6 +155,15 @@ public struct Fauna: Ontology {
             Range(XSD.nonNegativeInteger)
             Label("average lifespan")
             Comment("The average lifespan of an animal, in years.")
+        }
+
+        Property("averageMass") {
+            Type(OWL.DatatypeProperty)
+            Type(OWL.FunctionalProperty)
+            Domain(Fauna.Animal)
+            Range(Fauna.Kilograms)
+            Label("average mass")
+            Comment("The average mass of an adult animal.")
         }
     }
 }

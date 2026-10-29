@@ -2,6 +2,7 @@ import Testing
 import IRIKit
 import RDFCore
 import RDFKit
+import ReferencedVocabularies
 import LDP
 
 @Suite("Linked Data Platform", .tags(.vocabulary))
@@ -13,7 +14,7 @@ struct LDPTests {
 
     @Test("Containers are RDF sources and LDP resources", .tags(.generated))
     func containers() {
-        let container: any LDP.Resource = LDP.BasicContainerIndividual()
+        let container: any LDP.Resource = LDP.BasicContainerIndividual(in: IndividualGraph())
 
         #expect(container is any LDP.Container)
         #expect(container is any LDP.RDFSource)
@@ -23,10 +24,11 @@ struct LDPTests {
 
     @Test("A container contains resources as objects", .tags(.property, .generated))
     func containment() throws {
-        let child = LDP.BasicContainerIndividual()
-        let document = LDP.NonRDFSourceIndividual()
-        let root = LDP.BasicContainerIndividual(contains: [child, document])
-        child.contains = [root]
+        let graph = IndividualGraph()
+        let child = LDP.BasicContainerIndividual(in: graph)
+        let document = LDP.NonRDFSourceIndividual(in: graph)
+        let root = LDP.BasicContainerIndividual(in: graph, contains: [child, document])
+        child.contains.append(root)
 
         let first = try #require(root.contains.first)
         #expect(first === child)
@@ -43,7 +45,7 @@ struct LDPTests {
 
     @Test("Named individuals are typed owl:Individual, as published", .tags(.generated))
     func individualsAreOWLIndividuals() {
-        let individuals: [any OWL.Individual] = [
+        let individuals: [any LegacyOWL.Individual] = [
             LDP.Ascending, LDP.Descending, LDP.MemberSubject, LDP.PreferContainment,
             LDP.PreferEmptyContainer, LDP.PreferMembership, LDP.PreferMinimalContainer,
         ]
@@ -53,12 +55,18 @@ struct LDPTests {
 
     @Test("A page sort criterion's order is an rdf:Resource, its published range", .tags(.property, .generated))
     func pageSortOrderRange() throws {
-        let order = RDF.ResourceIndividual()
-        let criterion = LDP.PageSortCriterionIndividual(pageSortOrder: [order])
-        let value: LDP.pageSortOrder.Range = try #require(LDP.pageSortOrder[criterion].first)
-        let resource: any RDF.Resource = value
+        let graph = IndividualGraph()
+        let order = LegacyRDF.ResourceIndividual(in: graph)
+        let criterion = LDP.PageSortCriterionIndividual(in: graph, pageSortOrder: [order])
+        let value: LDP.pageSortOrder.Range = try #require(criterion.pageSortOrder.first)
+        let resource: any LegacyRDF.Resource = value
         #expect(resource === order)
-        #expect(try #require(criterion.pageSortOrder.first) === order)
-        #expect(!(LDP.BasicContainerIndividual() is any RDF.Resource))
+        #expect(!(LDP.BasicContainerIndividual(in: graph) is any LegacyRDF.Resource))
+    }
+
+    @Test("The terms RDF and OWL do not define keep their own IRIs", .tags(.boundary))
+    func legacyTermsAtTheBoundary() {
+        #expect(LegacyRDF.ResourceIndividual.metadata.id == IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Resource"))
+        #expect(LegacyOWL.IndividualIndividual.metadata.id == IRI("http://www.w3.org/2002/07/owl#Individual"))
     }
 }

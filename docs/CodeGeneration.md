@@ -46,36 +46,14 @@ Today, behaviors are hard-coded in the macro. The macro reads the DSL and genera
 
 ## Code Generation Flow
 
-1. Macro parses the DSL content block
-2. For each declaration, it generates a struct conforming to `Entity`
-3. Each struct has nested `Metadata` — the descriptor
-4. Metadata captures what the declaration does
-5. The code generator reads Metadata to produce Swift code
-6. Properties with Domain/Range attach stored properties to the domain class
+1. `@Ontology` parses the declarations in the `content()` body as syntax.
+2. A `Class` becomes a protocol. Its requirements are the properties whose `Domain` is the class, many-valued (`RDFCore.PropertyValues<Range>`) unless the property is an `owl:FunctionalProperty` (`RDFCore.PropertyValue<Range>`). `SubClassOf(X)` becomes refinement of `X`.
+3. Each class protocol carries `@StoredRequirements`, which implements its requirements for `RDFCore.StoredIndividual`, so any individual type of the class or of a subclass, in any ontology, has them.
+4. Each class also gets an individual type, a final class conforming to the protocol and created in an `RDFCore.IndividualGraph`. Its instances are individuals; their identity is the object.
+5. An `Individual` becomes a static constant, the one instance of a private final class that conforms to its classes.
+6. A `Datatype`, `rdfs:Literal` and its subclasses become value types that store the literal.
+7. A `Property` also becomes a term type that names its `Domain` and `Range` as type aliases.
+8. Each generated type has static `metadata` with its IRI, computed from the namespace during expansion and read only at the boundary.
+9. The body macro `@OntologyContent` rewrites the authored `content()` body so it builds the same declarations from the generated types.
 
-## The Macro Must
-
-1. Parse all declarations in the content block
-2. Collect Property declarations with their Domain/Range
-3. For each Class declaration, look up which Properties have it as their Domain
-4. Generate stored properties on the Class struct based on those Properties
-5. Generate Metadata capturing all annotations (Label, Comment, etc.)
-6. Generate `callAsFunction` that accepts `@EntityContentBuilder` and returns `Metadata`
-
-## The Protocol
-
-`Entity` provides a default `callAsFunction` — the base DSL shape. The macro generates additional overloads based on Metadata. These are overloads, not replacements.
-
-## What Needs to Change
-
-The macro currently generates:
-- Struct with `Entity, IRIIdentifiable, Sendable`
-- Metadata with `Codable, Identifiable, Sendable`
-- `callAsFunction` returning `TermDeclaration`
-- Properties from annotations inside Metadata only
-
-The macro needs to generate:
-- Struct with `Entity, Sendable`
-- Metadata conforming to `ContentMetadata`
-- `callAsFunction` returning `Metadata` with `@EntityContentBuilder`
-- Properties from Domain/Range as stored properties on the domain class struct
+See `MacroDesign.md` for the generated code and the reasons for each shape.

@@ -13,11 +13,12 @@ struct ACPTests {
 
     @Test("A policy links access controls, matchers and modes as objects", .tags(.property, .generated))
     func policy() throws {
-        let read = ACP.AccessModeIndividual()
-        let matcher = ACP.MatcherIndividual()
-        let policy = ACP.PolicyIndividual(allOf: [matcher], allow: [read])
-        let control = ACP.AccessControlIndividual(apply: [policy])
-        let resource = ACP.AccessControlResourceIndividual(accessControl: [control])
+        let graph = IndividualGraph()
+        let read = ACP.AccessModeIndividual(in: graph)
+        let matcher = ACP.MatcherIndividual(in: graph)
+        let policy = ACP.PolicyIndividual(in: graph, allOf: [matcher], allow: [read])
+        let control = ACP.AccessControlIndividual(in: graph, apply: [policy])
+        let resource = ACP.AccessControlResourceIndividual(in: graph, accessControl: [control])
 
         let applied = try #require(resource.accessControl.first?.apply.first)
         #expect(applied === policy)
@@ -25,7 +26,7 @@ struct ACPTests {
         #expect(policy.anyOf.isEmpty)
 
         // acp:agent is a subproperty of acp:attribute with no domain.
-        ACP.agent[matcher] = [ACP.PublicAgent]
+        ACP.agent[matcher].append(ACP.PublicAgent)
         #expect(ACP.agent[matcher].first === ACP.PublicAgent)
     }
 

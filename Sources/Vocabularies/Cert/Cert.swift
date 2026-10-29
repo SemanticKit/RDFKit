@@ -15,7 +15,13 @@ import FOAF
 ///
 /// `cert:key` relates a `foaf:Agent` to its public keys. Its domain is another
 /// ontology's class, so it is read and written through its term:
-/// `Cert.key[alice] = [aliceKey]`.
+/// `Cert.key[alice].append(aliceKey)`.
+///
+/// `cert:modulus` has the ranges `xsd:hexBinary` and `xsd:base64Binary`, two
+/// encodings of one value, so it holds literals of either:
+/// `key.modulus.first as? XSD.hexBinary`. `cert:exponent` and
+/// `cert:privateExponent` are `xsd:nonNegativeInteger`s, which keep their
+/// lexical form, so an exponent of any size is kept exactly.
 ///
 /// The published vocabulary names `cert:DSAKey` and `cert:RSAPrivateKey` as
 /// domains without declaring them. Every domain is an `rdfs:Class`, so they are

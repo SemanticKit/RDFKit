@@ -26,20 +26,6 @@ enum BootstrapTerm {
         }
     }
 
-    /// The Swift value type that stores a literal of a literal range, by the
-    /// range's qualified spelling.
-    ///
-    /// A property whose range is one of these is stored as the Swift value
-    /// type. Every other range is stored as its own generated type.
-    static func literalValueType(forRange spelling: String) -> String? {
-        switch spelling {
-        case "RDFS.Literal", "XSD.string": "String"
-        case "XSD.nonNegativeInteger": "UInt"
-        case "XSD.hexBinary", "XSD.base64Binary": "[UInt8]"
-        default: nil
-        }
-    }
-
     /// Whether a qualified spelling names `rdfs:Literal`, the class of
     /// literal values. It and its subclasses are value types.
     static func isLiteral(_ spelling: String) -> Bool {
@@ -52,32 +38,23 @@ enum BootstrapTerm {
         spelling == "RDFS.Resource" || spelling == "RDFCore.Resource"
     }
 
+    /// Whether a qualified spelling of another ontology's term names a
+    /// datatype or literal class of XSD, RDFS or RDF, whose values are
+    /// literals.
+    static func isDatatype(_ spelling: String) -> Bool {
+        spelling.hasPrefix("XSD.") || isLiteral(spelling) || rdfDatatypes.contains(spelling)
+    }
+
+    private static let rdfDatatypes: Set<String> = [
+        "RDF.CompoundLiteral", "RDF.HTML", "RDF.JSON", "RDF.PlainLiteral",
+        "RDF.XMLLiteral", "RDF.dirLangString", "RDF.langString",
+    ]
+
     /// Whether a qualified spelling names `owl:Thing`, the class of every
-    /// individual. Every individual is a ``Resource``, so a property of
-    /// another ontology whose domain or range is `owl:Thing` applies to, or
-    /// holds, any resource.
+    /// individual.
     static func isThing(_ spelling: String) -> Bool {
         spelling == "OWL.Thing"
     }
-
-    /// Whether a qualified property spelling, `RDFS.subClassOf`, names a
-    /// property whose term type is an alias of an RDFCore annotation type
-    /// rather than a ``PropertyTerm``. The values of such a property are kept
-    /// under a key type the macro generates for it, ``valuesKey(of:)``.
-    static func isAliasProperty(_ spelling: String) -> Bool {
-        aliasPropertySpellings.contains(spelling)
-    }
-
-    /// The name of the key type that keeps the values of an alias property,
-    /// such as `_subClassOfValues` for `rdfs:subClassOf`.
-    static func valuesKey(of name: String) -> String {
-        "_\(name)Values"
-    }
-
-    private static let aliasPropertySpellings: Set<String> = [
-        "RDF.type", "RDFS.domain", "RDFS.range", "RDFS.subClassOf", "RDFS.subPropertyOf",
-        "RDFS.label", "RDFS.comment", "RDFS.seeAlso", "OWL.deprecated",
-    ]
 
     /// Whether a qualified spelling names `owl:Nothing`, the class with no
     /// individuals, which therefore has no individual type.

@@ -11,10 +11,6 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "Prototype",
-            targets: ["Prototype"]
-        ),
-        .library(
             name: "RDFKit",
             targets: ["RDFKit"]
         ),
@@ -35,13 +31,6 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.0")
     ],
     targets: [
-        .target(
-            name: "Prototype",
-            dependencies: [
-                "IRIKit",
-                "RDFKitMacros"
-            ]
-        ),
         .target(
             name: "RDFCore",
             dependencies: ["IRIKit"]
@@ -74,7 +63,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RDFKitTests",
-            dependencies: ["RDFKit"],
+            dependencies: ["RDFKit", "RDFCore"],
             exclude: [
                 "Data/shacl.rdf",
                 "Data/shacl.ttl",
@@ -84,6 +73,22 @@ let package = Package(
         .target(
             name: "Fauna",
             dependencies: ["RDFCore", "RDFKit"]
+        ),
+        .testTarget(
+            name: "RDFKitMacrosTests",
+            dependencies: [
+                "RDFKitMacros",
+                .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
+            ]
+        ),
+        .testTarget(
+            name: "FaunaTests",
+            dependencies: [
+                "Fauna",
+                "RDFKit",
+                "RDFCore",
+                .product(name: "IRIKit", package: "IRIKit")
+            ]
         ),
         .target(
             name: "ReferencedVocabularies",
@@ -112,7 +117,7 @@ let package = Package(
         ),
         .target(
             name: "LDP",
-            dependencies: ["RDFCore", "RDFKit"],
+            dependencies: ["RDFCore", "RDFKit", "ReferencedVocabularies"],
             path: "Sources/Vocabularies/LDP"
         ),
         .target(
@@ -123,22 +128,6 @@ let package = Package(
         .testTarget(
             name: "VocabularyTests",
             dependencies: ["RDFCore", "RDFKit", "ReferencedVocabularies", "FOAF", "Cert", "ACL", "ACP", "LDP", "Solid", .product(name: "IRIKit", package: "IRIKit")]
-        ),
-        .testTarget(
-            name: "RDFKitMacrosTests",
-            dependencies: [
-                "RDFKitMacros",
-                .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
-            ]
-        ),
-        .testTarget(
-            name: "FaunaTests",
-            dependencies: [
-                "Fauna",
-                "RDFKit",
-                "RDFCore",
-                .product(name: "IRIKit", package: "IRIKit")
-            ]
         )
     ]
 )

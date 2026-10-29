@@ -117,15 +117,3 @@ private final class ContentRewriter: SyntaxRewriter {
         ))
     }
 }
-
-private extension Trivia {
-    /// This trivia without the newlines before its first non-whitespace piece,
-    /// keeping the indentation.
-    var droppingLeadingNewlines: Trivia {
-        Trivia(pieces: pieces.drop { piece in
-            if case .newlines = piece { return true }
-            if case .carriageReturnLineFeeds = piece { return true }
-            return false
-        })
-    }
-}

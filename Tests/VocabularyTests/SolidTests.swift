@@ -15,29 +15,36 @@ struct SolidTests {
 
     @Test("A patch has at most one insert, delete and where formula", .tags(.property, .generated))
     func patchFormulas() throws {
-        let inserted = Log.FormulaIndividual()
-        let condition = Log.FormulaIndividual()
-        let patch = Solid.InsertDeletePatchIndividual(inserts: inserted, where: condition)
+        let graph = IndividualGraph()
+        let inserted = Log.FormulaIndividual(in: graph)
+        let condition = Log.FormulaIndividual(in: graph)
+        let patch = Solid.InsertDeletePatchIndividual(in: graph, inserts: inserted, where: condition)
 
         // solid:inserts, solid:deletes and solid:where are functional.
-        #expect(patch.inserts === inserted)
-        #expect(patch.where === condition)
-        #expect(patch.deletes == nil)
+        #expect(patch.inserts.value === inserted)
+        #expect(patch.where.value === condition)
+        #expect(patch.deletes.value == nil)
         #expect(patch is any Solid.Patch)
     }
 
-    @Test("Type indexes are typed by their ranges", .tags(.property, .generated))
+    @Test("Type indexes are typed by their ranges, and register classes", .tags(.property, .generated))
     func typeIndexes() throws {
-        let alice = Foaf.PersonIndividual()
-        let index = Solid.ListedDocumentIndividual()
-        let registration = Solid.TypeRegistrationIndividual()
+        let graph = IndividualGraph()
+        let alice = Foaf.PersonIndividual(in: graph)
+        let index = Solid.ListedDocumentIndividual(in: graph)
+        let registration = Solid.TypeRegistrationIndividual(in: graph)
 
         // solid:publicTypeIndex has the range solid:ListedDocument and no domain.
-        Solid.publicTypeIndex[alice] = [index]
-        Solid.forClass[registration] = [Foaf.PersonIndividual()]
+        Solid.publicTypeIndex[alice].append(index)
         let found: Solid.publicTypeIndex.Range = try #require(Solid.publicTypeIndex[alice].first)
         #expect(found === index)
-        #expect(Solid.forClass[registration].count == 1)
+
+        // solid:forClass registers a class: here foaf:Person, as a value.
+        Solid.forClass[registration].append(Foaf.personClass)
+        let registered = try #require(Solid.forClass[registration].first)
+        #expect(registered === Foaf.personClass)
+        #expect(registered is any RDFS.Class)
+        #expect(!(registered is any Foaf.Person))
     }
 
     @Test("A term's IRI is projected from the namespace at the boundary", .tags(.boundary))

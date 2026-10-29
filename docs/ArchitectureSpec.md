@@ -26,11 +26,11 @@ Implements the standards in Swift. This is the foundation everything builds on.
 
 **Infrastructure:**
 - `Node` — base type for everything in RDF
-- `IRI` — identity system (from IRIKit)
+- `IRI` — boundary identity (from IRIKit): a static projection of a type, read only for I/O, translation and dereferencing; inside the runtime the type is the identity
 - `Ontology` — protocol for building ontologies (like SwiftUI's View)
 
 **Declaration Protocols — what gets generated:**
-- `Class` — generates a Swift class
+- `Class` — generates a protocol and a final-class individual type
 - `Property` — generates a property on a type
 - `Individual` — generates an individual instance
 - `Datatype` — generates a datatype
@@ -111,7 +111,7 @@ Common behaviors go in RDFCore — the shared API consumed by the macro. These a
 ### What RDFCore Must Provide
 
 **1. Declaration Protocols — what gets generated**
-- `Class` — generates a Swift class
+- `Class` — generates a protocol and a final-class individual type
 - `Property` — generates a property on a type
 - `Individual` — generates an individual instance
 - `Datatype` — generates a datatype
