@@ -26,14 +26,6 @@ struct OntologyDiagnostic: DiagnosticMessage {
         )
     }
 
-    /// A named individual of a class that refines another ontology's class.
-    static func individualOfForeignClass(_ spelling: String) -> Self {
-        Self(
-            message: "@Ontology generates the properties of individuals whose classes and superclasses are declared in this ontology (or are RDFS.Resource); '\(spelling)' is not",
-            id: "individualOfForeignClass"
-        )
-    }
-
     /// A functional property that would make a value type contain itself.
     static func recursiveValue(property: String, type: String) -> Self {
         Self(

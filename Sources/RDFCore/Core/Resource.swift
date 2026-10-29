@@ -13,4 +13,9 @@
 /// generated from, read only when the individual leaves the runtime.
 ///
 /// `rdfs:Resource`
-public protocol Resource: AnyObject, Entity {}
+public protocol Resource: AnyObject, Entity {
+    /// The individual's property values, kept by property term type. Read
+    /// them through a class protocol member (`alice.knows`) or a property term
+    /// (`Foaf.knows[alice]`).
+    var propertyValues: IndividualStorage { get }
+}

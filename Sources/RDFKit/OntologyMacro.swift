@@ -45,7 +45,14 @@ import RDFCore
 /// - a static constant for each `Individual("name")`, `Fauna.name`.
 /// - value types for datatypes and literal classes.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
-///   and `Range` as type aliases.
+///   and `Range` as type aliases. It is the key of the property's values in
+///   each individual's storage, and reads them for any subject in its
+///   domain: `Fauna.hasHabitat[lion]`. A property whose domain is another
+///   ontology's class is used this way: `Cert.key[alice]`.
+///
+/// Each class protocol carries ``ClassProperties()``, which gives its
+/// requirements default implementations, so an individual type of another
+/// ontology can conform to it.
 ///
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion and kept in its static `metadata`, for the

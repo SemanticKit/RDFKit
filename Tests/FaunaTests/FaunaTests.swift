@@ -112,6 +112,22 @@ struct FaunaTests {
         #expect(lifespan.map { $0 + 1 } == 15)
     }
 
+    @Test("A property term reads the same values as the class member", .tags(.generated, .property))
+    func propertyTermReadsTheMemberValues() throws {
+        let savanna = Fauna.HabitatIndividual()
+        let lion = Fauna.PredatorIndividual(hasDiet: Fauna.carnivore)
+        let animal: any Fauna.Animal = lion
+
+        Fauna.hasHabitat[animal] = [savanna]
+        #expect(try #require(lion.hasHabitat.first) === savanna)
+
+        lion.commonName = ["Lion"]
+        Fauna.commonName[lion].append("African lion")
+        #expect(animal.commonName == ["Lion", "African lion"])
+        #expect(Fauna.hasDiet[lion] === Fauna.carnivore)
+        #expect(Fauna.preysOn[lion].isEmpty)
+    }
+
     @Test("Datatypes are values", .tags(.generated))
     func datatypesAreValues() {
         #expect(Mirror(reflecting: XSD.nonNegativeInteger()).displayStyle == .struct)
