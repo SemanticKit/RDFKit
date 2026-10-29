@@ -43,7 +43,7 @@ struct DeclarationCall {
         self.call = call
     }
 
-    /// The source text of the first string literal argument, without quotes.
+    /// The value of the first string literal argument, with escapes resolved.
     var stringArgument: String? {
         if case .text(let source) = argument { return source }
         return nil
@@ -51,9 +51,11 @@ struct DeclarationCall {
 
     private static func argument(of call: FunctionCallExprSyntax) -> ParsedAnnotation.Argument {
         guard let first = call.arguments.first?.expression else { return .none }
+        // `representedLiteralValue` resolves escapes, raw delimiters and
+        // multi-line indentation, and is nil for interpolated literals.
         if let literal = first.as(StringLiteralExprSyntax.self),
-           literal.segments.allSatisfy({ $0.is(StringSegmentSyntax.self) }) {
-            return .text(literal.segments.map(\.description).joined())
+           let value = literal.representedLiteralValue {
+            return .text(value)
         }
         return .expression(first.trimmedDescription)
     }

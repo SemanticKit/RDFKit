@@ -4,7 +4,7 @@ struct ParsedAnnotation {
     enum Argument {
         /// No argument: `Deprecated()`.
         case none
-        /// A string literal, as its source text without quotes: `Label("Animal")`.
+        /// A string literal's value, with escapes resolved: `Label("Animal")`.
         case text(String)
         /// A term given as a generic argument: `Domain<Fauna.Animal>()`.
         case term(String)
@@ -22,7 +22,7 @@ struct ParsedAnnotation {
         return nil
     }
 
-    /// The string literal source text, when the annotation carries text.
+    /// The string literal's value, when the annotation carries text.
     var text: String? {
         if case .text(let source) = argument { return source }
         return nil

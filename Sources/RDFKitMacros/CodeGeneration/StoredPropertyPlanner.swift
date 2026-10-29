@@ -6,9 +6,17 @@ struct StoredProperty {
     /// The Swift type of the stored values: the range's generated type, or the
     /// Swift value type of a literal datatype.
     let valueType: String
-    /// Whether the value is stored out of line, because storing it inline
-    /// would make the generated struct recursive.
+    /// Whether the range leads back to the owning type, so the value is
+    /// stored out of line and is optional.
+    ///
+    /// A required recursive value could never be constructed: building an
+    /// `RDF.List` would need an `RDF.List` for `rest` first. Such a property
+    /// is therefore stored as `Range?`, still typed by its range, and its
+    /// initializer parameter defaults to `nil`, which ends the chain.
     let isIndirect: Bool
+
+    /// The declared type of the stored property and its initializer parameter.
+    var declaredType: String { isIndirect ? "\(valueType)?" : valueType }
     /// The property declaration.
     let declaration: ParsedEntity
 }

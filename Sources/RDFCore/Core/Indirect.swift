@@ -4,7 +4,7 @@
 ///
 /// The `@Ontology` macro applies it only to stored properties that would
 /// otherwise make a generated struct recursive. The property is still typed by
-/// its range.
+/// its range, as an optional (`RDF.List?`), so that a chain of values can end.
 @propertyWrapper
 public struct Indirect<Value: Sendable>: Sendable {
     private final class Storage: Sendable {

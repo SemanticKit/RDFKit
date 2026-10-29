@@ -5,7 +5,9 @@ import SwiftSyntax
 ///
 /// - A `Class` or `Datatype` becomes a struct whose stored properties are the
 ///   ontology's properties with that type (or a superclass) as `Domain`, each
-///   typed by its `Range`.
+///   typed by its `Range`. A property whose range leads back to the type
+///   (`rdf:rest` on `RDF.List`) is stored out of line as an optional, so a
+///   finite chain of values can be built.
 /// - A `Property` becomes a term type that names its `Domain` and `Range` as
 ///   type aliases.
 /// - A term that RDFCore already provides as a DSL form becomes an alias of
@@ -95,13 +97,14 @@ struct EntityGenerator {
         let storage = properties.map { property in
             let wrapper = property.isIndirect ? "@RDFCore.Indirect " : ""
             return Documentation.docComment(for: property.declaration, indent: "    ")
-                + "    \(wrapper)public var \(SwiftIdentifier.escaped(property.name)): \(property.valueType)"
+                + "    \(wrapper)public var \(SwiftIdentifier.escaped(property.name)): \(property.declaredType)"
         }.joined(separator: "\n\n")
 
         let parameters = properties.map { property in
             let name = SwiftIdentifier.escaped(property.name)
             let label = SwiftIdentifier.argumentLabel(for: property.name)
-            return (label == name ? name : "\(label) \(name)") + ": \(property.valueType)"
+            let defaultValue = property.isIndirect ? " = nil" : ""
+            return (label == name ? name : "\(label) \(name)") + ": \(property.declaredType)\(defaultValue)"
         }.joined(separator: ", ")
 
         let assignments = properties.map { property in
