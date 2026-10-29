@@ -2,38 +2,15 @@ import Foundation
 import IRIKit
 
 /// A prefix alias bound to a namespace.
-public struct Prefix {
-    public typealias ID = IRI
-    public typealias Metadata = any ContentMetadata
-
-    public let id: IRIKit.IRI
-
+public struct Prefix: Sendable {
     /// The alias prefix.
     public let prefix: String
 
-    /// The target namespace.
-    public let namespace: String
-
-    init(_ prefix: String, _ namespace: Namespace) {
-        guard let id = try? IRI(validating: "\(Self.metadata.id)\(prefix)") else {
-            preconditionFailure(
-                "Could not validate the provided namespace identity as an IRI from \(namespace)."
-            )
-        }
-        self.id = id
-        self.prefix = prefix
-        self.namespace = namespace.namespace
-    }
+    /// The namespace IRI the prefix abbreviates.
+    public let namespace: IRI
 
     /// Creates a prefix alias.
-    public init(_ prefix: String, _ namespace: String) {
-        guard let id = try? IRI(validating: namespace) else {
-            preconditionFailure(
-                "Could not validate the provided namespace identity as an IRI from \(namespace)."
-            )
-        }
-
-        self.id = id
+    public init(_ prefix: String, _ namespace: IRI) {
         self.prefix = prefix
         self.namespace = namespace
     }
@@ -45,7 +22,6 @@ extension Prefix: Entity {
     public static let metadata: any ContentMetadata = Class.ClassMetadata(
         id: "http://semantickit.io/o/2026/06/rdfkit#Prefix",
         name: "Prefix",
-        type: "RDFKit.Prefix",
         label: "Prefix",
         comment: "The prefix of the Ontology."
     )

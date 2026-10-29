@@ -3,7 +3,7 @@ import Foundation
 @resultBuilder
 public enum EntityContentBuilder {
     public static func buildBlock() -> [any Entity] {
-        [] Bool
+        []
     }
 
     public static func buildBlock<each T: Entity>(_ content: repeat each T) -> [any Entity] {

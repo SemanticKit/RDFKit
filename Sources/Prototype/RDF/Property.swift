@@ -3,38 +3,33 @@ import IRIKit
 
 // MARK: - Property Type
 
+/// Declares a property. Its domain and range are the `Domain<Term>` and
+/// `Range<Term>` annotations in ``content``: Swift types, never IRIs.
 public struct Property: ClassLike, Sendable {
-    public typealias ID = IRI
+    /// The declared local name, the spelling of the generated stored property.
+    public var localName: String
 
-    public var id: ID
-    public var domain: IRI
-    public var range: IRI
+    /// The declaration's annotations, including `Domain<Term>` and `Range<Term>`.
+    public var content: [AnyEntity]
+
     public var label: String
     public var comment: String
 
     public init(
-        _ name: String,
+        _ localName: String,
         @PropertyBuilder _ children: () -> [AnyEntity]
     ) {
-        self.id = IRI(rawValue: "\(name)") ?? ""
-        self.domain = ""
-        self.range = ""
-        self.label = name
+        self.localName = localName
+        self.content = children()
+        self.label = localName
         self.comment = ""
 
-        let content = children()
         for child in content {
-            if let prop = child as? Domain {
-                self.domain = prop.id
+            if let annotation = child as? Label {
+                self.label = annotation.text
             }
-            if let prop = child as? Range {
-                self.range = prop.id
-            }
-            if let prop = child as? Label {
-                self.label = prop.id.rawValue
-            }
-            if let prop = child as? Comment {
-                self.comment = prop.comment
+            if let annotation = child as? Comment {
+                self.comment = annotation.comment
             }
         }
     }
@@ -48,7 +43,6 @@ extension Property: Entity {
     public static let metadata: any ContentMetadata = Class.ClassMetadata(
         id: "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
         name: "Property",
-        type: "http://www.w3.org/2000/01/rdf-schema#Class",
         label: "Property",
         comment: "The class of RDF properties."
     )
@@ -65,18 +59,12 @@ extension Property {
         public enum CodingKeys: String, CodingKey, CaseIterable {
             case id
             case name
-            case type
-            case domain
-            case range
             case label
             case comment
         }
 
         public let id: IRI
         public let name: String
-        public let type: IRI
-        public let domain: IRI
-        public let range: IRI
         public let label: String
         public let comment: String
     }

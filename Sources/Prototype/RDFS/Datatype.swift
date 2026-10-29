@@ -2,16 +2,21 @@ import IRIKit
 
 // MARK: - Datatype Type
 
+/// Declares a datatype. The macro generates a Swift type for it; that type,
+/// not the name, is the datatype's identity.
 public struct Datatype: ClassLike, Sendable {
-    public typealias ID = IRI
+    /// The declared local name, the spelling of the generated type.
+    public var localName: String
 
-    public var id: ID
+    /// The declaration's annotations.
+    public var content: [AnyEntity]
 
     public init(
-        _ name: String,
+        _ localName: String,
         @DatatypeBuilder _ children: () -> [AnyEntity]
     ) {
-        self.id = IRI(rawValue: "\(name)") ?? ""
+        self.localName = localName
+        self.content = children()
     }
 }
 
@@ -21,8 +26,6 @@ extension Datatype: Entity {
     public static let metadata: any ContentMetadata = Datatype.DatatypeMetadata(
         id: "http://www.w3.org/2000/01/rdf-schema#Datatype",
         name: "Datatype",
-        type: "http://www.w3.org/2000/01/rdf-schema#Class",
-        subClassOf: "http://www.w3.org/2000/01/rdf-schema#Class",
         label: "Datatype",
         comment: "The class of RDF datatypes."
     )
@@ -37,16 +40,12 @@ extension Datatype {
         public enum CodingKeys: String, CodingKey, CaseIterable {
             case id
             case name
-            case type
-            case subClassOf
             case label
             case comment
         }
 
         public let id: IRI
         public let name: String
-        public let type: IRI
-        public let subClassOf: IRI
         public let label: String
         public let comment: String
     }

@@ -7,24 +7,14 @@
 
 import IRIKit
 
-public struct Namespace {
-    public typealias ID = IRI
+/// The namespace of an ontology. The macro computes each generated type's
+/// boundary IRI from it at expansion time.
+public struct Namespace: Sendable {
+    /// The namespace IRI.
+    public let iri: IRI
 
-    public let id: ID
-
-    /// The target namespace.
-    public let namespace: String
-
-    /// Creates a prefix alias.
-    public init(_ namespace: String) {
-        guard let id = try? ID(validating: namespace) else {
-            preconditionFailure(
-                "Could not validate the provided namespace identity as an IRI from \(namespace)."
-            )
-        }
-
-        self.id = id
-        self.namespace = namespace
+    public init(_ iri: IRI) {
+        self.iri = iri
     }
 }
 
@@ -33,7 +23,6 @@ extension Namespace: Entity {
     public static let metadata: any ContentMetadata  = Class.ClassMetadata(
         id: "http://semantickit.io/o/2026/06/rdfkit#Namespace",
         name: "Namespace",
-        type: "RDFKit.Namespace",
         label: "Namespace",
         comment: "The namespace of the Ontology."
     )

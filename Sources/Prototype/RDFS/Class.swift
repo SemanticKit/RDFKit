@@ -2,14 +2,18 @@ import IRIKit
 
 // MARK: - Class Type
 
+/// Declares a class. The macro generates a Swift type for it; that type, not
+/// the name, is the class's identity.
 public struct Class: ClassLike, Sendable {
+    /// The declared local name, the spelling of the generated type.
+    public var localName: String
 
-    public typealias ID = IRI
+    /// The declaration's annotations.
+    public var content: [AnyEntity]
 
-    public var id: ID
-
-    public init(_ name: String, @ClassBuilder _ children: () -> [AnyEntity]) {
-        self.id = IRI(rawValue: "\(name)") ?? ""
+    public init(_ localName: String, @ClassBuilder _ children: () -> [AnyEntity]) {
+        self.localName = localName
+        self.content = children()
     }
 }
 
@@ -20,7 +24,6 @@ extension Class: Entity {
     public static let metadata: any ContentMetadata = Class.ClassMetadata(
         id: "http://www.w3.org/2000/01/rdf-schema#Class",
         name: "Class",
-        type: "http://www.w3.org/2000/01/rdf-schema#Class",
         label: "Class",
         comment: "The class of classes."
     )
@@ -36,14 +39,12 @@ extension Class {
         public enum CodingKeys: String, CodingKey, CaseIterable {
             case id
             case name
-            case type
             case label
             case comment
         }
 
         public let id: IRI
         public let name: String
-        public let type: IRI
         public let label: String
         public let comment: String
     }

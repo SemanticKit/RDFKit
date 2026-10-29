@@ -12,7 +12,6 @@ extension Habitat: Entity {
     public static let metadata: any ContentMetadata = Class.ClassMetadata(
         id: "https://fauna.example.org/ontology#Habitat",
         name: "Habitat",
-        type: "http://www.w3.org/2000/01/rdf-schema#Class",
         label: "Habitat",
         comment: "The class of natural habitats."
     )
