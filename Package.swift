@@ -86,6 +86,21 @@ let package = Package(
                 "RDFKit"
             ]
         ),
+        .testTarget(
+            name: "RDFFormatsTests",
+            dependencies: [
+                "RDFFormats",
+                "RDFCore",
+                "RDFKit",
+                .product(name: "IRIKit", package: "IRIKit")
+            ],
+            exclude: [
+                "W3C/README.md"
+            ],
+            resources: [
+                .copy("W3C/rdf-tests")
+            ]
+        ),
         .target(
             name: "Fauna",
             dependencies: ["RDFCore", "RDFKit"]

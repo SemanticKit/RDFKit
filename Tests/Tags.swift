@@ -9,4 +9,10 @@ extension Tag {
     @Tag static var generated: Self
     /// Values read where a term leaves the runtime (serialization, translation).
     @Tag static var boundary: Self
+    /// Tests from the W3C RDF test suites.
+    @Tag static var w3c: Self
+    /// Reading and writing N-Triples.
+    @Tag static var nTriples: Self
+    /// Reading Turtle.
+    @Tag static var turtle: Self
 }
