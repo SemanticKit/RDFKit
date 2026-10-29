@@ -11,10 +11,6 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "Prototype",
-            targets: ["Prototype"]
-        ),
-        .library(
             name: "RDFKit",
             targets: ["RDFKit"]
         ),
@@ -33,13 +29,6 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "Prototype",
-            dependencies: [
-                "IRIKit",
-                "RDFKitMacros"
-            ]
-        ),
-        .target(
             name: "RDFCore",
             dependencies: ["IRIKit"]
         ),
@@ -53,12 +42,8 @@ let package = Package(
                 "DSL_INVARIANTS.md",
                 "OWL/AGENTS.md",
                 "RDF/AGENTS.md",
-                "RDF/rdf.ttl",
                 "RDFS/AGENTS.md",
-                "RDFS/rdfs.ttl",
-                "Turtle/owl.ttl",
-                "Turtle/rdf.ttl",
-                "Turtle/rdfs.ttl"
+                "Turtle/owl.ttl"
             ]
         ),
         .macro(
@@ -101,24 +86,11 @@ let package = Package(
                 .copy("W3C/rdf-tests")
             ]
         ),
-        .target(
-            name: "Fauna",
-            dependencies: ["RDFCore", "RDFKit"]
-        ),
         .testTarget(
             name: "RDFKitMacrosTests",
             dependencies: [
                 "RDFKitMacros",
                 .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
-            ]
-        ),
-        .testTarget(
-            name: "FaunaTests",
-            dependencies: [
-                "Fauna",
-                "RDFKit",
-                "RDFCore",
-                .product(name: "IRIKit", package: "IRIKit")
             ]
         )
     ]
