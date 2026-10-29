@@ -34,10 +34,11 @@ This reads like RDF. It IS RDF. The compiler enforces the structure.
 
 ## Architecture
 
-### Two Targets
+### Targets
 
 - **RDFCore** — the DSL machinery: protocols, result builders, node types
 - **RDFKit** — the standard ontologies: RDF, RDFS, OWL defined using the DSL
+- **RDFFormats** — the I/O boundary: RDF 1.2 Turtle and N-Triples decoders and a canonical N-Triples encoder, checked against the W3C test suites (`Scripts/fetch-w3c-rdf-tests.sh` refreshes them)
 
 ### Protocol Hierarchy
 

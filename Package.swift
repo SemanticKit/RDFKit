@@ -21,6 +21,10 @@ let package = Package(
         .library(
             name: "RDFCore",
             targets: ["RDFCore"]
+        ),
+        .library(
+            name: "RDFFormats",
+            targets: ["RDFFormats"]
         )
     ],
     dependencies: [
@@ -72,6 +76,14 @@ let package = Package(
                 "Data/shacl.rdf",
                 "Data/shacl.ttl",
                 "Fixtures/.gitkeep"
+            ]
+        ),
+        .target(
+            name: "RDFFormats",
+            dependencies: [
+                "IRIKit",
+                "RDFCore",
+                "RDFKit"
             ]
         ),
         .target(
