@@ -62,3 +62,18 @@ public struct Literal: Object, Equatable, Hashable, Sendable, Codable, Comparabl
         return String(describing: lhs.datatype) < String(describing: rhs.datatype)
     }
 }
+
+extension Literal: ExpressibleByStringLiteral {
+    /// A simple literal: the lexical form with datatype `xsd:string`
+    /// (RDF 1.2 Concepts, Representation of Literals: "Simple literals are
+    /// syntactic sugar for abstract syntax literals with the datatype IRI
+    /// http://www.w3.org/2001/XMLSchema#string").
+    ///
+    ///     alice.name.contains("Alice")
+    public init(stringLiteral value: String) {
+        lexicalForm = value
+        languageTag = nil
+        textDirection = nil
+        datatype = nil
+    }
+}
