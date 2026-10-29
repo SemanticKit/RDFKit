@@ -25,6 +25,14 @@ public struct PropertyValues<Value: Sendable>: Sendable, Sequence {
         graph = membership.graph
     }
 
+    /// The values of a property that is no class protocol requirement,
+    /// stored in `membership` under the property's term type. See
+    /// ``Entity/propertyValues(of:)``.
+    init(term: any Entity.Type, of membership: Membership) {
+        store = membership.store(forTerm: term)
+        graph = membership.graph
+    }
+
     /// A snapshot of the values, in the order they were added.
     public var values: [Value] { store.values(in: graph) }
 
@@ -56,6 +64,10 @@ public struct PropertyValues<Value: Sendable>: Sendable, Sequence {
     }
 
     /// Removes the values that match.
+    ///
+    /// The lock is held while `shouldBeRemoved` runs, so `shouldBeRemoved` must not read or change
+    /// this same property of this individual: the lock is not reentrant, and
+    /// doing so deadlocks. Read what `shouldBeRemoved` needs before calling it.
     public func removeAll(where shouldBeRemoved: (Value) -> Bool) {
         update { $0.removeAll(where: shouldBeRemoved) }
     }
@@ -66,6 +78,10 @@ public struct PropertyValues<Value: Sendable>: Sendable, Sequence {
     }
 
     /// Reads and changes the values in one atomic step.
+    ///
+    /// The lock is held while `body` runs, so `body` must not read or change
+    /// this same property of this individual: the lock is not reentrant, and
+    /// doing so deadlocks. Read what `body` needs before calling it.
     public func update<Result: Sendable>(_ body: (inout [Value]) -> Result) -> Result {
         store.update(in: graph, body)
     }

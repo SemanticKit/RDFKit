@@ -13,23 +13,47 @@ import Synchronization
 /// path of the class protocol requirement it backs. The key is the
 /// requirement itself, so a property inherited along two paths
 /// (`Fauna.Mesopredator` is a predator and a prey, both animals) has one
-/// store.
+/// store. A property whose domain is a class of another ontology, or
+/// `rdfs:Resource`, is no requirement; its store is keyed by its term type
+/// (`OWL.equivalentClass`).
 final class IndividualNode: Sendable {
     private struct State {
         weak var individual: (any StoredIndividual)?
-        var stores: [RequirementKey: any PropertyStorage] = [:]
+        var stores: [StoreKey: any PropertyStorage] = [:]
     }
 
-    /// The key path of a class protocol requirement, as a dictionary key.
-    private struct RequirementKey: Hashable, Sendable {
-        let path: any AnyKeyPath & Sendable
+    /// What a store backs: the key path of a class protocol requirement, or
+    /// the term type of a property whose domain is a class of another
+    /// ontology or `rdfs:Resource`.
+    struct StoreKey: Hashable, Sendable {
+        private enum Kind: Sendable {
+            case requirement(any AnyKeyPath & Sendable)
+            case term(ObjectIdentifier)
+        }
+
+        private let kind: Kind
+
+        static func requirement(_ path: any AnyKeyPath & Sendable) -> Self { Self(kind: .requirement(path)) }
+
+        static func term(_ term: any Entity.Type) -> Self { Self(kind: .term(ObjectIdentifier(term))) }
 
         static func == (lhs: Self, rhs: Self) -> Bool {
-            (lhs.path as AnyKeyPath) == (rhs.path as AnyKeyPath)
+            switch (lhs.kind, rhs.kind) {
+            case (.requirement(let left), .requirement(let right)): (left as AnyKeyPath) == (right as AnyKeyPath)
+            case (.term(let left), .term(let right)): left == right
+            default: false
+            }
         }
 
         func hash(into hasher: inout Hasher) {
-            hasher.combine(path as AnyKeyPath)
+            switch kind {
+            case .requirement(let path):
+                hasher.combine(0)
+                hasher.combine(path as AnyKeyPath)
+            case .term(let term):
+                hasher.combine(1)
+                hasher.combine(term)
+            }
         }
     }
 
@@ -44,10 +68,9 @@ final class IndividualNode: Sendable {
         self.make = make
     }
 
-    /// The store for a requirement, created empty the first time.
-    func store<Value: Sendable>(for key: any AnyKeyPath & Sendable) -> ValueStore<Value> {
-        let key = RequirementKey(path: key)
-        return state.withLock { state in
+    /// The store for a requirement or term, created empty the first time.
+    func store<Value: Sendable>(for key: StoreKey) -> ValueStore<Value> {
+        state.withLock { state in
             if let existing = state.stores[key] {
                 guard let store = existing as? ValueStore<Value> else {
                     preconditionFailure("A requirement's store holds the requirement's value type.")

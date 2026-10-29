@@ -8,6 +8,7 @@
 |---|---|
 | `Class("Animal")` | `protocol Animal`, the default implementation of its requirements for stored individuals, and the individual type `final class AnimalIndividual: Animal` |
 | `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: RDFCore.PropertyValues<any Y> { get }` on protocol `X`, and the term type `struct hasHabitat` |
+| `Property("equivalentClass") { Domain(RDFS.Class) }`, a domain from another ontology or `RDFS.Resource` | `static func values(of: some RDFS.Class & RDFCore.StoredIndividual)` on the term type `struct equivalentClass` |
 | `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X` |
 | `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X` |
@@ -155,9 +156,22 @@ A value links individuals of one graph; storing an individual of another graph s
 
 ## Properties Are Many-Valued
 
-A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
+A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. `update(_:)` and `removeAll(where:)` run their closure while holding the property's lock, so the closure must not read or change the same property of the same individual. A property typed `OWL.FunctionalProperty` (however it is qualified, `RDFKit.OWL.FunctionalProperty` too), or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
 
 Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is the datatype's value type: `RDFS.Literal`, `XSD.nonNegativeInteger`, `Fauna.Kilograms`. A property without a `Range` holds `any RDFCore.Resource`.
+
+## Properties of Another Ontology's Classes
+
+A property's domain can be a class another ontology declares (`owl:equivalentClass` has `rdfs:Class` as domain) or `rdfs:Resource` (`rdfs:label`, `owl:versionInfo`). Such a property cannot be a requirement of the domain's protocol, because that protocol is declared elsewhere, and an extension of it would be a file-scope declaration, which a macro can only write for the type it is attached to: the compiler turns an extension macro's `extension RDFS.Class` into an extension of the ontology struct. So the property's term type reads and changes its values, on any stored individual of the domain, in any module:
+
+    OWL.equivalentClass.values(of: feline).append(cat)
+    RDFS.label.values(of: lion).append(RDFS.Literal("Löwe", languageTag: "de"))
+
+`values(of:)` takes `some RDFS.Class & RDFCore.StoredIndividual`, every domain of the property, so it applies only to individuals of the domain; a functional property has `value(of:)`. The values live in the individual's membership like any other, stored under the term type.
+
+The terms RDFCore provides (`rdfs:label` is `RDFCore.Label`, `rdfs:subPropertyOf` is `RDFCore.SubPropertyOf`) cannot name their ranges, which RDFS and OWL declare, so RDFKit gives them their `values(of:)` in `Sources/RDFKit/RDFCoreTerms+PropertyValues.swift`. The expansion of the vocabulary that declares each one checks that accessor against the declared domain and range, so the declaration stays the source of truth: a mismatch does not compile.
+
+`rdf:type` has no accessor: an individual's classes are the protocols its type conforms to. A property whose domain is a literal class, or anything but a class, is reported at its `Domain`. A domain that is a value type RDFCore provides (`rdfkit:Prefix`) describes a field that type stores.
 
 ## Datatypes Are Values
 
@@ -183,6 +197,7 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 - a term declared twice, at the second declaration, and two local names that become the same Swift identifier (`version-1` and `version_1`);
 - a class whose individual type name is taken by a declared term;
 - a property named `membership` with a class as its domain;
+- a property whose domain is a literal class or not a class (`Domain(RDFS.Literal)`);
 - a functional property that would make a value type contain itself.
 
 ## Testing

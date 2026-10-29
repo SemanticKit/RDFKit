@@ -24,7 +24,11 @@ import SwiftSyntaxMacros
 ///   all of its classes.
 /// - A datatype, `rdfs:Literal` and its subclasses become value types that
 ///   store the literal (``RDFCore/LiteralValue``).
-/// - A property becomes a term type that names its `Domain` and `Range`.
+/// - A property becomes a term type that names its `Domain` and `Range`. A
+///   property whose domain is a class of another ontology, or
+///   `rdfs:Resource`, is no requirement of that class protocol; its term type
+///   has `values(of:)` (`value(of:)` when functional) for any stored
+///   individual of the domain.
 /// - A term that RDFCore already provides becomes an alias of that type.
 ///
 /// Each generated type's IRI is computed here from the namespace and emitted
@@ -58,14 +62,12 @@ struct EntityGenerator {
                 return []
             }
             identifiers[identifier] = declaration.name
-            if declaration.kind == .property, declaration.name == OntologyModel.reservedName, model.hasClassDomain(declaration) {
-                context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.reservedPropertyName(declaration.name)))
-            }
+            if declaration.kind == .property { diagnoseDomain(of: declaration) }
             guard let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
             case .alias(let form, let isGeneric):
-                sources = [alias(declaration, form: form, isGeneric: isGeneric)]
+                sources = [alias(declaration, form: form, isGeneric: isGeneric)] + aliasAccessorCheck(declaration)
             case .classProtocol:
                 sources = classProtocol(declaration)
             case .value:
@@ -76,6 +78,21 @@ struct EntityGenerator {
                 sources = namedIndividual(declaration)
             }
             return sources.map { DeclSyntax(stringLiteral: $0) }
+        }
+    }
+
+    /// Reports a property no individual can have: one named like the
+    /// membership every individual keeps, or one whose domain is not a class.
+    private func diagnoseDomain(of property: ParsedEntity) {
+        if case .failure(.notAClass(let spelling))? = model.domainAccess(for: property) {
+            let annotation = property.annotations("Domain").first { $0.term == spelling }
+            context.diagnose(Diagnostic(
+                node: annotation?.syntax ?? property.syntax,
+                message: OntologyDiagnostic.domainIsNotAClass(property: property.name, domain: spelling)
+            ))
+        }
+        if property.name == OntologyModel.reservedName, model.hasClassDomain(property) {
+            context.diagnose(Diagnostic(node: property.syntax, message: OntologyDiagnostic.reservedPropertyName(property.name)))
         }
     }
 
@@ -282,11 +299,65 @@ struct EntityGenerator {
         if let range = declaration.term("Range") {
             relations.append("    /// The type of this property's values.\n    public typealias Range = \(model.valueType(ofRange: range))")
         }
+        if case .success(let access)? = model.domainAccess(for: declaration) {
+            relations.append(accessor(access))
+        }
         return """
         \(Documentation.docComment(for: declaration))public struct \(SwiftIdentifier.escaped(declaration.name)): RDFCore.Entity {
             public static let metadata: any RDFCore.ContentMetadata = \(Documentation.metadata(for: declaration, in: ontology))
         \(relations.isEmpty ? "" : "\n" + relations.joined(separator: "\n\n"))
         }
+        """
+    }
+
+    /// For a property RDFCore provides (`rdfs:label` is `RDFCore.Label`)
+    /// whose domain is a class of another ontology, or `rdfs:Resource`: a
+    /// check that the accessor RDFKit gives that RDFCore type reads values
+    /// of the declared domain and range. The RDFCore type cannot name the
+    /// range, which this ontology declares, and a macro cannot extend it, so
+    /// RDFKit writes its `values(of:)`; this keeps the declaration the source
+    /// of truth, because a mismatch does not compile.
+    private func aliasAccessorCheck(_ declaration: ParsedEntity) -> [String] {
+        guard declaration.kind == .property, case .success(let access)? = model.domainAccess(for: declaration) else { return [] }
+        let requirement = access.requirement
+        let subject = (access.domains + ["RDFCore.StoredIndividual"]).filter { $0 != "RDFCore.Resource" }
+        let method = requirement.isFunctional ? "value" : "values"
+        let name = SwiftIdentifier.sanitized(declaration.name)
+        return ["""
+        private static func _\(name)Accessor(of individual: some \(subject.joined(separator: " & "))) -> \(requirement.viewType) {
+            \(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name)).\(method)(of: individual)
+        }
+        """]
+    }
+
+    /// The accessor a property term type has when the property's domain is
+    /// a class of another ontology, or `rdfs:Resource`:
+    ///
+    ///     OWL.equivalentClass.values(of: someClass).append(otherClass)
+    ///     RDFS.label.values(of: lion).append("Lion")
+    ///
+    /// Such a property cannot be a requirement of a protocol another
+    /// ontology declares, and an extension of that protocol would be a
+    /// file-scope declaration, which a macro can only write for the type it
+    /// is attached to. So the property's own type reads and changes the
+    /// values of any stored individual of its domain, in any module. The
+    /// values are stored under the property term type.
+    private func accessor(_ access: OntologyModel.DomainAccess) -> String {
+        let requirement = access.requirement
+        let subject = (access.domains + ["RDFCore.StoredIndividual"]).filter { $0 != "RDFCore.Resource" }
+        if requirement.isFunctional {
+            return """
+                /// The value of this property of an individual.
+                public static func value(of individual: some \(subject.joined(separator: " & "))) -> \(requirement.viewType) {
+                    propertyValue(of: individual)
+                }
+            """
+        }
+        return """
+            /// The values of this property of an individual.
+            public static func values(of individual: some \(subject.joined(separator: " & "))) -> \(requirement.viewType) {
+                propertyValues(of: individual)
+            }
         """
     }
 }

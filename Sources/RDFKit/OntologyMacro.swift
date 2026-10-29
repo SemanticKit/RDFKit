@@ -54,7 +54,10 @@ import RDFCore
 /// - a static constant for each `Individual("name")`, `Fauna.name`.
 /// - value types for datatypes and literal classes, which store the literal.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
-///   and `Range` as type aliases.
+///   and `Range` as type aliases. When the domain is a class of another
+///   ontology, or `rdfs:Resource`, the term type reads the values on any
+///   individual of it: `RDFS.label.values(of: lion)`,
+///   `OWL.equivalentClass.values(of: feline)`.
 ///
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion and kept in its static `metadata`, for the
