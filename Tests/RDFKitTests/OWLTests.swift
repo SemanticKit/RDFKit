@@ -54,6 +54,46 @@ struct OWLTests {
         #expect(RDF.version_1_2.versionInfo.isEmpty)
     }
 
+    @Test("A property of another ontology's class reaches every individual of that class", .tags(.property))
+    func propertiesOfForeignDomains() throws {
+        let graph = IndividualGraph()
+        // `owl:equivalentClass` and `owl:unionOf` have `rdfs:Class` as domain,
+        // which RDFS declares, so OWL classes and RDFS classes both have them.
+        let feline = OWL.ClassIndividual(in: graph)
+        let cat = OWL.ClassIndividual(in: graph)
+        let animal = RDFS.ClassIndividual(in: graph)
+        let beast = RDFS.ClassIndividual(in: graph)
+        let members = RDF.ListIndividual(in: graph, first: [feline], rest: [RDF.nil])
+
+        OWL.equivalentClass.values(of: feline).append(cat)
+        OWL.unionOf.values(of: feline).append(members)
+        OWL.equivalentClass.values(of: animal).append(beast)
+
+        #expect(OWL.equivalentClass.values(of: feline).first === cat)
+        #expect(OWL.unionOf.values(of: feline).first === members)
+        #expect(OWL.equivalentClass.values(of: animal).first === beast)
+        #expect(OWL.equivalentClass.values(of: cat).isEmpty)
+        // The term type and the member read one store.
+        #expect(feline.equivalentClass.first === cat)
+        #expect(animal.equivalentClass.first === beast)
+
+        // `rdfs:subPropertyOf` and `owl:equivalentProperty` have `rdf:Property`
+        // as domain.
+        let parent = RDF.PropertyIndividual(in: graph)
+        let child = RDF.PropertyIndividual(in: graph)
+        RDFS.subPropertyOf.values(of: child).append(parent)
+        OWL.equivalentProperty.values(of: child).append(parent)
+        #expect(RDFS.subPropertyOf.values(of: child).first === parent)
+        #expect(OWL.equivalentProperty.values(of: child).first === parent)
+        #expect(child.subPropertyOf.first === parent)
+
+        // `owl:onDatatype` has `rdfs:Datatype` as domain, which `owl:DataRange` refines.
+        let range = OWL.DataRangeIndividual(in: graph)
+        let base = RDFS.DatatypeIndividual(in: graph)
+        OWL.onDatatype.values(of: range).append(base)
+        #expect(OWL.onDatatype.values(of: range).first === base)
+    }
+
     @Test("A restriction is an owl:Class", .tags(.property))
     func restrictionIsAClass() throws {
         let graph = IndividualGraph()
@@ -124,6 +164,8 @@ struct OWLTests {
         #expect(asBoth.degree.values == ["1"])
         asBoth.degree.append("2")
         #expect(siblingOf.degree.values == ["1", "2"])
+        // The term type reads the same store.
+        #expect(Kinship.degree.values(of: siblingOf).values == ["1", "2"])
 
         // relativeOf is of both classes, so it has a degree too.
         #expect(Kinship.relativeOf.degree.isEmpty)
@@ -141,6 +183,12 @@ struct OWLTests {
         // The named individual is in Kinship's extension point, which gives it coverage.
         let extending: any Kinship.Extending = Kinship.kinshipOntology
         #expect(extending === Kinship.kinshipOntology)
+
+        // Any owl:Ontology individual, of any module, has coverage through the term type.
+        let graph = IndividualGraph()
+        let other = OWL.OntologyIndividual(in: graph)
+        Kinship.coverage.values(of: other).append("Marriage")
+        #expect(Kinship.coverage.values(of: other).values == ["Marriage"])
     }
 
     @Test("A class can refine two classes of another ontology", .tags(.characteristic))

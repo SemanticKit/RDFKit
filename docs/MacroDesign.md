@@ -10,7 +10,7 @@
 | `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: RDFCore.PropertyValues<any Y> { get }` on protocol `X`, and the term type `struct hasHabitat` |
 | `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X`, which may be another ontology's class; a class with no superclass refines `RDFS.Resource` |
-| `Property("p") { Domain(RDF.Property) }`, a domain of another ontology | a member `p` of every individual in that domain, through the ontology's extension point `Extending` |
+| `Property("p") { Domain(RDF.Property) }`, a domain of another ontology | a member `p` of the individuals in that domain, through the ontology's extension point `Extending`, and `static func values(of: some RDF.Property & RDFCore.StoredIndividual)` on the term type `struct p`, for any individual of the domain; both read one store |
 | `Property("p") { Domain(OWL.TransitiveProperty); Domain(OWL.SymmetricProperty) }` | a member `p` of every individual in both domains, `where Self: OWL.TransitiveProperty & OWL.SymmetricProperty` |
 | `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X`; `Type` may name several classes, of any ontology |
 | `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) that stores the literal and conforms to `RDFCore.LiteralValue` |
@@ -164,21 +164,30 @@ An ontology can declare a property for another ontology's class: RDFS declares `
 @StoredRequirements
 public protocol Extending: RDFCore.Resource {
     var membership: RDFCore.Membership { get }
-    typealias _domain = (any RDF.Property, RDFCore.PropertyValues<any RDFS.Class>)
+    typealias _domain = (any RDF.Property, RDFCore.PropertyValues<any RDFS.Class>, RDFS.domain<Never>)
 }
 ```
 
-`@StoredRequirements` makes each one a member of the extension point wherever the individual is in the domain. The member is stored under its own key path, like a requirement:
+The alias gives the property's domain, value view and term type. `@StoredRequirements` makes each one a member of the extension point wherever the individual is in the domain. The member is stored in the individual's membership under the term type:
 
 ```swift
 extension RDFS.Extending where Self: RDF.Property {
     public var domain: RDFCore.PropertyValues<any RDFS.Class> {
-        RDFCore.PropertyValues(\Self.domain, of: membership)
+        RDFS.domain<Never>.propertyValues(in: membership)
     }
 }
 ```
 
-Every class the ontology declares without a local superclass refines its extension point, and so does a named individual whose classes all belong to other ontologies: `Individual("kinshipOntology") { Type(OWL.Ontology) }` is typed `any OWL.Ontology & Kinship.Extending`, so it has the properties Kinship declares for `owl:Ontology`. `RDFS.Resource`, the class of everything, refines the extension points of RDF, RDFS and OWL, which those three always generate, empty or not. So every `RDF.Property` has `domain` and `range`, every `rdfs:Class` has `equivalentClass`, and every resource has `rdf:value` and `owl:versionInfo`, on the individual and on an existential such as `any RDF.Property`. An ontology outside RDFKit gives these members to its own classes' individuals and its named individuals that are in the domain, because no class of another ontology refines its extension point.
+The term type also reads and changes the values, on any stored individual of the domain in any module, from the same store:
+
+```swift
+OWL.equivalentClass.values(of: feline).append(cat)   // feline.equivalentClass.first === cat
+RDFS.subPropertyOf.values(of: child).append(parent)  // child.subPropertyOf.first === parent
+```
+
+`values(of:)` takes `some RDF.Property & RDFCore.StoredIndividual`, every domain of the property, so it applies only to individuals of the domain; a functional property has `value(of:)`. A generic term type (`RDFS.domain<Term>`) stores its values under `RDFS.domain<Never>`, one type for the one property. In RDFS itself, `rdfs:label`, `rdfs:comment`, `rdfs:seeAlso`, `rdfs:isDefinedBy` and `rdfs:member` are requirements of `RDFS.Resource`, and their term types read the requirement: `RDFS.label.values(of: lion)` is `lion.label`. `rdf:type` is neither: an individual's classes are the protocols its type conforms to, so it is never a stored value.
+
+Every class the ontology declares without a local superclass refines its extension point, and so does a named individual whose classes all belong to other ontologies: `Individual("kinshipOntology") { Type(OWL.Ontology) }` is typed `any OWL.Ontology & Kinship.Extending`, so it has the properties Kinship declares for `owl:Ontology`. `RDFS.Resource`, the class of everything, refines the extension points of RDF, RDFS and OWL, which those three always generate, empty or not. So every `RDF.Property` has `domain` and `range`, every `rdfs:Class` has `equivalentClass`, and every resource has `rdf:value` and `owl:versionInfo`, on the individual and on an existential such as `any RDF.Property`. An ontology outside RDFKit gives these members to its own classes' individuals and its named individuals that are in the domain, because no class of another ontology refines its extension point; every other individual of the domain reaches the property through the term type.
 
 RDFS reads several domains as their intersection: whatever has the property is in every domain. A property with several domains of other ontologies is therefore one member, on the individuals in all of them, with one store:
 
@@ -192,7 +201,7 @@ A property with a domain in its own ontology is a requirement of that class, and
 
 ## Properties Are Many-Valued
 
-A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
+A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. `update(_:)` and `removeAll(where:)` run their closure while holding the property's lock, so the closure must not read or change the same property of the same individual. A property typed `OWL.FunctionalProperty` (however it is qualified, `RDFKit.OWL.FunctionalProperty` too), or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
 
 Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is the datatype's value type: `RDFS.Literal`, `XSD.nonNegativeInteger`, `Fauna.Kilograms`. A property without a `Range` holds `any RDFS.Resource`.
 
@@ -222,6 +231,7 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 - a term declared twice, at the second declaration, and two local names that become the same Swift identifier (`version-1` and `version_1`);
 - a class whose individual type name is taken by a declared term, and a declared term named `Extending` in an ontology that generates its extension point;
 - a property with a domain in its own ontology and a domain in another, at the other ontology's `Domain`;
+- a property whose domain is a literal class or not a class (`Domain(RDFS.Literal)`), at that `Domain`;
 - a named individual of `owl:Nothing`, of a datatype this ontology declares, or of a class written without its ontology (the macro does not know which terms of other ontologies are datatypes, so `Type(RDF.HTML)` is reported by the compiler, inside the expansion);
 - a property named `membership` with a class as its domain, local or of another ontology;
 - a functional property that would make a value type contain itself.

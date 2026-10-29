@@ -68,6 +68,13 @@ struct EntityGenerator {
             if declaration.kind == .property, declaration.name == OntologyModel.reservedName, !model.classDomains(of: declaration).isEmpty {
                 context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.reservedPropertyName(declaration.name)))
             }
+            if declaration.kind == .property, let domain = model.domainThatIsNotAClass(of: declaration) {
+                let annotation = declaration.annotations("Domain").first { $0.term == domain }
+                context.diagnose(Diagnostic(
+                    node: annotation?.syntax ?? declaration.syntax,
+                    message: OntologyDiagnostic.domainIsNotAClass(property: declaration.name, domain: domain)
+                ))
+            }
             if declaration.kind == .property, let mixed = model.mixedDomains(of: declaration) {
                 let node = declaration.annotations("Domain").first { $0.term.map(ontology.canonical) == ontology.canonical(mixed.foreign) }?.syntax
                 context.diagnose(Diagnostic(
@@ -124,7 +131,7 @@ struct EntityGenerator {
         let aliases = model.foreignDomains().flatMap { domain, properties in
             properties.map { requirement in
                 Documentation.docComment(for: requirement.declaration, indent: "    ")
-                    + "    typealias _\(SwiftIdentifier.sanitized(requirement.declaration.name)) = (any \(domain), \(requirement.viewType))"
+                    + "    typealias _\(SwiftIdentifier.sanitized(requirement.declaration.name)) = (any \(domain), \(requirement.viewType), \(model.storedTerm(of: requirement.declaration)))"
             }
         }
         return ["""
@@ -385,6 +392,9 @@ struct EntityGenerator {
         if let range = declaration.term("Range") {
             relations.append("    /// The type of this property's values.\n    public typealias Range = \(model.valueType(ofRange: range))")
         }
+        if let accessor = accessor(of: declaration) {
+            relations.append(accessor)
+        }
         let metadata = Documentation.metadata(for: declaration, in: ontology)
         let name = SwiftIdentifier.escaped(declaration.name)
         var header = "public struct \(name): RDFCore.Entity"
@@ -411,6 +421,48 @@ struct EntityGenerator {
         \(Documentation.docComment(for: declaration))\(header) {
         \((members + relations).joined(separator: "\n\n"))
         }
+        """
+    }
+
+    /// The accessor a property's term type has, so that the property is
+    /// read and changed through its own type on any individual of its
+    /// domain, in any module:
+    ///
+    ///     OWL.equivalentClass.values(of: feline).append(cat)
+    ///     RDFS.label.values(of: lion).append("Lion")
+    ///
+    /// For a property whose domains are classes of other ontologies, the
+    /// accessor takes any stored individual of all of them and reads the
+    /// store under the term type, which the extension point's member reads
+    /// too. For a property of `rdfs:Resource` in RDFS itself, a requirement
+    /// of every resource, it reads the requirement. Either way the property
+    /// has one store.
+    private func accessor(of declaration: ParsedEntity) -> String? {
+        guard declaration.kind == .property else { return nil }
+        let requirement = model.requirement(for: declaration)
+        let method = requirement.isFunctional ? "value" : "values"
+        let documentation = requirement.isFunctional
+            ? "    /// The value of this property of an individual."
+            : "    /// The values of this property of an individual."
+        let constraint = model.isGenericTerm(declaration) ? " where Term == Never" : ""
+        let foreign = model.foreignClassDomains(of: declaration)
+        if !foreign.isEmpty {
+            let subject = (foreign + ["RDFCore.StoredIndividual"]).joined(separator: " & ")
+            let storage = requirement.isFunctional ? "propertyValue" : "propertyValues"
+            return """
+            \(documentation)
+                public static func \(method)(of individual: some \(subject)) -> \(requirement.viewType)\(constraint) {
+                    \(storage)(of: individual)
+                }
+            """
+        }
+        let domains = model.classDomains(of: declaration)
+        guard domains.count == 1, let local = ontology.resolve(domains[0]).localName, model.isRoot(local) else { return nil }
+        return """
+        \(documentation)
+            public static func \(method)(of individual: some \(domains[0])) -> \(requirement.viewType)\(constraint) {
+                individual.\(requirement.name)
+            }
         """
     }
 }

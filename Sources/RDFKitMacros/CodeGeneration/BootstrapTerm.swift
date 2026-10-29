@@ -82,23 +82,39 @@ enum BootstrapTerm {
     /// Whether a qualified spelling names `rdfs:Literal`, the class of
     /// literal values. It and its subclasses are value types.
     static func isLiteral(_ spelling: String) -> Bool {
-        spelling == "RDFS.Literal"
+        unqualified(spelling) == "RDFS.Literal"
     }
 
     /// Whether a qualified spelling names `rdfs:Resource`.
     static func isResource(_ spelling: String) -> Bool {
-        spelling == resource
+        unqualified(spelling) == resource
     }
 
     /// Whether a qualified spelling names `owl:Nothing`, the class with no
     /// individuals, which therefore has no individual type.
     static func isNothing(_ spelling: String) -> Bool {
-        spelling == "OWL.Nothing"
+        unqualified(spelling) == "OWL.Nothing"
     }
 
     /// Whether a qualified spelling names `owl:FunctionalProperty`. A
     /// property typed with it has at most one value.
     static func isFunctionalProperty(_ spelling: String) -> Bool {
-        spelling == "OWL.FunctionalProperty"
+        unqualified(spelling) == "OWL.FunctionalProperty"
+    }
+
+    /// Whether a qualified spelling names `rdf:type`. Class membership is
+    /// the Swift type of an individual, the protocols its type conforms to,
+    /// so `rdf:type` is never stored as a property value.
+    static func isType(_ spelling: String) -> Bool {
+        unqualified(spelling) == "RDF.type"
+    }
+
+    /// A spelling without its module: `RDFKit.OWL.FunctionalProperty` is
+    /// `OWL.FunctionalProperty`. A term is an ontology's nested type, so only
+    /// its last two components name it.
+    static func unqualified(_ spelling: String) -> String {
+        let components = spelling.split(separator: ".")
+        guard components.count > 2 else { return spelling }
+        return components.suffix(2).joined(separator: ".")
     }
 }

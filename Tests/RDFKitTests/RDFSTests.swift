@@ -86,6 +86,33 @@ struct RDFSTests {
         #expect(RDF.PropertyIndividual.metadata.id == IRI("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"))
     }
 
+    @Test("Every individual can have the properties of rdfs:Resource", .tags(.property))
+    func propertiesOfResource() throws {
+        let graph = IndividualGraph()
+        let ontology = OWL.OntologyIndividual(in: graph)
+        let thing = OWL.ThingIndividual(in: graph)
+        let related = OWL.ThingIndividual(in: graph)
+
+        RDFS.label.values(of: thing).append(contentsOf: ["Morning star", RDFS.Literal("Morgenstern", languageTag: "de")])
+        RDFS.comment.values(of: thing).append("The planet Venus.")
+        RDFS.seeAlso.values(of: thing).append(related)
+        OWL.versionInfo.values(of: ontology).append(thing)
+
+        #expect(RDFS.label.values(of: thing).values.map(\.lexicalForm) == ["Morning star", "Morgenstern"])
+        #expect(RDFS.comment.values(of: thing).first?.lexicalForm == "The planet Venus.")
+        #expect(RDFS.seeAlso.values(of: thing).first === related)
+        #expect(OWL.versionInfo.values(of: ontology).first === thing)
+
+        // The values belong to the individual, not to the term: another
+        // individual has none.
+        #expect(RDFS.label.values(of: related).isEmpty)
+        // Stored once, whichever way the individual is reached.
+        let resource: some RDFS.Resource = thing
+        #expect(RDFS.label.values(of: resource).count == 2)
+        #expect(thing.label.count == 2)
+        #expect(ontology.versionInfo.first === thing)
+    }
+
     @Test("A literal range holds rdfs:Literal values", .tags(.property))
     func literalRangeHoldsLiterals() throws {
         let graph = IndividualGraph()

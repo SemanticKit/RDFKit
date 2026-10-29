@@ -40,6 +40,11 @@ public struct Membership: Sendable {
 
     /// The store of the property a requirement's key path names.
     func store<Value: Sendable>(for key: any AnyKeyPath & Sendable) -> ValueStore<Value> {
-        node.store(for: key)
+        node.store(for: .requirement(key))
+    }
+
+    /// The store of a property, by its term type.
+    func store<Value: Sendable>(forTerm term: any Entity.Type) -> ValueStore<Value> {
+        node.store(for: .term(term))
     }
 }

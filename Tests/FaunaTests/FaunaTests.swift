@@ -140,6 +140,24 @@ struct FaunaTests {
         #expect(savanna.sameAs.isEmpty)
     }
 
+    @Test("Every individual has the properties of rdfs:Resource", .tags(.generated, .property))
+    func resourceProperties() {
+        let graph = IndividualGraph()
+        let lion = Fauna.PredatorIndividual(in: graph, commonName: ["Lion"])
+        let savanna = Fauna.HabitatIndividual(in: graph)
+
+        // rdfs:label and rdfs:seeAlso have rdfs:Resource as domain, which
+        // RDFS declares: a Fauna individual has them too.
+        RDFS.label.values(of: lion).append(RDFS.Literal("Löwe", languageTag: "de"))
+        RDFS.seeAlso.values(of: lion).append(savanna)
+
+        #expect(RDFS.label.values(of: lion).values.map(\.lexicalForm) == ["Löwe"])
+        #expect(RDFS.seeAlso.values(of: lion).first === savanna)
+        // A label is not a common name: each property has its own values.
+        #expect(lion.commonName.values == ["Lion"])
+        #expect(RDFS.label.values(of: savanna).isEmpty)
+    }
+
     @Test("A named individual can be of another ontology's class", .tags(.generated))
     func namedIndividualOfForeignClass() {
         let ontology: any OWL.Ontology = Fauna.faunaOntology

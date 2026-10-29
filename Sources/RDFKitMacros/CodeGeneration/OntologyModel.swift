@@ -170,6 +170,7 @@ struct OntologyModel {
     /// class protocols and classes of other ontologies, qualified, in the
     /// order they are written.
     func classDomains(of property: ParsedEntity) -> [String] {
+        guard !isTypeProperty(property) else { return [] }
         var result: [String] = []
         for spelling in property.terms("Domain") {
             let reference = ontology.resolve(spelling)
@@ -195,6 +196,43 @@ struct OntologyModel {
     /// `rdfs:Resource`, the class of everything, refines.
     var isBootstrapVocabulary: Bool {
         BootstrapTerm.extensionPoints.contains("\(ontology.typeName).\(Self.extensionPoint)")
+    }
+
+    /// Whether a property is `rdf:type`, which is never stored: an
+    /// individual's classes are the protocols its type conforms to.
+    func isTypeProperty(_ property: ParsedEntity) -> Bool {
+        BootstrapTerm.isType("\(ontology.typeName).\(property.name)")
+    }
+
+    /// The first `Domain` of a property that has no individuals to give the
+    /// property to: a literal class, a property, an individual, or a term
+    /// this ontology declares that is none of its classes or value types.
+    func domainThatIsNotAClass(of property: ParsedEntity) -> String? {
+        guard !isTypeProperty(property) else { return nil }
+        return property.terms("Domain").first { spelling in
+            if let local = ontology.resolve(spelling).localName {
+                guard let shape = shapes[local] else { return false }
+                switch shape {
+                case .classProtocol, .value, .alias: return false
+                default: return true
+                }
+            }
+            return BootstrapTerm.isLiteral(ontology.canonical(spelling))
+        }
+    }
+
+    /// Whether a property's term type is generic over a related term, as
+    /// `RDFS.domain<Term>` is. Its values are stored under
+    /// `RDFS.domain<Never>`, one type for the one property.
+    func isGenericTerm(_ property: ParsedEntity) -> Bool {
+        shapes[property.name] == .annotation(.term)
+    }
+
+    /// The term type a property's values are stored under, when its domain
+    /// is a class of another ontology: `OWL.equivalentClass`,
+    /// `RDFS.domain<Never>`.
+    func storedTerm(of property: ParsedEntity) -> String {
+        "\(ontology.typeName).\(SwiftIdentifier.escaped(property.name))" + (isGenericTerm(property) ? "<Never>" : "")
     }
 
     /// The domains of a property that are classes of other ontologies, when

@@ -60,7 +60,12 @@ import RDFCore
 /// - a static constant for each `Individual("name")`, `Fauna.name`.
 /// - value types for datatypes and literal classes, which store the literal.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
-///   and `Range` as type aliases.
+///   and `Range` as type aliases. When the domain is a class of another
+///   ontology, the term type reads the values on any individual of it, from
+///   the store the ontology's extension point member reads:
+///   `OWL.equivalentClass.values(of: feline)` is `feline.equivalentClass`.
+///   RDFS's properties of `rdfs:Resource` read the requirement:
+///   `RDFS.label.values(of: lion)` is `lion.label`.
 ///
 /// RDF, RDFS and OWL are declared with this macro too. The annotations every
 /// `content()` is written with are their property terms: `Label("Animal")` is

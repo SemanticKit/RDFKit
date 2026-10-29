@@ -24,16 +24,18 @@ import SwiftSyntaxMacros
 /// property, the properties the ontology declares for other ontologies'
 /// classes:
 ///
-///     typealias _equivalentClass = (any RDFS.Class, RDFCore.PropertyValues<any RDFS.Class>)
+///     typealias _equivalentClass = (any RDFS.Class, RDFCore.PropertyValues<any RDFS.Class>, OWL.equivalentClass)
 ///
-/// The alias gives the property's domain and value view. Each becomes a
-/// member of the extension point wherever the individual is in the domain,
-/// on the `membership` the extension point requires, so the member is there
-/// on an existential (`any RDFS.Class`) too:
+/// The alias gives the property's domain, value view and term type. Each
+/// becomes a member of the extension point wherever the individual is in
+/// the domain, on the `membership` the extension point requires, so the
+/// member is there on an existential (`any RDFS.Class`) too. Its values are
+/// stored under the term type, which `OWL.equivalentClass.values(of:)` reads
+/// as well:
 ///
 ///     extension OWL.Extending where Self: RDFS.Class {
 ///         public var equivalentClass: RDFCore.PropertyValues<any RDFS.Class> {
-///             RDFCore.PropertyValues(\Self.equivalentClass, of: membership)
+///             OWL.equivalentClass.propertyValues(in: membership)
 ///         }
 ///     }
 public struct StoredRequirementsMacro: ExtensionMacro {
@@ -64,13 +66,14 @@ public struct StoredRequirementsMacro: ExtensionMacro {
             } else if let alias = member.decl.as(TypeAliasDeclSyntax.self),
                       alias.name.text.hasPrefix("_"),
                       let tuple = alias.initializer.value.as(TupleTypeSyntax.self),
-                      tuple.elements.count == 2 {
+                      tuple.elements.count == 3 {
                 let elements = Array(tuple.elements)
                 let domainType = elements[0].type
                 let domain = domainType.as(SomeOrAnyTypeSyntax.self)?.constraint.trimmedDescription ?? domainType.trimmedDescription
                 guard let implementation = implementation(
                     of: String(alias.name.text.dropFirst()),
                     view: elements[1].type.trimmedDescription,
+                    term: elements[2].type.trimmedDescription,
                     documentation: alias.leadingTrivia,
                     access: access
                 ) else { continue }
@@ -102,7 +105,7 @@ public struct StoredRequirementsMacro: ExtensionMacro {
 
     /// A property implemented on the individual's membership, under its own
     /// key path, with the documentation of the declaration it came from.
-    private static func implementation(of name: String, view: String, documentation trivia: Trivia, access: String) -> String? {
+    private static func implementation(of name: String, view: String, term: String? = nil, documentation trivia: Trivia, access: String) -> String? {
         guard let form = ["RDFCore.PropertyValues", "RDFCore.PropertyValue"].first(where: { view.hasPrefix($0 + "<") }) else {
             return nil
         }
@@ -112,9 +115,13 @@ public struct StoredRequirementsMacro: ExtensionMacro {
             .filter { $0.hasPrefix("///") }
             .map { "    " + $0 + "\n" }
             .joined()
+        // A property of another ontology's class is stored under its term
+        // type, which the term type's own accessor reads too.
+        let body = term.map { "\($0).\(form == "RDFCore.PropertyValue" ? "propertyValue" : "propertyValues")(in: membership)" }
+            ?? "\(form)(\\Self.\(name), of: membership)"
         return """
         \(documentation)    \(access)var \(name): \(view) {
-                \(form)(\\Self.\(name), of: membership)
+                \(body)
             }
         """
     }

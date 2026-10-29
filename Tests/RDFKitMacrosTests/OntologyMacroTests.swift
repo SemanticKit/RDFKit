@@ -540,6 +540,11 @@ struct OntologyMacroTests {
 
                     /// The type of this property's values.
                     public typealias Range = RDFS.Literal
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some RDFS.Resource) -> RDFCore.PropertyValues<RDFS.Literal> {
+                        individual.label
+                    }
                 }
 
                 public struct seeAlso: RDFCore.Annotation {
@@ -557,6 +562,11 @@ struct OntologyMacroTests {
 
                     /// The type of this property's values.
                     public typealias Range = any RDFS.Resource
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some RDFS.Resource) -> RDFCore.PropertyValues<any RDFS.Resource> {
+                        individual.seeAlso
+                    }
                 }
 
                 public struct subClassOf<Term>: RDFCore.TermAnnotation {
@@ -711,6 +721,11 @@ struct OntologyMacroTests {
 
                     /// The type of this property's values.
                     public typealias Range = RDFS.Literal
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some RDF.Property & RDFCore.StoredIndividual) -> RDFCore.PropertyValues<RDFS.Literal> {
+                        propertyValues(of: individual)
+                    }
                 }
 
                 public struct closeTo: RDFCore.Entity {
@@ -731,6 +746,11 @@ struct OntologyMacroTests {
 
                     /// The type of this property's values.
                     public typealias Range = XSD.nonNegativeInteger
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some OWL.TransitiveProperty & OWL.SymmetricProperty & RDFCore.StoredIndividual) -> RDFCore.PropertyValues<XSD.nonNegativeInteger> {
+                        propertyValues(of: individual)
+                    }
                 }
 
                 /// The individuals the properties Kin declares for other ontologies' classes apply to.
@@ -743,9 +763,9 @@ struct OntologyMacroTests {
                     }
 
                     /// The name of the relation read backwards.
-                    typealias _inverseName = (any RDF.Property, RDFCore.PropertyValues<RDFS.Literal>)
+                    typealias _inverseName = (any RDF.Property, RDFCore.PropertyValues<RDFS.Literal>, Kin.inverseName)
 
-                    typealias _degree = (any OWL.TransitiveProperty & OWL.SymmetricProperty, RDFCore.PropertyValues<XSD.nonNegativeInteger>)
+                    typealias _degree = (any OWL.TransitiveProperty & OWL.SymmetricProperty, RDFCore.PropertyValues<XSD.nonNegativeInteger>, Kin.degree)
                 }
             }
 
@@ -758,13 +778,13 @@ struct OntologyMacroTests {
             extension Extending where Self: RDF.Property {
                 /// The name of the relation read backwards.
                 public var inverseName: RDFCore.PropertyValues<RDFS.Literal> {
-                    RDFCore.PropertyValues(\\Self.inverseName, of: membership)
+                    Kin.inverseName.propertyValues(in: membership)
                 }
             }
 
             extension Extending where Self: OWL.TransitiveProperty & OWL.SymmetricProperty {
                 public var degree: RDFCore.PropertyValues<XSD.nonNegativeInteger> {
-                    RDFCore.PropertyValues(\\Self.degree, of: membership)
+                    Kin.degree.propertyValues(in: membership)
                 }
             }
             """
@@ -828,6 +848,271 @@ struct OntologyMacroTests {
                     var membership: RDFCore.Membership {
                         get
                     }
+                }
+            }
+            """
+        )
+    }
+
+    @Test("A property of another ontology's class gets an accessor on its term type and a member of the extension point, on one store")
+    func propertiesOfForeignDomains() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Zoo: Ontology {
+                func content() -> Content {
+                    Namespace("https://zoo.example.org/#")
+                    Property("sameSpeciesAs") {
+                        Domain(OWL.Class)
+                        Range(OWL.Class)
+                    }
+                    Property("motto") {
+                        Type(RDFKit.OWL.FunctionalProperty)
+                        Domain(RDFS.Resource)
+                        Range(RDFS.Literal)
+                    }
+                    Property("bothOf") {
+                        Domain(OWL.Class)
+                        Domain(RDF.Property)
+                    }
+                    Property("label") {
+                        Domain(RDFS.Literal)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            struct Zoo: Ontology {
+                func content() -> Content {
+                    Namespace("https://zoo.example.org/#")
+                    RDFCore.Property("sameSpeciesAs") {
+                                RDFS.domain<OWL.Class>()
+                                RDFS.range<OWL.Class>()
+                            }
+                    RDFCore.Property("motto") {
+                                RDF.type<RDFKit.OWL.FunctionalProperty>()
+                                RDFS.domain<RDFS.Resource>()
+                                RDFS.range<RDFS.Literal>()
+                            }
+                    RDFCore.Property("bothOf") {
+                                RDFS.domain<OWL.Class>()
+                                RDFS.domain<RDF.Property>()
+                            }
+                    RDFCore.Property("label") {
+                                RDFS.domain<RDFS.Literal>()
+                            }
+                }
+
+                public struct sameSpeciesAs: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#sameSpeciesAs", name: "sameSpeciesAs")
+
+                    /// The type this property applies to.
+                    public typealias Domain = OWL.Class
+
+                    /// The type of this property's values.
+                    public typealias Range = OWL.Class
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some OWL.Class & RDFCore.StoredIndividual) -> RDFCore.PropertyValues<OWL.Class> {
+                        propertyValues(of: individual)
+                    }
+                }
+
+                public struct motto: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#motto", name: "motto")
+
+                    /// The type this property applies to.
+                    public typealias Domain = RDFS.Resource
+
+                    /// The type of this property's values.
+                    public typealias Range = RDFS.Literal
+
+                    /// The value of this property of an individual.
+                    public static func value(of individual: some RDFS.Resource & RDFCore.StoredIndividual) -> RDFCore.PropertyValue<RDFS.Literal> {
+                        propertyValue(of: individual)
+                    }
+                }
+
+                public struct bothOf: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#bothOf", name: "bothOf")
+
+                    /// The types this property applies to: an individual of all of them.
+                    public typealias Domain = OWL.Class & RDF.Property
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some OWL.Class & RDF.Property & RDFCore.StoredIndividual) -> RDFCore.PropertyValues<any RDFS.Resource> {
+                        propertyValues(of: individual)
+                    }
+                }
+
+                public struct label: RDFCore.Entity {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#label", name: "label")
+
+                    /// The type this property applies to.
+                    public typealias Domain = RDFS.Literal
+                }
+
+                /// The individuals the properties Zoo declares for other ontologies' classes apply to.
+                ///
+                /// Each such property is a member of every individual in its domain.
+                protocol Extending: RDFCore.Resource {
+                    /// The individual's place in its graph, which stores its property values.
+                    var membership: RDFCore.Membership {
+                        get
+                    }
+
+                    typealias _sameSpeciesAs = (any OWL.Class, RDFCore.PropertyValues<OWL.Class>, Zoo.sameSpeciesAs)
+
+                    typealias _motto = (any RDFS.Resource, RDFCore.PropertyValue<RDFS.Literal>, Zoo.motto)
+
+                    typealias _bothOf = (any OWL.Class & RDF.Property, RDFCore.PropertyValues<any RDFS.Resource>, Zoo.bothOf)
+                }
+            }
+
+            extension Extending where Self: OWL.Class {
+                var sameSpeciesAs: RDFCore.PropertyValues<OWL.Class> {
+                    Zoo.sameSpeciesAs.propertyValues(in: membership)
+                }
+            }
+
+            extension Extending where Self: RDFS.Resource {
+                var motto: RDFCore.PropertyValue<RDFS.Literal> {
+                    Zoo.motto.propertyValue(in: membership)
+                }
+            }
+
+            extension Extending where Self: OWL.Class & RDF.Property {
+                var bothOf: RDFCore.PropertyValues<any RDFS.Resource> {
+                    Zoo.bothOf.propertyValues(in: membership)
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "'RDFS.Literal' is not a class of individuals, so no individual can have 'label'; make its domain a class", line: 19, column: 13),
+            ]
+        )
+    }
+
+    @Test("A property of rdfs:Resource in RDFS reads its requirement through its term type")
+    func resourcePropertyAccessorReadsRequirement() {
+        assertExpansion(
+            """
+            @Ontology
+            struct RDFS: Ontology {
+                func content() -> Content {
+                    Namespace("http://www.w3.org/2000/01/rdf-schema#")
+                    Class("Resource")
+                    Class("Literal") {
+                        SubClassOf(RDFS.Resource)
+                    }
+                    Property("label") {
+                        Domain(RDFS.Resource)
+                        Range(RDFS.Literal)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            struct RDFS: Ontology {
+                func content() -> Content {
+                    Namespace("http://www.w3.org/2000/01/rdf-schema#")
+                    RDFCore.Class("Resource")
+                    RDFCore.Class("Literal") {
+                                RDFS.subClassOf<RDFS.Resource>()
+                            }
+                    RDFCore.Property("label") {
+                                RDFS.domain<RDFS.Resource>()
+                                RDFS.range<RDFS.Literal>()
+                            }
+                }
+                protocol Resource: RDFCore.Resource, RDF.Extending, RDFS.Extending, OWL.Extending {
+                    var label: RDFCore.PropertyValues<RDFS.Literal> {
+                        get
+                    }
+                }
+
+                /// An individual of ``RDFS/Resource``.
+                public final class ResourceIndividual: RDFS.Resource, RDFCore.StoredIndividual {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/2000/01/rdf-schema#Resource", name: "Resource")
+
+                    /// This individual's place in its graph, which stores its property values.
+                    public let membership: RDFCore.Membership
+
+                    private init(membership: RDFCore.Membership) {
+                        self.membership = membership
+                    }
+
+                    /// Creates an individual in a graph, with these property values.
+                    public convenience init(in graph: RDFCore.IndividualGraph, label: [RDFS.Literal] = []) {
+                        self.init(membership: RDFCore.Membership(in: graph) {
+                                ResourceIndividual(membership: $0)
+                            })
+                        graph.insert(self)
+                        self.label.append(contentsOf: label)
+                    }
+                }
+
+                public struct Literal: RDFCore.LiteralValue {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/2000/01/rdf-schema#Literal", name: "Literal")
+
+                    /// The lexical form of this literal.
+                    public var lexicalForm: String
+
+                    /// The language tag of this literal, if it is a language-tagged string.
+                    public var languageTag: String?
+
+                    /// The base direction of this literal, if it is a directional language-tagged string.
+                    public var direction: RDFCore.TextDirection?
+
+                    /// Creates a literal with this lexical form.
+                    public init(_ lexicalForm: String, languageTag: String? = nil, direction: RDFCore.TextDirection? = nil) {
+                        self.lexicalForm = lexicalForm
+                        self.languageTag = languageTag
+                        self.direction = direction
+                    }
+
+                    /// Creates a literal from its lexical form.
+                    public init(stringLiteral lexicalForm: String) {
+                        self.init(lexicalForm)
+                    }
+                }
+
+                public struct label: RDFCore.Annotation {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/2000/01/rdf-schema#label", name: "label")
+
+                    /// The annotation text.
+                    public let text: String
+
+                    public init(_ text: String) {
+                        self.text = text
+                    }
+
+                    /// The type this property applies to.
+                    public typealias Domain = any RDFS.Resource
+
+                    /// The type of this property's values.
+                    public typealias Range = RDFS.Literal
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some RDFS.Resource) -> RDFCore.PropertyValues<RDFS.Literal> {
+                        individual.label
+                    }
+                }
+
+                /// The individuals the properties RDFS declares for other ontologies' classes apply to.
+                ///
+                /// Each such property is a member of every individual in its domain.
+                protocol Extending: RDFCore.Resource {
+                    /// The individual's place in its graph, which stores its property values.
+                    var membership: RDFCore.Membership {
+                        get
+                    }
+                }
+            }
+
+            extension Resource where Self: RDFCore.StoredIndividual {
+                var label: RDFCore.PropertyValues<RDFS.Literal> {
+                    RDFCore.PropertyValues(\\Self.label, of: membership)
                 }
             }
             """
@@ -1168,6 +1453,11 @@ struct OntologyMacroTests {
 
                     /// The type this property applies to.
                     public typealias Domain = OWL.Thing
+
+                    /// The values of this property of an individual.
+                    public static func values(of individual: some OWL.Thing & RDFCore.StoredIndividual) -> RDFCore.PropertyValues<any RDFS.Resource> {
+                        propertyValues(of: individual)
+                    }
                 }
             }
 
