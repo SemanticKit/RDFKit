@@ -2,13 +2,13 @@ import IRIKit
 import RDFCore
 import RDFKit
 
-/// Decodes RDF 1.2 N-Triples documents into triples.
+/// Decodes RDF 1.2 N-Triples documents into a ``Graph``.
 ///
 /// The decoder follows the grammar in RDF 1.2 N-Triples §7. It is where the
 /// IRIs written in a document become ``IRI`` values: every `IRIREF` is
 /// unescaped and validated as an absolute IRI before it enters the runtime.
 ///
-///     let triples = try NTriplesDecoder().decode(
+///     let graph = try NTriplesDecoder().decode(
 ///         "<http://example/s> <http://example/p> \"hello\"@en--ltr .\n"
 ///     )
 public struct NTriplesDecoder: Sendable {
@@ -19,7 +19,7 @@ public struct NTriplesDecoder: Sendable {
     ///
     /// - Throws: ``SyntaxError`` when the document does not match the
     ///   N-Triples grammar.
-    public func decode(_ document: String) throws -> [DecodedTriple] {
+    public func decode(_ document: String) throws -> Graph {
         var parser = NTriplesParser(document)
         return try parser.parseDocument()
     }
@@ -28,13 +28,13 @@ public struct NTriplesDecoder: Sendable {
 /// `ntriplesDoc ::= statement? (EOL statement)* EOL?`
 struct NTriplesParser {
     var scanner: Scanner
-    var triples: [DecodedTriple] = []
+    var graph: Graph = []
 
     init(_ document: String) {
         scanner = Scanner(document)
     }
 
-    mutating func parseDocument() throws -> [DecodedTriple] {
+    mutating func parseDocument() throws -> Graph {
         while true {
             skipSpace()
             if scanner.isAtEnd { break }
@@ -45,11 +45,11 @@ struct NTriplesParser {
             if scanner.peek(spells: "VERSION") {
                 try parseVersion()
             } else {
-                triples.append(try parseTriple())
+                graph.insert(try parseTriple())
             }
             try parseEndOfLine()
         }
-        return triples
+        return graph
     }
 
     /// `versionDirective ::= 'VERSION' versionSpecifier`
@@ -88,7 +88,7 @@ struct NTriplesParser {
     }
 
     /// `triple ::= subject predicate object '.'`
-    mutating func parseTriple() throws -> DecodedTriple {
+    mutating func parseTriple() throws -> Graph.Element {
         let subject = try parseSubject()
         skipSpace()
         let predicate = try parseIRI()
@@ -96,13 +96,13 @@ struct NTriplesParser {
         let object = try parseObject()
         skipSpace()
         guard scanner.consume(".") else { throw scanner.error("expected '.' after a triple") }
-        return DecodedTriple(subject: subject, predicate: predicate, object: object)
+        return Graph.Element(subject: subject, predicate: predicate, object: object)
     }
 
     /// `subject ::= IRIREF | BLANK_NODE_LABEL`
     mutating func parseSubject() throws -> SubjectTerm {
         if scanner.peek(spells: "_:") {
-            return .blankNode(BlankNode(rawValue: try scanner.scanBlankNodeLabel()))
+            return .blankNode(try BlankNode(scanner.scanBlankNodeLabel()))
         }
         guard scanner.peek(is: "<"), !scanner.peek(is: "<", at: 1) else {
             throw scanner.error("expected an IRI or blank node as subject")
@@ -122,7 +122,7 @@ struct NTriplesParser {
     }
 
     /// `tripleTerm ::= '<<(' subject predicate object ')>>'`
-    mutating func parseTripleTerm() throws -> TripleTermValue {
+    mutating func parseTripleTerm() throws -> Graph.Element {
         _ = scanner.consume("<<(")
         skipSpace()
         let subject = try parseSubject()
@@ -132,7 +132,7 @@ struct NTriplesParser {
         let object = try parseObject()
         skipSpace()
         guard scanner.consume(")>>") else { throw scanner.error("expected ')>>' to close a triple term") }
-        return TripleTermValue(subject: subject, predicate: predicate, object: object)
+        return Graph.Element(subject: subject, predicate: predicate, object: object)
     }
 
     /// `literal ::= STRING_LITERAL_QUOTE ('^^' IRIREF | LANG_DIR)?`
@@ -143,18 +143,19 @@ struct NTriplesParser {
         if scanner.consume("^^") {
             skipSpace()
             let datatype = try parseIRI()
-            guard let literal = Literal.typed(lexicalForm, datatype: datatype) else {
+            do {
+                return try Literal(lexicalForm, datatype: datatype)
+            } catch {
                 throw scanner.error("a language-tagged string cannot be written with '^^'", at: start)
             }
-            return literal
         }
         if scanner.peek(is: "@") {
             let position = scanner.index
             let word = try scanner.scanAtWord()
             let (language, direction) = try scanner.languageAndDirection(word, at: position)
-            return try Literal(lexicalForm, languageTag: language, textDirection: direction)
+            return try Literal(lexicalForm, languageTag: language, baseDirection: direction)
         }
-        return try Literal(lexicalForm)
+        return Literal(lexicalForm)
     }
 
     /// An `IRIREF`, which N-Triples requires to be absolute.

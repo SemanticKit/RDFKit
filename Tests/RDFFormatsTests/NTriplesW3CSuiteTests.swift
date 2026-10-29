@@ -28,8 +28,8 @@ struct NTriplesW3CSuiteTests {
 
     @Test("Canonicalization: the encoder writes the canonical form", arguments: try W3CManifest.tests(in: manifest).filter { $0.kind == .canonicalization })
     func canonicalization(_ test: W3CTestCase) throws {
-        let triples = try NTriplesDecoder().decode(try test.readAction())
-        let encoded = NTriplesEncoder().encode(triples)
+        let graph = try NTriplesDecoder().decode(try test.readAction())
+        let encoded = NTriplesEncoder().encode(graph)
         let expected = try test.readResult()
         #expect(Array(encoded.utf8) == Array(expected.utf8), "\(encoded)")
     }

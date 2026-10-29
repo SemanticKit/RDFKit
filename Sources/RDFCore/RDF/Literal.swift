@@ -1,53 +1,76 @@
 import Foundation
 import IRIKit
 
-/// An RDF literal with lexical form, optional language tag, text direction, and datatype.
-public struct Literal: Object, Equatable, Hashable, Sendable, Codable, Comparable, CustomStringConvertible {
-    /// The literal lexical form.
+/// An RDF literal.
+///
+/// RDF 1.2 Concepts §3.4 Literals: "A literal in an RDF graph consists of
+/// two, three, or four elements: a lexical form, … a datatype IRI, … if and
+/// only if the datatype IRI is `rdf:langString` or `rdf:dirLangString`, a
+/// non-empty language tag, … if and only if the datatype IRI is
+/// `rdf:dirLangString`, a base direction."
+///
+/// The datatype IRI of a simple literal (`xsd:string`) and of a
+/// language-tagged string (`rdf:langString`, `rdf:dirLangString`) follows
+/// from its form, so ``datatype`` holds only the datatype IRI of any other
+/// typed literal. A typed literal is made with RDFKit's
+/// `Literal(_:datatype:)`, which knows those vocabularies: `xsd:string` gives
+/// the same literal as ``init(_:)``, so equal literals are equal values.
+///
+/// Two literals are the same term when their lexical forms, datatype IRIs,
+/// language tags (compared case-insensitively) and base directions are
+/// equal. The language tag is stored in lower case, so `Equatable` gives
+/// that comparison.
+public struct Literal: Object, Hashable, Sendable, Comparable, CustomStringConvertible {
+    /// The lexical form, a Unicode string.
     public let lexicalForm: String
 
-    /// The normalized BCP 47 language tag.
+    /// The language tag of a language-tagged string, in lower case.
     public let languageTag: String?
 
-    /// The initial text direction for a language-tagged string.
-    public let textDirection: TextDirection?
+    /// The base direction of a directional language-tagged string.
+    public let baseDirection: BaseDirection?
 
-    /// The literal datatype IRI.
+    /// The datatype IRI of a typed literal whose datatype is not
+    /// `xsd:string`; `nil` for simple literals and language-tagged strings.
     public let datatype: IRI?
 
-    /// Creates an RDF literal.
-    public init(
-        _ lexicalForm: String,
-        languageTag: String? = nil,
-        textDirection: TextDirection? = nil,
-        datatype: IRI? = nil
-    ) throws {
+    /// Creates a simple literal, whose datatype is `xsd:string`.
+    public init(_ lexicalForm: String) {
         self.lexicalForm = lexicalForm
-        self.languageTag = languageTag?.lowercased()
-        self.textDirection = textDirection
-        self.datatype = datatype
-
-        if let languageTag = self.languageTag {
-            guard !languageTag.isEmpty else {
-                fatalError("INCOMPLETE")
-            }
-            guard datatype == nil else {
-                fatalError("INCOMPLETE")
-            }
-        } else {
-            guard textDirection == nil else {
-                fatalError("INCOMPLETE")
-            }
-        }
+        self.languageTag = nil
+        self.baseDirection = nil
+        self.datatype = nil
     }
 
-    /// A stable RDF literal representation.
+    /// Creates a language-tagged string, with a base direction when it is a
+    /// directional language-tagged string.
+    ///
+    /// - Throws: ``TermError/emptyLanguageTag`` when the tag is empty.
+    public init(_ lexicalForm: String, languageTag: String, baseDirection: BaseDirection? = nil) throws(TermError) {
+        guard !languageTag.isEmpty else { throw .emptyLanguageTag }
+        self.lexicalForm = lexicalForm
+        self.languageTag = languageTag.lowercased()
+        self.baseDirection = baseDirection
+        self.datatype = nil
+    }
+
+    /// Creates a typed literal from a datatype IRI that is not
+    /// `xsd:string`, `rdf:langString` or `rdf:dirLangString`. RDFKit's
+    /// `Literal(_:datatype:)` checks that before it calls this.
+    package init(lexicalForm: String, datatype: IRI) {
+        self.lexicalForm = lexicalForm
+        self.languageTag = nil
+        self.baseDirection = nil
+        self.datatype = datatype
+    }
+
+    /// The literal as N-Triples writes it, without escaping.
     public var description: String {
         var value = "\"\(lexicalForm)\""
         if let languageTag {
             value += "@\(languageTag)"
-            if let textDirection {
-                value += "--\(textDirection.rawValue)"
+            if let baseDirection {
+                value += "--\(baseDirection)"
             }
         } else if let datatype {
             value += "^^<\(datatype)>"
@@ -56,9 +79,7 @@ public struct Literal: Object, Equatable, Hashable, Sendable, Codable, Comparabl
     }
 
     public static func < (lhs: Literal, rhs: Literal) -> Bool {
-        if lhs.lexicalForm != rhs.lexicalForm { return lhs.lexicalForm < rhs.lexicalForm }
-        if lhs.languageTag != rhs.languageTag { return String(describing: lhs.languageTag) < String(describing: rhs.languageTag) }
-        if lhs.textDirection != rhs.textDirection { return String(describing: lhs.textDirection) < String(describing: rhs.textDirection) }
-        return String(describing: lhs.datatype) < String(describing: rhs.datatype)
+        (lhs.lexicalForm, lhs.languageTag ?? "", lhs.baseDirection?.rawValue ?? "", lhs.datatype?.rawValue ?? "")
+            < (rhs.lexicalForm, rhs.languageTag ?? "", rhs.baseDirection?.rawValue ?? "", rhs.datatype?.rawValue ?? "")
     }
 }

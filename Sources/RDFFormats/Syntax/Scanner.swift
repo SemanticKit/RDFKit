@@ -227,12 +227,12 @@ struct Scanner {
     /// Splits the text after `@` into a language tag and an optional base
     /// direction, rejecting a tag that is not a well-formed BCP 47 shape or a
     /// direction other than `ltr` and `rtl`.
-    func languageAndDirection(_ word: String, at position: Int) throws -> (language: String, direction: TextDirection?) {
+    func languageAndDirection(_ word: String, at position: Int) throws -> (language: String, direction: BaseDirection?) {
         let parts = word.components(separatedBy: "--")
         let language = parts[0]
-        var direction: TextDirection?
+        var direction: BaseDirection?
         if parts.count == 2 {
-            guard let value = TextDirection(rawValue: parts[1]) else {
+            guard let value = BaseDirection(rawValue: parts[1]) else {
                 throw error("base direction must be 'ltr' or 'rtl'", at: position)
             }
             direction = value

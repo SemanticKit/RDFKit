@@ -5,6 +5,8 @@
 //  Created by Charles Gardner on 6/21/26.
 //
 
+import RDFCore
+
 /// An ontology entity declared in the DSL.
 ///
 /// Represents the declared thing itself, not an instance of it.
@@ -12,7 +14,7 @@
 ///
 /// The Swift type is the entity's identity inside the runtime. Its IRI lives
 /// only in ``metadata``, which is read at the boundary.
-public protocol Entity: Node {
+public protocol Entity: RDFCore.Node {
     /// The class-level metadata.
     static var metadata: any ContentMetadata { get }
 }

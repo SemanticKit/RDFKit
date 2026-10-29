@@ -11,24 +11,24 @@ struct BlankNodeLabels {
     private var counter = 0
 
     /// The node a `BLANK_NODE_LABEL` names, the same node every time.
-    mutating func node(labelled label: String) -> BlankNode {
+    mutating func node(labelled label: String) throws(TermError) -> BlankNode {
         if let node = written[label] { return node }
-        let node = used.contains(label) ? fresh() : claim(label)
+        let node = try used.contains(label) ? fresh() : claim(label)
         written[label] = node
         return node
     }
 
     /// A blank node no label in the document names.
-    mutating func fresh() -> BlankNode {
+    mutating func fresh() throws(TermError) -> BlankNode {
         while true {
             counter += 1
             let label = "b" + String(counter)
-            if !used.contains(label) { return claim(label) }
+            if !used.contains(label) { return try claim(label) }
         }
     }
 
-    private mutating func claim(_ label: String) -> BlankNode {
+    private mutating func claim(_ label: String) throws(TermError) -> BlankNode {
         used.insert(label)
-        return BlankNode(rawValue: label)
+        return try BlankNode(label)
     }
 }

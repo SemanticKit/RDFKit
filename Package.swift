@@ -36,6 +36,7 @@ let package = Package(
             name: "Prototype",
             dependencies: [
                 "IRIKit",
+                "RDFCore",
                 "RDFKitMacros"
             ]
         ),
@@ -104,6 +105,14 @@ let package = Package(
         .target(
             name: "Fauna",
             dependencies: ["RDFCore", "RDFKit"]
+        ),
+        .testTarget(
+            name: "RDFCoreTests",
+            dependencies: [
+                "RDFCore",
+                "RDFKit",
+                .product(name: "IRIKit", package: "IRIKit")
+            ]
         ),
         .testTarget(
             name: "RDFKitMacrosTests",

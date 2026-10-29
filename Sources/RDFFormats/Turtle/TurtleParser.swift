@@ -12,7 +12,7 @@ struct TurtleParser {
     /// IRI as written after resolution.
     var namespaces: [String: String] = [:]
     var blankNodes = BlankNodeLabels()
-    var triples: [DecodedTriple] = []
+    var graph: Graph = []
 
     init(_ document: String, base: String?) throws {
         lexer = TurtleLexer(document)
@@ -43,11 +43,11 @@ struct TurtleParser {
     // MARK: - Statements
 
     /// `turtleDoc ::= statement*`
-    mutating func parseDocument() throws -> [DecodedTriple] {
+    mutating func parseDocument() throws -> Graph {
         while current.token != .end {
             try parseStatement()
         }
-        return triples
+        return graph
     }
 
     /// `statement ::= directive | (triples '.')`
@@ -114,7 +114,7 @@ struct TurtleParser {
     mutating func parseTriples() throws {
         if isPunctuation("[") {
             try advance()
-            let subject = SubjectTerm.blankNode(blankNodes.fresh())
+            let subject = SubjectTerm.blankNode(try blankNodes.fresh())
             if isPunctuation("]") {
                 try advance()
                 try parsePredicateObjectList(subject: subject)
@@ -159,7 +159,7 @@ struct TurtleParser {
         repeat {
             let object = try parseObject()
             emit(subject, predicate, object)
-            try parseAnnotation(of: TripleTermValue(subject: subject, predicate: predicate, object: object))
+            try parseAnnotation(of: Graph.Element(subject: subject, predicate: predicate, object: object))
         } while try consume(",")
     }
 
@@ -185,7 +185,7 @@ struct TurtleParser {
         switch current.token {
         case .blankNodeLabel(let label):
             try advance()
-            return .blankNode(blankNodes.node(labelled: label))
+            return .blankNode(try blankNodes.node(labelled: label))
         case .punctuation("("):
             return try parseCollection()
         default:
@@ -200,10 +200,10 @@ struct TurtleParser {
         switch current.token {
         case .blankNodeLabel(let label):
             try advance()
-            return .blankNode(blankNodes.node(labelled: label))
+            return .blankNode(try blankNodes.node(labelled: label))
         case .punctuation("["):
             try advance()
-            let node = blankNodes.fresh()
+            let node = try blankNodes.fresh()
             if !isPunctuation("]") {
                 try parsePredicateObjectList(subject: .blankNode(node))
             }
@@ -230,7 +230,7 @@ struct TurtleParser {
         try advance()
         var list = SubjectTerm.iri(type(of: RDF.nil).metadata.id)
         for item in items.reversed() {
-            let cell = SubjectTerm.blankNode(blankNodes.fresh())
+            let cell = SubjectTerm.blankNode(try blankNodes.fresh())
             emit(cell, RDF.first.metadata.id, item)
             emit(cell, RDF.rest.metadata.id, list.object)
             list = cell
@@ -245,7 +245,7 @@ struct TurtleParser {
     /// Each reifier reifies the triple. An annotation block describes the
     /// reifier just before it, or a fresh blank node reifier when none is
     /// waiting for a block.
-    mutating func parseAnnotation(of triple: TripleTermValue) throws {
+    mutating func parseAnnotation(of triple: Graph.Element) throws {
         var pending: SubjectTerm?
         while true {
             if isPunctuation("~") {
@@ -259,7 +259,7 @@ struct TurtleParser {
                 if let waiting = pending {
                     reifier = waiting
                 } else {
-                    reifier = .blankNode(blankNodes.fresh())
+                    reifier = .blankNode(try blankNodes.fresh())
                     emit(reifier, RDF.reifies.metadata.id, .tripleTerm(triple))
                 }
                 pending = nil
@@ -307,13 +307,13 @@ struct TurtleParser {
             reifier = try parseReifierIdentifier()
         }
         try expect(">>", "to close a reified triple")
-        let node = reifier ?? .blankNode(blankNodes.fresh())
-        emit(node, RDF.reifies.metadata.id, .tripleTerm(TripleTermValue(subject: subject, predicate: predicate, object: object)))
+        let node = try reifier ?? .blankNode(blankNodes.fresh())
+        emit(node, RDF.reifies.metadata.id, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
         return node
     }
 
     /// `tripleTerm ::= '<<(' ttSubject verb ttObject ')>>'`
-    mutating func parseTripleTerm() throws -> TripleTermValue {
+    mutating func parseTripleTerm() throws -> Graph.Element {
         try expect("<<(", "to open a triple term")
         // ttSubject ::= iri | BlankNode
         let subject: SubjectTerm
@@ -327,7 +327,7 @@ struct TurtleParser {
         let predicate = try parseVerb()
         let object = try parseTripleTermObject(context: "a triple term")
         try expect(")>>", "to close a triple term")
-        return TripleTermValue(subject: subject, predicate: predicate, object: object)
+        return Graph.Element(subject: subject, predicate: predicate, object: object)
     }
 
     /// `ttObject ::= iri | BlankNode | literal | tripleTerm`
@@ -346,7 +346,7 @@ struct TurtleParser {
         switch current.token {
         case .blankNodeLabel(let label):
             try advance()
-            return blankNodes.node(labelled: label)
+            return try blankNodes.node(labelled: label)
         case .punctuation("["):
             // ANON ::= '[' WS* ']'
             let position = current.position
@@ -355,7 +355,7 @@ struct TurtleParser {
                 throw lexer.scanner.error("expected ']': a blank node property list is not allowed here", at: position)
             }
             try advance()
-            return blankNodes.fresh()
+            return try blankNodes.fresh()
         default:
             return nil
         }
@@ -393,17 +393,18 @@ struct TurtleParser {
             if case .atWord(let word) = current.token {
                 let (language, direction) = try lexer.scanner.languageAndDirection(word, at: current.position)
                 try advance()
-                return try Literal(lexicalForm, languageTag: language, textDirection: direction)
+                return try Literal(lexicalForm, languageTag: language, baseDirection: direction)
             }
             if isPunctuation("^^") {
                 try advance()
                 guard let datatype = try parseIRIIfPresent() else { throw error("expected a datatype IRI") }
-                guard let typed = Literal.typed(lexicalForm, datatype: datatype) else {
+                do {
+                    return try Literal(lexicalForm, datatype: datatype)
+                } catch {
                     throw lexer.scanner.error("a language-tagged string cannot be written with '^^'", at: start)
                 }
-                return typed
             }
-            return try Literal(lexicalForm)
+            return Literal(lexicalForm)
         case .integer(let text):
             literal = try Literal(text, datatype: XSD.integer.metadata.id)
         case .decimal(let text):
@@ -434,6 +435,6 @@ struct TurtleParser {
     }
 
     mutating func emit(_ subject: SubjectTerm, _ predicate: IRI, _ object: ObjectTerm) {
-        triples.append(DecodedTriple(subject: subject, predicate: predicate, object: object))
+        graph.insert(Graph.Element(subject: subject, predicate: predicate, object: object))
     }
 }

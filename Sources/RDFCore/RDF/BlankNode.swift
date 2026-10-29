@@ -1,27 +1,25 @@
 import Foundation
 
-/// An RDF blank node identified by a document-local label.
-public struct BlankNode: Subject, Object, RawRepresentable, Equatable, Hashable, Sendable, Codable, Comparable, CustomStringConvertible {
-    /// The blank node label without the `_:` prefix.
+/// An RDF blank node.
+///
+/// RDF 1.2 Concepts §3.5 Blank Nodes: "Blank nodes are disjoint from IRIs and
+/// literals. Otherwise, the set of possible blank nodes is arbitrary." The
+/// identifier is the document-local label a format writes after `_:`; two
+/// blank nodes are the same node when their identifiers are equal.
+public struct BlankNode: Subject, Object, Hashable, Sendable, Comparable, CustomStringConvertible {
+    /// The blank node identifier, without the `_:` prefix.
     public let identifier: String
 
     /// Creates a blank node.
-    public init(_ identifier: String) throws {
-        guard !identifier.isEmpty else {
-            fatalError("INCOMPLETE")
-        }
+    ///
+    /// - Throws: ``TermError/emptyBlankNodeIdentifier`` when the identifier
+    ///   is empty.
+    public init(_ identifier: String) throws(TermError) {
+        guard !identifier.isEmpty else { throw .emptyBlankNodeIdentifier }
         self.identifier = identifier
     }
 
-    /// Creates a blank node from its raw value.
-    public init(rawValue: String) {
-        self.identifier = rawValue
-    }
-
-    /// The raw blank node label.
-    public var rawValue: String { identifier }
-
-    /// A stable textual representation.
+    /// The blank node as N-Triples writes it.
     public var description: String { "_:\(identifier)" }
 
     public static func < (lhs: BlankNode, rhs: BlankNode) -> Bool {

@@ -1,29 +1,31 @@
 import IRIKit
 import RDFCore
 
-/// Encodes triples as canonical RDF 1.2 N-Triples (§4).
+/// Encodes a graph as canonical RDF 1.2 N-Triples (§4).
 ///
-/// Each triple is written on its own line, in the order given, with single
+/// Each triple is written on its own line, with single
 /// spaces between terms, no comments and a line feed after the final `.`.
 /// Literals escape `"`, `\`, the control characters and U+FFFE and U+FFFF;
 /// `xsd:string` is never written; language tags are lower case. IRIs are the
-/// boundary values the triples carry, written as they are.
+/// boundary values the triples carry, written as they are. Triples are
+/// written in the graph's order, the order they were first inserted.
 public struct NTriplesEncoder: Sendable {
     /// Creates an N-Triples encoder.
     public init() {}
 
-    /// Encodes triples as a canonical N-Triples document.
-    public func encode(_ triples: [DecodedTriple]) -> String {
-        var output = ""
-        for triple in triples {
-            write(triple.subject, to: &output)
-            output += " "
-            write(triple.predicate, to: &output)
-            output += " "
-            write(triple.object, to: &output)
-            output += " .\n"
+    /// Encodes a graph as a canonical N-Triples document.
+    public func encode(_ graph: Graph) -> String {
+        graph.map { triple in
+            var line = ""
+            write(triple.subject, to: &line)
+            line += " "
+            write(triple.predicate, to: &line)
+            line += " "
+            write(triple.object, to: &line)
+            line += " .\n"
+            return line
         }
-        return output
+        .joined()
     }
 
     private func write(_ iri: IRI, to output: inout String) {
@@ -78,7 +80,7 @@ public struct NTriplesEncoder: Sendable {
         output += String(text)
         if let language = literal.languageTag {
             output += "@" + language.lowercased()
-            if let direction = literal.textDirection {
+            if let direction = literal.baseDirection {
                 output += "--" + direction.rawValue
             }
         } else if let datatype = literal.datatype {
