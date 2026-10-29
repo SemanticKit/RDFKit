@@ -92,7 +92,7 @@ struct FaunaTests {
 
     @Test("Property declarations relate terms as types", .tags(.property))
     func declarationsRelateTypes() throws {
-        let declarations = Fauna().content.compactMap { $0 as? RDFCore.Property }
+        let declarations = Fauna().content().compactMap { $0 as? RDFCore.Property }
         let hasHabitat = try #require(declarations.first { $0.localName == "hasHabitat" })
 
         #expect(hasHabitat.content.contains { $0 is Domain<Fauna.Animal> })
@@ -110,9 +110,28 @@ struct FaunaTests {
         #expect(domain.commonName == "Lion")
     }
 
+    @Test("Annotations authored with a bare type relate that type", .tags(.ontology))
+    func bareTypeArgumentsBecomeTermAnnotations() throws {
+        // Fauna.swift writes `Type(RDFS.Class)`, `Domain(Fauna.Animal)` and
+        // `Range(Fauna.Habitat)`. `content()` returns them as annotations
+        // whose term is that type.
+        let content = Fauna().content()
+        let animal = try #require(content.compactMap { $0 as? RDFCore.Class }.first { $0.localName == "Animal" })
+        #expect(animal.content.contains { $0 is Type<RDFS.Class> })
+
+        let preysOn = try #require(content.compactMap { $0 as? RDFCore.Property }.first { $0.localName == "preysOn" })
+        #expect(preysOn.content.contains { $0 is Type<OWL.ObjectProperty> })
+        #expect(preysOn.content.contains { $0 is Domain<Fauna.Animal> })
+        #expect(preysOn.content.contains { $0 is Range<Fauna.Animal> })
+
+        let commonName = try #require(content.compactMap { $0 as? RDFCore.Property }.first { $0.localName == "commonName" })
+        #expect(commonName.content.contains { $0 is Range<RDFS.Literal> })
+        #expect(commonName.content.contains { ($0 as? Label)?.text == "common name" })
+    }
+
     @Test("Every declared class becomes a generated type", .tags(.generated))
     func everyClassIsGenerated() {
-        let classes = Fauna().content.compactMap { $0 as? RDFCore.Class }.map(\.localName)
+        let classes = Fauna().content().compactMap { $0 as? RDFCore.Class }.map(\.localName)
         #expect(classes == ["Animal", "Habitat", "Diet"])
 
         let generated = [Fauna.Animal.metadata.name, Fauna.Habitat.metadata.name, Fauna.Diet.metadata.name]
@@ -121,7 +140,7 @@ struct FaunaTests {
 
     @Test("A term's IRI is projected from the namespace at the boundary", .tags(.boundary))
     func iriIsBoundaryProjection() throws {
-        let namespace = try #require(Fauna().content.compactMap { $0 as? Namespace }.first)
+        let namespace = try #require(Fauna().content().compactMap { $0 as? Namespace }.first)
 
         #expect(namespace.iri == IRI("https://fauna.example.org/ontology#"))
         #expect(Fauna.Animal.metadata.id == IRI("https://fauna.example.org/ontology#Animal"))

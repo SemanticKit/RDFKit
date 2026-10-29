@@ -4,7 +4,7 @@
 import RDFCore
 
 @Ontology struct RDFKit: Ontology {
-    var content: Content {
+    func content() -> Content {
         Namespace("http://semantickit.io/o/2026/06/rdfkit#")
 
 //        Prefix.rdf
@@ -13,20 +13,20 @@ import RDFCore
 //        Prefix.owl
 
         Class("Namespace") {
-            Type<RDFS.Class>()
+            Type(RDFS.Class)
             Comment("Represents the locally defined prefix.")
         }
 
         Class("Prefix") {
-            Type<RDFS.Class>()
+            Type(RDFS.Class)
             Comment("Represents a locally referenced prefix")
         }
 
         Property("id") {
-            Type<RDF.Property>()
+            Type(RDF.Property)
             Label("alias")
-            Domain<RDFKit.Prefix>()
-            Range<RDFS.Literal>()
+            Domain(RDFKit.Prefix)
+            Range(RDFS.Literal)
         }
 
     }

@@ -5,11 +5,11 @@ import RDFCore
 /// Only the datatypes the declared vocabularies reference are declared here.
 @Ontology
 public struct XSD: Ontology {
-    public var content: Content {
+    public func content() -> Content {
         Namespace("http://www.w3.org/2001/XMLSchema#")
 
         Datatype("nonNegativeInteger") {
-            Type<RDFS.Datatype>()
+            Type(RDFS.Datatype)
             Label("nonNegativeInteger")
             Comment("The datatype of integers greater than or equal to zero.")
         }
