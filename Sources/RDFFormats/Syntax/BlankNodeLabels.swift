@@ -1,6 +1,6 @@
 import RDFCore
 
-/// The blank nodes of one Turtle document.
+/// The blank nodes of one document.
 ///
 /// A label written in the document keeps its spelling unless a node the
 /// parser created already uses it; then the label gets a fresh node, so two
