@@ -13,5 +13,17 @@ public struct XSD: Ontology {
             Label("nonNegativeInteger")
             Comment("The datatype of integers greater than or equal to zero.")
         }
+
+        Datatype("hexBinary") {
+            Type(RDFS.Datatype)
+            Label("hexBinary")
+            Comment("The datatype of arbitrary hex-encoded binary data.")
+        }
+
+        Datatype("base64Binary") {
+            Type(RDFS.Datatype)
+            Label("base64Binary")
+            Comment("The datatype of arbitrary Base64-encoded binary data.")
+        }
     }
 }
