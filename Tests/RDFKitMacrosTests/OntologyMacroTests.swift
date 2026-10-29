@@ -40,19 +40,19 @@ struct OntologyMacroTests {
                                 Comment("An animal.")
                             }
                     RDFCore.Class("Keeper") {
-                                SubClassOf<Zoo.Animal>()
+                                SubClassOf(Zoo.Animal)
                             }
                     RDFCore.Individual("rex") {
-                                Type<Zoo.Keeper>()
+                                Type(Zoo.Keeper)
                             }
                     RDFCore.Property("feeds") {
-                                Domain<Zoo.Keeper>()
-                                Range<Zoo.Animal>()
+                                Domain(Zoo.Keeper)
+                                Range(Zoo.Animal)
                             }
                     RDFCore.Property("name") {
-                                Type<OWL.FunctionalProperty>()
-                                Domain<Zoo.Animal>()
-                                Range<RDFS.Literal>()
+                                Type(OWL.FunctionalProperty)
+                                Domain(Zoo.Animal)
+                                Range(RDFS.Literal)
                             }
                 }
 
@@ -239,12 +239,12 @@ struct OntologyMacroTests {
                     RDFCore.Class("Keeper")
                     RDFCore.Class("Vet")
                     RDFCore.Class("KeeperVet") {
-                                SubClassOf<Zoo.Keeper>()
-                                SubClassOf<Zoo.Vet>()
+                                SubClassOf(Zoo.Keeper)
+                                SubClassOf(Zoo.Vet)
                             }
                     RDFCore.Individual("rex") {
-                                Type<Zoo.Keeper>()
-                                Type<Zoo.Vet>()
+                                Type(Zoo.Keeper)
+                                Type(Zoo.Vet)
                             }
                 }
 
@@ -349,15 +349,15 @@ struct OntologyMacroTests {
                 func content() -> Content {
                     Namespace("https://units.example.org/#")
                     RDFCore.Datatype("Kilograms") {
-                                SubClassOf<RDFS.Literal>()
+                                SubClassOf(RDFS.Literal)
                             }
                     RDFCore.Class("Animal") {
-                                SubClassOf<OWL.Thing>()
+                                SubClassOf(OWL.Thing)
                             }
                     RDFCore.Property("weight") {
-                                Type<OWL.FunctionalProperty>()
-                                Domain<Units.Animal>()
-                                Range<Units.Kilograms>()
+                                Type(OWL.FunctionalProperty)
+                                Domain(Units.Animal)
+                                Range(Units.Kilograms)
                             }
                 }
 
@@ -410,7 +410,7 @@ struct OntologyMacroTests {
                     Namespace("http://www.w3.org/2002/07/owl#")
                     RDFCore.Class("Thing")
                     RDFCore.Class("Nothing") {
-                                SubClassOf<OWL.Thing>()
+                                SubClassOf(OWL.Thing)
                             }
                 }
 
@@ -470,17 +470,17 @@ struct OntologyMacroTests {
                     Namespace("https://zoo.example.org/#")
                     RDFCore.Class("Animal")
                     RDFCore.Class("Keeper") {
-                                SubClassOf<Zoo.Animl>()
+                                SubClassOf(Zoo.Animl)
                             }
                     RDFCore.Class("AnimalIndividual")
                     RDFCore.Individual("rex") {
-                                Type<OWL.Thing>()
+                                Type(OWL.Thing)
                             }
                     RDFCore.Datatype("Weight")
                     RDFCore.Property("heavier") {
-                                Type<OWL.FunctionalProperty>()
-                                Domain<Zoo.Weight>()
-                                Range<Zoo.Weight>()
+                                Type(OWL.FunctionalProperty)
+                                Domain(Zoo.Weight)
+                                Range(Zoo.Weight)
                             }
                 }
 

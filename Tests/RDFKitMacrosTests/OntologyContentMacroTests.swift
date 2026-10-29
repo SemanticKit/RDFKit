@@ -35,18 +35,18 @@ struct OntologyContentMacroTests {
             func content() -> Content {
                 Namespace("https://zoo.example.org/#")
                 RDFCore.Class("Animal") {
-                        Type<RDFS.Class>()
+                        Type(RDFS.Class)
                         Label("Animal")
                         Endangered<Zoo.Animal>()
                     }
                 RDFCore.Class("Keeper") {
-                        SubClassOf<Animal>()
+                        SubClassOf(Animal)
                         Label(keeperLabel)
                     }
                 if includeVets {
                         RDFCore.Property("treats") {
-                            Domain<Zoo.Vet>()
-                            Range<Zoo.Animal>()
+                            Domain(Zoo.Vet)
+                            Range(Zoo.Animal)
                         }
                     }
             }
@@ -61,7 +61,7 @@ struct OntologyContentMacroTests {
             @OntologyContent
             func content() -> Content {
                 Class("Animal") {
-                    SubClassOf<Zoo.Animal>()
+                    SubClassOf(Zoo.Animal)
                     Domain(Zoo.Animal.self)
                 }
             }
@@ -69,7 +69,7 @@ struct OntologyContentMacroTests {
             expandedSource: """
             func content() -> Content {
                 RDFCore.Class("Animal") {
-                        SubClassOf<Zoo.Animal>()
+                        SubClassOf(Zoo.Animal)
                         Domain(Zoo.Animal.self)
                     }
             }
@@ -128,7 +128,7 @@ struct OntologyContentMacroTests {
             #"#sourceLocation(file: "/Zoo/Zoo.swift", line: 6)"#,
             """
             RDFCore.Class("Animal") {
-                        Type<RDFS.Clas>()
+                        Type(RDFS.Clas)
                     }
             """,
             "#sourceLocation()",
