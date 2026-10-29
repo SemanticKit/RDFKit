@@ -27,6 +27,10 @@ public struct Triple<SubjectValue: Subject, ObjectValue: Object>: Sendable {
     }
 }
 
+extension Triple: Equatable where SubjectValue: Equatable, ObjectValue: Equatable {}
+
+extension Triple: Hashable where SubjectValue: Hashable, ObjectValue: Hashable {}
+
 /// A triple term.
 ///
 /// RDF 1.2 Concepts §3.6 Triple Terms: "A triple term is an RDF triple used as
