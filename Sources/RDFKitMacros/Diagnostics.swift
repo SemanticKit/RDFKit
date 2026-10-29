@@ -18,19 +18,20 @@ struct OntologyDiagnostic: DiagnosticMessage {
         Self(message: "'\(spelling)' is not declared in \(ontology)", id: "undeclaredTerm")
     }
 
-    /// A generated individual type would have the name of a declared term.
-    static func individualTypeCollides(name: String, className: String) -> Self {
+    /// A type the macro generates for a class would have the name of a declared term.
+    static func generatedTypeCollides(name: String, className: String) -> Self {
         Self(
-            message: "'\(name)' is declared in this ontology, so the individual type of '\(className)' cannot use that name",
-            id: "individualTypeName"
+            message: "'\(name)' is declared in this ontology, so the type @Ontology generates for '\(className)' cannot use that name",
+            id: "generatedTypeName"
         )
     }
 
-    /// A named individual of a class that refines another ontology's class.
-    static func individualOfForeignClass(_ spelling: String) -> Self {
+    /// A named individual of a class that has no individuals, or that is not
+    /// written with its ontology.
+    static func individualOfClassWithoutIndividuals(_ spelling: String) -> Self {
         Self(
-            message: "@Ontology generates the properties of individuals whose classes and superclasses are declared in this ontology (or are RDFS.Resource); '\(spelling)' is not",
-            id: "individualOfForeignClass"
+            message: "'\(spelling)' is not a class with individuals; write a class protocol with its ontology, such as OWL.Thing, and not owl:Nothing or a datatype",
+            id: "individualOfClassWithoutIndividuals"
         )
     }
 

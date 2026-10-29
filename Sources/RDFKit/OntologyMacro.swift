@@ -34,7 +34,11 @@ import RDFCore
 ///   Properties are many-valued; one typed `OWL.FunctionalProperty` has at
 ///   most one value (`(any Fauna.Habitat)?`). `SubClassOf(Fauna.Animal)`
 ///   makes a class protocol refine `Fauna.Animal`, so one individual can
-///   belong to several classes.
+///   belong to several classes. A class with no superclass refines
+///   `RDFS.Resource`, so every individual has `label` and `comment`.
+///   `SubClassOf` can name another ontology's class, such as `OWL.Thing`.
+/// - `Fauna.AnimalValues`, the stored values of an individual of the class,
+///   which `@ClassProtocol` implements the class's properties on.
 /// - `Fauna.AnimalIndividual` and `Fauna.HabitatIndividual`, final classes
 ///   whose instances are individuals. An individual is a reference, and its
 ///   identity is the object:
@@ -46,6 +50,11 @@ import RDFCore
 /// - value types for datatypes and literal classes.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
 ///   and `Range` as type aliases.
+///
+/// RDF, RDFS and OWL are declared with this macro too. The annotations every
+/// `content()` is written with are their property terms: `Label("Animal")` is
+/// built as `RDFS.label("Animal")` and `Domain(Fauna.Animal)` as
+/// `RDFS.domain<Fauna.Animal>()`, both generated from RDFS.swift.
 ///
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion and kept in its static `metadata`, for the

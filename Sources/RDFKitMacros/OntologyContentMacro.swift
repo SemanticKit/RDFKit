@@ -8,10 +8,12 @@ import SwiftSyntaxMacros
 /// type, `Domain(Fauna.Animal)`, which Swift cannot evaluate as an
 /// expression. A body macro owns the body, so the compiler reads it only as
 /// syntax and type-checks the body this macro returns instead: the same
-/// statements, with each term annotation written as the annotation type for
-/// that term, `Domain<Fauna.Animal>()`, and each declaration form qualified
-/// by its module, `RDFCore.Class("Animal")`, because the ontology may declare
-/// a term of the same name (`RDFS.Class`). The statements keep the authored
+/// statements, with each annotation written as the property term it stands
+/// for, which `@Ontology` generates from RDF.swift, RDFS.swift and OWL.swift:
+/// `Label("Animal")` as `RDFS.label("Animal")` and `Domain(Fauna.Animal)` as
+/// `RDFS.domain<Fauna.Animal>()`. Each declaration form is qualified by its
+/// module, `RDFCore.Class("Animal")`, because the ontology may declare a term
+/// of the same name (`RDFS.Class`). The statements keep the authored
 /// file and line, so the compiler reports an error in them at the line it
 /// was written on. `content()` takes ``ContentBuilder`` from the `Ontology`
 /// requirement, so the returned statements are built into `Content`.
@@ -50,8 +52,9 @@ public struct OntologyContentMacro: BodyMacro {
     }
 }
 
-/// Rewrites `Domain(Fauna.Animal)` as `Domain<Fauna.Animal>()` and
-/// `Class("Animal")` as `RDFCore.Class("Animal")`, and reports the spellings
+/// Rewrites `Domain(Fauna.Animal)` as `RDFS.domain<Fauna.Animal>()`,
+/// `Label("Animal")` as `RDFS.label("Animal")` and `Class("Animal")` as
+/// `RDFCore.Class("Animal")`, and reports the spellings
 /// the DSL does not use (`Domain<Fauna.Animal>()`, `Domain(Fauna.Animal.self)`)
 /// at the authored call.
 private final class ContentRewriter: SyntaxRewriter {
@@ -64,8 +67,10 @@ private final class ContentRewriter: SyntaxRewriter {
     }
 
     override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
-        diagnoseUnusedSpellings(of: node)
+        let isUnusedSpelling = diagnoseUnusedSpellings(of: node)
         let visited = super.visit(node)
+        // A spelling the DSL does not use is reported and left as written.
+        if isUnusedSpelling { return visited }
         guard let call = visited.as(FunctionCallExprSyntax.self),
               let reference = call.calledExpression.as(DeclReferenceExprSyntax.self) else { return visited }
 
@@ -74,16 +79,21 @@ private final class ContentRewriter: SyntaxRewriter {
             let qualified: ExprSyntax = "RDFCore.\(raw: form)"
             return ExprSyntax(call.with(\.calledExpression, qualified.with(\.leadingTrivia, reference.leadingTrivia)))
         }
-        guard let term = TermArgument.typePath(of: call, declaredNames: declaredNames) else { return visited }
-        let rewritten: ExprSyntax = "\(raw: form)<\(raw: term)>()"
+        guard let annotation = BootstrapTerm.term(writtenAs: form) else { return visited }
+        guard let term = TermArgument.typePath(of: call, declaredNames: declaredNames) else {
+            let written: ExprSyntax = "\(raw: annotation)"
+            return ExprSyntax(call.with(\.calledExpression, written.with(\.leadingTrivia, reference.leadingTrivia)))
+        }
+        let rewritten: ExprSyntax = "\(raw: annotation)<\(raw: term)>()"
         return rewritten
             .with(\.leadingTrivia, call.leadingTrivia)
             .with(\.trailingTrivia, call.trailingTrivia)
     }
 
-    /// Reports `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`.
-    private func diagnoseUnusedSpellings(of call: FunctionCallExprSyntax) {
-        guard call.trailingClosure == nil, call.additionalTrailingClosures.isEmpty else { return }
+    /// Reports `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`, and
+    /// returns whether the call is one of them.
+    private func diagnoseUnusedSpellings(of call: FunctionCallExprSyntax) -> Bool {
+        guard call.trailingClosure == nil, call.additionalTrailingClosures.isEmpty else { return false }
 
         if let specialized = call.calledExpression.as(GenericSpecializationExprSyntax.self),
            let reference = specialized.expression.as(DeclReferenceExprSyntax.self),
@@ -93,7 +103,7 @@ private final class ContentRewriter: SyntaxRewriter {
             let form = reference.baseName.text
             let type = argument.argument.trimmedDescription
             diagnose(call, form: form, type: type)
-            return
+            return true
         }
 
         if let reference = call.calledExpression.as(DeclReferenceExprSyntax.self),
@@ -102,7 +112,9 @@ private final class ContentRewriter: SyntaxRewriter {
            let components = TermArgument.components(of: argument.expression),
            components.count > 1, components.last == "self" {
             diagnose(call, form: reference.baseName.text, type: components.dropLast().joined(separator: "."))
+            return true
         }
+        return false
     }
 
     private func diagnose(_ call: FunctionCallExprSyntax, form: String, type: String) {

@@ -5,6 +5,7 @@ import SwiftSyntaxMacros
 struct RDFKitMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         OntologyMacro.self,
-        OntologyContentMacro.self
+        OntologyContentMacro.self,
+        ClassProtocolMacro.self
     ]
 }

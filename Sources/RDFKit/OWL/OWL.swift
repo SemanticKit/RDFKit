@@ -9,7 +9,6 @@ public struct OWL: Ontology {
         Prefix("dc", "http://purl.org/dc/elements/1.1/")
         Prefix("grddl", "http://www.w3.org/2003/g/data-view#")
         Prefix("owl", "http://www.w3.org/2002/07/owl#")
-        Prefix("owl", "http://www.w3.org/2002/07/owl#")
         Prefix("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
         Prefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
         Prefix("xml", "http://www.w3.org/XML/1998/namespace")
