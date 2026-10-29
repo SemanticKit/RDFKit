@@ -1,6 +1,5 @@
 import IRIKit
 import RDFCore
-import RDFFormats
 
 /// RDF graph isomorphism (RDF 1.2 Concepts §3.7): whether a bijection
 /// between the blank nodes of two graphs maps one graph onto the other.
@@ -8,16 +7,24 @@ import RDFFormats
 /// Blank nodes are first coloured by the shape of the triples they occur in,
 /// and the colours are refined from their neighbours' colours; the search
 /// then only tries to map nodes of the same colour onto each other.
-struct GraphIsomorphism {
-    let left: Set<DecodedTriple>
-    let right: Set<DecodedTriple>
+///
+///     let isomorphic = GraphIsomorphism(decoded, expected).holds
+public struct GraphIsomorphism: Sendable {
+    /// The first graph.
+    public let left: Set<DecodedTriple>
 
-    init(_ left: [DecodedTriple], _ right: [DecodedTriple]) {
+    /// The second graph.
+    public let right: Set<DecodedTriple>
+
+    /// Compares two graphs. Each is the set of the triples given
+    /// (RDF 1.2 Concepts §3.1: "An RDF graph is a set of RDF triples").
+    public init(_ left: [DecodedTriple], _ right: [DecodedTriple]) {
         self.left = Set(left)
         self.right = Set(right)
     }
 
-    var holds: Bool {
+    /// Whether the two graphs are isomorphic.
+    public var holds: Bool {
         guard left.count == right.count else { return false }
         let leftNodes = Self.blankNodes(in: left)
         let rightNodes = Self.blankNodes(in: right)
