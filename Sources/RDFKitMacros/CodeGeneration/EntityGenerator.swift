@@ -7,18 +7,20 @@ import SwiftSyntaxMacros
 ///
 /// - A class becomes a protocol (`Fauna.Animal`) whose requirements are the
 ///   properties with the class as `Domain`, typed by their `Range`: many
-///   values (`[any Fauna.Habitat]`) by default, at most one
-///   (`(any Fauna.Diet)?`) for an `owl:FunctionalProperty`. `SubClassOf`
-///   becomes protocol refinement; a class with no superclass refines
-///   ``RDFCore/Resource``.
+///   values (`RDFCore.PropertyValues<any Fauna.Habitat>`) by default, at most
+///   one (`RDFCore.PropertyValue<any Fauna.Diet>`) for an
+///   `owl:FunctionalProperty`. `SubClassOf` becomes protocol refinement; a
+///   class with no superclass refines ``RDFCore/Resource``.
 /// - Each class also gets an individual type, a final class named after the
 ///   class (`Fauna.AnimalIndividual`) that conforms to the class protocol and
 ///   stores every requirement. Its instances are individuals of the class:
-///   references, whose identity is the object.
+///   references, whose identity is the object, created in an
+///   ``RDFCore/IndividualGraph`` that owns their lifetime.
 /// - A named individual becomes a static constant of the ontology
 ///   (`Fauna.carnivore`), the one instance of a final class that conforms to
 ///   all of its classes.
-/// - A datatype, `rdfs:Literal` and its subclasses become value types.
+/// - A datatype, `rdfs:Literal` and its subclasses become value types that
+///   store the literal (``RDFCore/LiteralValue``).
 /// - A property becomes a term type that names its `Domain` and `Range`.
 /// - A term that RDFCore already provides becomes an alias of that type.
 ///
@@ -89,7 +91,7 @@ struct EntityGenerator {
         let name = SwiftIdentifier.escaped(declaration.name)
         let requirements = model.ownRequirements(of: declaration.name).map { requirement in
             Documentation.docComment(for: requirement.declaration, indent: "    ")
-                + "    var \(requirement.name): \(requirement.declaredType) { get set }"
+                + "    var \(requirement.name): \(requirement.storageType) { get }"
         }.joined(separator: "\n\n")
 
         let protocolSource = """
@@ -112,7 +114,7 @@ struct EntityGenerator {
             conformances: ["\(ontology.typeName).\(name)"],
             requirements: model.storedRequirements(ofClasses: [declaration.name]),
             metadata: Documentation.metadata(for: declaration, in: ontology),
-            initializerAccess: "public"
+            isNamed: false
         )
         return [protocolSource, individual]
     }
@@ -143,7 +145,7 @@ struct EntityGenerator {
             conformances: classes,
             requirements: model.storedRequirements(ofClasses: localClasses),
             metadata: Documentation.metadata(for: declaration, in: ontology),
-            initializerAccess: "fileprivate"
+            isNamed: true
         )
         let constant = """
         \(Documentation.docComment(for: declaration))public static let \(name): any \(classes.joined(separator: " & ")) = \(typeName)()
@@ -153,9 +155,12 @@ struct EntityGenerator {
 
     /// A final class whose instances are individuals of the given classes.
     ///
-    /// Its property values are kept in one ``RDFCore/IndividualStorage``,
-    /// guarded by a mutex, so the class is `Sendable` as checked by the
-    /// compiler.
+    /// Each property is a `let` holding an ``RDFCore/PropertyValues`` or
+    /// ``RDFCore/PropertyValue``, which guard the values with a mutex, so the
+    /// class is `Sendable` as checked by the compiler and every change to a
+    /// property is atomic. An individual of a class is created in an
+    /// ``RDFCore/IndividualGraph``, which owns its lifetime; a named
+    /// individual is a static constant and belongs to no graph.
     private func individualClass(
         documentation: String,
         access: String,
@@ -163,34 +168,39 @@ struct EntityGenerator {
         conformances: [String],
         requirements: [OntologyModel.PropertyRequirement],
         metadata: String,
-        initializerAccess: String
+        isNamed: Bool
     ) -> String {
         let memberAccess = access == "private" ? "fileprivate" : access
-        let fields = requirements.map { "        var \($0.name): \($0.declaredType)" }.joined(separator: "\n")
-        let parameters = requirements.map { "\($0.name): \($0.declaredType) = \($0.emptyValue)" }.joined(separator: ", ")
-        let arguments = requirements.map { "\($0.name): \($0.name)" }.joined(separator: ", ")
-        let accessors = requirements.map { requirement in
-            """
-            \(Documentation.docComment(for: requirement.declaration, indent: "    "))    \(memberAccess) var \(requirement.name): \(requirement.declaredType) {
-                    get { storage.withLock { $0.\(requirement.name) } }
-                    set { storage.withLock { $0.\(requirement.name) = newValue } }
-                }
-            """
+        let properties = requirements.map { requirement in
+            Documentation.docComment(for: requirement.declaration, indent: "    ")
+                + "    \(memberAccess) let \(requirement.name): \(requirement.storageType)"
         }.joined(separator: "\n\n")
 
-        let values = fields.isEmpty ? "    private struct Values: Sendable {}" : "    private struct Values: Sendable {\n\(fields)\n    }"
+        let initializer: String
+        if isNamed {
+            let assignments = requirements.map { "        self.\($0.name) = \($0.storageType)()" }.joined(separator: "\n")
+            initializer = """
+                fileprivate init() {\(assignments.isEmpty ? "}" : "\n" + assignments + "\n    }")
+            """
+        } else {
+            let parameters = (["in graph: RDFCore.IndividualGraph"] + requirements.map {
+                "\($0.name): \($0.declaredType) = \($0.emptyValue)"
+            }).joined(separator: ", ")
+            let assignments = requirements.map { "        self.\($0.name) = \($0.storageType)(\($0.name))" }
+            let storages = requirements.map { "self.\($0.name)" }.joined(separator: ", ")
+            initializer = """
+                /// Creates an individual in a graph, with these property values.
+                public init(\(parameters)) {
+            \((assignments + ["        graph.insert(self, properties: [\(storages)])"]).joined(separator: "\n"))
+                }
+            """
+        }
+
         return """
         \(documentation)\(access) final class \(name): \(conformances.joined(separator: ", ")) {
             \(memberAccess) static let metadata: any RDFCore.ContentMetadata = \(metadata)
-
-        \(values)
-
-            private let storage: RDFCore.IndividualStorage<Values>
-
-            /// Creates an individual with these property values.
-            \(initializerAccess) init(\(parameters)) {
-                storage = RDFCore.IndividualStorage(Values(\(arguments)))
-            }\(accessors.isEmpty ? "" : "\n\n" + accessors)
+        \(properties.isEmpty ? "" : "\n" + properties + "\n")
+        \(initializer)
         }
         """
     }
@@ -207,14 +217,33 @@ struct EntityGenerator {
             Documentation.docComment(for: requirement.declaration, indent: "    ")
                 + "    public var \(requirement.name): \(requirement.declaredType)"
         }.joined(separator: "\n\n")
-        let parameters = requirements.map { "\($0.name): \($0.declaredType) = \($0.emptyValue)" }.joined(separator: ", ")
-        let assignments = requirements.map { "        self.\($0.name) = \($0.name)" }.joined(separator: "\n")
+        let parameters = (["_ lexicalForm: String", "languageTag: String? = nil", "direction: RDFCore.TextDirection? = nil"]
+            + requirements.map { "\($0.name): \($0.declaredType) = \($0.emptyValue)" }).joined(separator: ", ")
+        let assignments = (["lexicalForm", "languageTag", "direction"] + requirements.map(\.name))
+            .map { "        self.\($0) = \($0)" }.joined(separator: "\n")
 
         return """
-        \(Documentation.docComment(for: declaration))public struct \(SwiftIdentifier.escaped(declaration.name)): RDFCore.Entity {
+        \(Documentation.docComment(for: declaration))public struct \(SwiftIdentifier.escaped(declaration.name)): RDFCore.LiteralValue {
             public static let metadata: any RDFCore.ContentMetadata = \(Documentation.metadata(for: declaration, in: ontology))
+
+            /// The lexical form of this literal.
+            public var lexicalForm: String
+
+            /// The language tag of this literal, if it is a language-tagged string.
+            public var languageTag: String?
+
+            /// The base direction of this literal, if it is a directional language-tagged string.
+            public var direction: RDFCore.TextDirection?
         \(storage.isEmpty ? "" : "\n" + storage + "\n")
-            public init(\(parameters)) {\(assignments.isEmpty ? "}" : "\n" + assignments + "\n    }")
+            /// Creates a literal with this lexical form.
+            public init(\(parameters)) {
+        \(assignments)
+            }
+
+            /// Creates a literal from its lexical form.
+            public init(stringLiteral lexicalForm: String) {
+                self.init(lexicalForm)
+            }
         }
         """
     }

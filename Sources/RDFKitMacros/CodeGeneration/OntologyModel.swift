@@ -29,8 +29,7 @@ struct OntologyModel {
     struct PropertyRequirement {
         /// The property declaration.
         let declaration: ParsedEntity
-        /// The Swift type of one value: the range's generated type, or the
-        /// Swift value type of a literal range.
+        /// The Swift type of one value: the range's generated type.
         let valueType: String
         /// Whether the property is an `owl:FunctionalProperty`: at most one value.
         let isFunctional: Bool
@@ -38,10 +37,19 @@ struct OntologyModel {
         /// The property name as a Swift identifier.
         var name: String { SwiftIdentifier.escaped(declaration.name) }
 
-        /// Many values by default, at most one for a functional property.
+        /// The values as a plain Swift value: an array by default, an
+        /// optional for a functional property. A value type stores this, and
+        /// an individual's initializer takes it.
         var declaredType: String {
             guard isFunctional else { return "[\(valueType)]" }
             return valueType.hasPrefix("any ") ? "(\(valueType))?" : "\(valueType)?"
+        }
+
+        /// The storage of the values on an individual: many values by
+        /// default, at most one for a functional property, guarded by a mutex
+        /// so that every change is atomic.
+        var storageType: String {
+            isFunctional ? "RDFCore.PropertyValue<\(valueType)>" : "RDFCore.PropertyValues<\(valueType)>"
         }
 
         /// No values.
@@ -138,11 +146,9 @@ struct OntologyModel {
         )
     }
 
-    /// The Swift type of one value of a range.
+    /// The Swift type of one value of a range: the class protocol of a class,
+    /// or the value type of a datatype or literal class.
     func valueType(ofRange spelling: String) -> String {
-        if let literal = BootstrapTerm.literalValueType(forRange: ontology.canonical(spelling)) {
-            return literal
-        }
         let reference = ontology.resolve(spelling)
         if let name = reference.localName, shapes[name] == .classProtocol {
             return "any " + ontology.spelling(of: reference)

@@ -58,9 +58,8 @@ struct OntologyMacroTests {
 
                 /// An animal.
                 public protocol Animal: RDFCore.Resource {
-                    var name: String? {
+                    var name: RDFCore.PropertyValue<RDFS.Literal> {
                         get
-                        set
                     }
                 }
 
@@ -68,35 +67,18 @@ struct OntologyMacroTests {
                 public final class AnimalIndividual: Zoo.Animal {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Animal", name: "Animal", comment: "An animal.")
 
-                    private struct Values: Sendable {
-                        var name: String?
-                    }
+                    public let name: RDFCore.PropertyValue<RDFS.Literal>
 
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init(name: String? = nil) {
-                        storage = RDFCore.IndividualStorage(Values(name: name))
-                    }
-
-                    public var name: String? {
-                        get {
-                            storage.withLock {
-                                $0.name
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.name = newValue
-                            }
-                        }
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph, name: RDFS.Literal? = nil) {
+                        self.name = RDFCore.PropertyValue<RDFS.Literal>(name)
+                        graph.insert(self, properties: [self.name])
                     }
                 }
 
                 public protocol Keeper: Zoo.Animal {
-                    var feeds: [any Zoo.Animal] {
+                    var feeds: RDFCore.PropertyValues<any Zoo.Animal> {
                         get
-                        set
                     }
                 }
 
@@ -104,42 +86,15 @@ struct OntologyMacroTests {
                 public final class KeeperIndividual: Zoo.Keeper {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Keeper", name: "Keeper")
 
-                    private struct Values: Sendable {
-                        var name: String?
-                        var feeds: [any Zoo.Animal]
-                    }
+                    public let name: RDFCore.PropertyValue<RDFS.Literal>
 
-                    private let storage: RDFCore.IndividualStorage<Values>
+                    public let feeds: RDFCore.PropertyValues<any Zoo.Animal>
 
-                    /// Creates an individual with these property values.
-                    public init(name: String? = nil, feeds: [any Zoo.Animal] = []) {
-                        storage = RDFCore.IndividualStorage(Values(name: name, feeds: feeds))
-                    }
-
-                    public var name: String? {
-                        get {
-                            storage.withLock {
-                                $0.name
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.name = newValue
-                            }
-                        }
-                    }
-
-                    public var feeds: [any Zoo.Animal] {
-                        get {
-                            storage.withLock {
-                                $0.feeds
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.feeds = newValue
-                            }
-                        }
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph, name: RDFS.Literal? = nil, feeds: [any Zoo.Animal] = []) {
+                        self.name = RDFCore.PropertyValue<RDFS.Literal>(name)
+                        self.feeds = RDFCore.PropertyValues<any Zoo.Animal>(feeds)
+                        graph.insert(self, properties: [self.name, self.feeds])
                     }
                 }
 
@@ -148,42 +103,13 @@ struct OntologyMacroTests {
                 private final class _rexIndividual: Zoo.Keeper {
                     fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#rex", name: "rex")
 
-                    private struct Values: Sendable {
-                        var name: String?
-                        var feeds: [any Zoo.Animal]
-                    }
+                    fileprivate let name: RDFCore.PropertyValue<RDFS.Literal>
 
-                    private let storage: RDFCore.IndividualStorage<Values>
+                    fileprivate let feeds: RDFCore.PropertyValues<any Zoo.Animal>
 
-                    /// Creates an individual with these property values.
-                    fileprivate init(name: String? = nil, feeds: [any Zoo.Animal] = []) {
-                        storage = RDFCore.IndividualStorage(Values(name: name, feeds: feeds))
-                    }
-
-                    fileprivate var name: String? {
-                        get {
-                            storage.withLock {
-                                $0.name
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.name = newValue
-                            }
-                        }
-                    }
-
-                    fileprivate var feeds: [any Zoo.Animal] {
-                        get {
-                            storage.withLock {
-                                $0.feeds
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.feeds = newValue
-                            }
-                        }
+                    fileprivate init() {
+                        self.name = RDFCore.PropertyValue<RDFS.Literal>()
+                        self.feeds = RDFCore.PropertyValues<any Zoo.Animal>()
                     }
                 }
 
@@ -204,7 +130,7 @@ struct OntologyMacroTests {
                     public typealias Domain = any Zoo.Animal
 
                     /// The type of this property's values.
-                    public typealias Range = String
+                    public typealias Range = RDFS.Literal
                 }
             }
             """
@@ -255,14 +181,9 @@ struct OntologyMacroTests {
                 public final class KeeperIndividual: Zoo.Keeper {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Keeper", name: "Keeper")
 
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph) {
+                        graph.insert(self, properties: [])
                     }
                 }
 
@@ -273,14 +194,9 @@ struct OntologyMacroTests {
                 public final class VetIndividual: Zoo.Vet {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Vet", name: "Vet")
 
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph) {
+                        graph.insert(self, properties: [])
                     }
                 }
 
@@ -291,14 +207,9 @@ struct OntologyMacroTests {
                 public final class KeeperVetIndividual: Zoo.KeeperVet {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#KeeperVet", name: "KeeperVet")
 
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph) {
+                        graph.insert(self, properties: [])
                     }
                 }
 
@@ -307,14 +218,7 @@ struct OntologyMacroTests {
                 private final class _rexIndividual: Zoo.Keeper, Zoo.Vet {
                     fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#rex", name: "rex")
 
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
                     fileprivate init() {
-                        storage = RDFCore.IndividualStorage(Values())
                     }
                 }
             }
@@ -322,7 +226,7 @@ struct OntologyMacroTests {
         )
     }
 
-    @Test("Datatypes stay value types; a class refining another ontology's class is a protocol only")
+    @Test("Datatypes stay value types that store their literal; a class refining another ontology's class is a protocol only")
     func datatypesAndForeignSuperclasses() {
         assertExpansion(
             """
@@ -361,17 +265,34 @@ struct OntologyMacroTests {
                             }
                 }
 
-                public struct Kilograms: RDFCore.Entity {
+                public struct Kilograms: RDFCore.LiteralValue {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://units.example.org/#Kilograms", name: "Kilograms")
 
-                    public init() {
+                    /// The lexical form of this literal.
+                    public var lexicalForm: String
+
+                    /// The language tag of this literal, if it is a language-tagged string.
+                    public var languageTag: String?
+
+                    /// The base direction of this literal, if it is a directional language-tagged string.
+                    public var direction: RDFCore.TextDirection?
+
+                    /// Creates a literal with this lexical form.
+                    public init(_ lexicalForm: String, languageTag: String? = nil, direction: RDFCore.TextDirection? = nil) {
+                        self.lexicalForm = lexicalForm
+                        self.languageTag = languageTag
+                        self.direction = direction
+                    }
+
+                    /// Creates a literal from its lexical form.
+                    public init(stringLiteral lexicalForm: String) {
+                        self.init(lexicalForm)
                     }
                 }
 
                 public protocol Animal: OWL.Thing {
-                    var weight: Units.Kilograms? {
+                    var weight: RDFCore.PropertyValue<Units.Kilograms> {
                         get
-                        set
                     }
                 }
 
@@ -421,14 +342,9 @@ struct OntologyMacroTests {
                 public final class ThingIndividual: OWL.Thing {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/2002/07/owl#Thing", name: "Thing")
 
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph) {
+                        graph.insert(self, properties: [])
                     }
                 }
 
@@ -497,24 +413,37 @@ struct OntologyMacroTests {
                 public final class AnimalIndividualIndividual: Zoo.AnimalIndividual {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#AnimalIndividual", name: "AnimalIndividual")
 
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    /// Creates an individual in a graph, with these property values.
+                    public init(in graph: RDFCore.IndividualGraph) {
+                        graph.insert(self, properties: [])
                     }
                 }
 
-                public struct Weight: RDFCore.Entity {
+                public struct Weight: RDFCore.LiteralValue {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Weight", name: "Weight")
+
+                    /// The lexical form of this literal.
+                    public var lexicalForm: String
+
+                    /// The language tag of this literal, if it is a language-tagged string.
+                    public var languageTag: String?
+
+                    /// The base direction of this literal, if it is a directional language-tagged string.
+                    public var direction: RDFCore.TextDirection?
 
                     public var heavier: Zoo.Weight?
 
-                    public init(heavier: Zoo.Weight? = nil) {
+                    /// Creates a literal with this lexical form.
+                    public init(_ lexicalForm: String, languageTag: String? = nil, direction: RDFCore.TextDirection? = nil, heavier: Zoo.Weight? = nil) {
+                        self.lexicalForm = lexicalForm
+                        self.languageTag = languageTag
+                        self.direction = direction
                         self.heavier = heavier
+                    }
+
+                    /// Creates a literal from its lexical form.
+                    public init(stringLiteral lexicalForm: String) {
+                        self.init(lexicalForm)
                     }
                 }
 

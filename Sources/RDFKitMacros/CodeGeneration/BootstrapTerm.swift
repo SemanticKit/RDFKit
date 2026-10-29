@@ -26,19 +26,6 @@ enum BootstrapTerm {
         }
     }
 
-    /// The Swift value type that stores a literal of a literal range, by the
-    /// range's qualified spelling.
-    ///
-    /// A property whose range is one of these is stored as the Swift value
-    /// type. Every other range is stored as its own generated type.
-    static func literalValueType(forRange spelling: String) -> String? {
-        switch spelling {
-        case "RDFS.Literal": "String"
-        case "XSD.nonNegativeInteger": "UInt"
-        default: nil
-        }
-    }
-
     /// Whether a qualified spelling names `rdfs:Literal`, the class of
     /// literal values. It and its subclasses are value types.
     static func isLiteral(_ spelling: String) -> Bool {

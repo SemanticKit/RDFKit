@@ -30,20 +30,26 @@ import RDFCore
 ///
 /// - `Fauna.Animal` and `Fauna.Habitat`, protocols for the classes. A
 ///   class's requirements are the properties with it as `Domain`, typed by
-///   their `Range`: `Fauna.Animal` requires `hasHabitat: [any Fauna.Habitat]`.
-///   Properties are many-valued; one typed `OWL.FunctionalProperty` has at
-///   most one value (`(any Fauna.Habitat)?`). `SubClassOf(Fauna.Animal)`
+///   their `Range`: `Fauna.Animal` requires
+///   `hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat>`. Properties are
+///   many-valued; one typed `OWL.FunctionalProperty` has at most one value
+///   (`RDFCore.PropertyValue<any Fauna.Habitat>`). Every change to a
+///   property's values is atomic. `SubClassOf(Fauna.Animal)`
 ///   makes a class protocol refine `Fauna.Animal`, so one individual can
 ///   belong to several classes.
 /// - `Fauna.AnimalIndividual` and `Fauna.HabitatIndividual`, final classes
 ///   whose instances are individuals. An individual is a reference, and its
-///   identity is the object:
+///   identity is the object. It is created in an `RDFCore.IndividualGraph`,
+///   which keeps it alive and, when released, frees the cycles among its
+///   individuals:
 ///
-///       let savanna = Fauna.HabitatIndividual()
-///       let lion = Fauna.AnimalIndividual(hasHabitat: [savanna])
+///       let graph = IndividualGraph()
+///       let savanna = Fauna.HabitatIndividual(in: graph)
+///       let lion = Fauna.AnimalIndividual(in: graph, hasHabitat: [savanna])
+///       savanna.inhabitedBy.append(lion)
 ///
 /// - a static constant for each `Individual("name")`, `Fauna.name`.
-/// - value types for datatypes and literal classes.
+/// - value types for datatypes and literal classes, which store the literal.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
 ///   and `Range` as type aliases.
 ///

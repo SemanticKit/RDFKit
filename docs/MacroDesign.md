@@ -7,11 +7,11 @@
 | DSL | Generated |
 |---|---|
 | `Class("Animal")` | `protocol Animal`, and the individual type `final class AnimalIndividual: Animal` |
-| `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: [any Y] { get set }` on protocol `X`, and the term type `struct hasHabitat` |
-| `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: (any Diet)? { get set }` |
+| `Property("hasHabitat") { Domain(X); Range(Y) }` | a requirement `var hasHabitat: RDFCore.PropertyValues<any Y> { get }` on protocol `X`, and the term type `struct hasHabitat` |
+| `Type(OWL.FunctionalProperty)` on a property | the requirement holds at most one value: `var hasDiet: RDFCore.PropertyValue<any Diet> { get }` |
 | `SubClassOf(X)` | the class protocol refines `X` |
 | `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X` |
-| `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) |
+| `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) that stores the literal and conforms to `RDFCore.LiteralValue` |
 | `Label`, `Comment` | DocC on the generated declaration, and the term's static `metadata` |
 | a term RDFCore provides (`rdfs:label`, `rdfs:domain`, `rdfs:Resource`, ...) | a type alias of the RDFCore type |
 
@@ -64,12 +64,12 @@ The macro generates, among others:
 // Inside struct Fauna:
 /// The class of all animals.
 public protocol Animal: RDFCore.Resource {
-    var hasHabitat: [any Fauna.Habitat] { get set }
-    var hasDiet: (any Fauna.Diet)? { get set }
+    var hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat> { get }
+    var hasDiet: RDFCore.PropertyValue<any Fauna.Diet> { get }
 }
 
 public protocol Predator: Fauna.Animal {
-    var preysOn: [any Fauna.Animal] { get set }
+    var preysOn: RDFCore.PropertyValues<any Fauna.Animal> { get }
 }
 
 /// An individual of ``Fauna/Predator``.
@@ -77,23 +77,17 @@ public final class PredatorIndividual: Fauna.Predator {
     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(
         id: "https://fauna.example.org/ontology#Predator", name: "Predator")
 
-    private struct Values: Sendable {
-        var hasHabitat: [any Fauna.Habitat]
-        var hasDiet: (any Fauna.Diet)?
-        var preysOn: [any Fauna.Animal]
-    }
+    public let hasHabitat: RDFCore.PropertyValues<any Fauna.Habitat>
+    public let hasDiet: RDFCore.PropertyValue<any Fauna.Diet>
+    public let preysOn: RDFCore.PropertyValues<any Fauna.Animal>
 
-    private let storage: RDFCore.IndividualStorage<Values>
-
-    public init(hasHabitat: [any Fauna.Habitat] = [], hasDiet: (any Fauna.Diet)? = nil, preysOn: [any Fauna.Animal] = []) {
-        storage = RDFCore.IndividualStorage(Values(hasHabitat: hasHabitat, hasDiet: hasDiet, preysOn: preysOn))
+    public init(in graph: RDFCore.IndividualGraph, hasHabitat: [any Fauna.Habitat] = [],
+                hasDiet: (any Fauna.Diet)? = nil, preysOn: [any Fauna.Animal] = []) {
+        self.hasHabitat = RDFCore.PropertyValues<any Fauna.Habitat>(hasHabitat)
+        self.hasDiet = RDFCore.PropertyValue<any Fauna.Diet>(hasDiet)
+        self.preysOn = RDFCore.PropertyValues<any Fauna.Animal>(preysOn)
+        graph.insert(self, properties: [self.hasHabitat, self.hasDiet, self.preysOn])
     }
-
-    public var hasHabitat: [any Fauna.Habitat] {
-        get { storage.withLock { $0.hasHabitat } }
-        set { storage.withLock { $0.hasHabitat = newValue } }
-    }
-    // hasDiet and preysOn likewise
 }
 
 public static let carnivore: any Fauna.Diet = _carnivoreIndividual()
@@ -109,13 +103,14 @@ public struct hasHabitat: RDFCore.Entity {
 Code that uses the model reads as ordinary Swift:
 
 ```swift
-let savanna = Fauna.HabitatIndividual()
-let lion = Fauna.PredatorIndividual(hasHabitat: [savanna], hasDiet: Fauna.carnivore)
-let zebra = Fauna.AnimalIndividual(hasHabitat: [savanna])
-savanna.inhabitedBy = [lion, zebra]
-lion.preysOn = [zebra]
+let graph = IndividualGraph()
+let savanna = Fauna.HabitatIndividual(in: graph)
+let lion = Fauna.PredatorIndividual(in: graph, hasHabitat: [savanna], hasDiet: Fauna.carnivore)
+let zebra = Fauna.AnimalIndividual(in: graph, hasHabitat: [savanna])
+savanna.inhabitedBy.append(contentsOf: [lion, zebra])
+lion.preysOn.append(zebra)
 
-lion.preysOn[0] === savanna.inhabitedBy[1]   // true: the same zebra
+lion.preysOn.first === savanna.inhabitedBy.last   // true: the same zebra
 ```
 
 ## Classes Are Protocols
@@ -130,17 +125,21 @@ Each class protocol gets an individual type named after the class, `AnimalIndivi
 
 The macro knows the requirements of the classes the ontology itself declares. A class that refines another ontology's class (other than `rdfs:Resource`) is generated as a protocol only, as is `owl:Nothing`, which has no individuals, and a named individual of such a class is reported as an error at its `Type(...)` annotation.
 
-Individuals are `Sendable` as checked by the compiler: the property values of an individual live in one `RDFCore.IndividualStorage`, a mutex, and each read and each write of a property takes the lock.
+Individuals are `Sendable` as checked by the compiler. Each property of an individual is a `let` holding an `RDFCore.PropertyValues` or `RDFCore.PropertyValue`, which guard the values with a mutex. Every method holds the lock for the whole change, so a read-modify-write such as `savanna.inhabitedBy.append(zebra)` is atomic and concurrent appends from many tasks all land; `update { values in ... }` does any other change in one step. Reads (`values`, `first`, `count`, iteration) see one snapshot.
+
+## Individuals Live in a Graph
+
+Properties link individuals in cycles (`hasHabitat` and `inhabitedBy`, `owl:sameAs`), and a cycle of strong references never frees itself. So each individual type is created in an `RDFCore.IndividualGraph`: `Fauna.PredatorIndividual(in: graph)`. The graph owns the lifetime of its individuals. It keeps them alive while it lives, lists them in `individuals`, and when it is released it removes every property value of every individual in it. That breaks every cycle, and the individuals are freed once nothing else holds them. An individual still held after its graph is gone keeps its identity but has no values. Named individuals such as `Fauna.carnivore` are static constants and belong to no graph.
 
 ## Properties Are Many-Valued
 
-A property has any number of values unless it is functional, so its requirement is an array of its range: `[any Fauna.Habitat]`, `[String]`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is optional: `(any Fauna.Diet)?`, `String?`.
+A property has any number of values unless it is functional, so its requirement is a collection of its range, `RDFCore.PropertyValues<any Fauna.Habitat>`, which is a `Sequence` and takes `append`, `replace(with:)` and `removeAll(where:)`. A property typed `OWL.FunctionalProperty`, or a subproperty of one, has at most one value and its requirement is `RDFCore.PropertyValue<any Fauna.Diet>`, whose `value` is optional. An individual type's initializer takes the values as an array or an optional.
 
-Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is a Swift value type: `RDFS.Literal` is `String`, `XSD.nonNegativeInteger` is `UInt`. A property without a `Range` holds `any RDFCore.Resource`.
+Values are typed by the property's `Range`. A class range is the class protocol, `any Fauna.Habitat`. A literal range is the datatype's value type: `RDFS.Literal`, `XSD.nonNegativeInteger`, `Fauna.Kilograms`. A property without a `Range` holds `any RDFCore.Resource`.
 
 ## Datatypes Are Values
 
-Literals have no identity, so `Datatype(...)` declarations, `rdfs:Literal` and the classes that are subclasses of it become structs. A functional property of a value type cannot range over the value type itself, because the struct would contain itself; the macro reports that at the property.
+Literals have no identity, so `Datatype(...)` declarations, `rdfs:Literal` and the classes that are subclasses of it become structs. Each struct is the datatype, and an instance stores one literal of it: the lexical form, and the language tag and base direction RDF allows on strings (`RDFCore.LiteralValue`). `Fauna.Kilograms("190.5")` is a literal whose datatype is `Fauna.Kilograms`, and string literals convert, so `scientificName: "Panthera leo"` stores an `RDFS.Literal`. Two literals are equal when their lexical forms, language tags and directions are. A functional property of a value type cannot range over the value type itself, because the struct would contain itself; the macro reports that at the property.
 
 ## Terms Refer to Each Other as Types
 

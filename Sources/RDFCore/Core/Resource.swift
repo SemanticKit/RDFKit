@@ -7,8 +7,9 @@
 ///
 /// An individual is a reference. Its identity inside the runtime is the object
 /// itself: the zebra a lion preys on is the same object as the zebra a
-/// habitat is inhabited by, so `lion.preysOn[0] === savanna.inhabitedBy[1]`.
-/// No IRI or name stands in for it. The static ``Entity/metadata`` of an
+/// habitat is inhabited by, so `lion.preysOn.first === savanna.inhabitedBy.last`.
+/// No IRI or name stands in for it. Individuals are created in an
+/// ``IndividualGraph``, which owns their lifetime. The static ``Entity/metadata`` of an
 /// individual's type is the boundary projection of the term that type was
 /// generated from, read only when the individual leaves the runtime.
 ///

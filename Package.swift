@@ -67,7 +67,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RDFKitTests",
-            dependencies: ["RDFKit"],
+            dependencies: ["RDFKit", "RDFCore"],
             exclude: [
                 "Data/shacl.rdf",
                 "Data/shacl.ttl",
