@@ -51,6 +51,12 @@ enum BootstrapTerm {
         spelling == "RDFS.Resource" || spelling == "RDFCore.Resource"
     }
 
+    /// Whether a qualified spelling names `owl:Nothing`, the class with no
+    /// individuals, which therefore has no individual type.
+    static func isNothing(_ spelling: String) -> Bool {
+        spelling == "OWL.Nothing"
+    }
+
     /// Whether a qualified spelling names `owl:FunctionalProperty`. A
     /// property typed with it has at most one value.
     static func isFunctionalProperty(_ spelling: String) -> Bool {

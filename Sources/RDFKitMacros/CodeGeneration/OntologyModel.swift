@@ -74,15 +74,18 @@ struct OntologyModel {
 
     /// Whether every class a class refines, transitively, is declared in this
     /// ontology or is `rdfs:Resource`, so that the macro knows every
-    /// requirement an individual of the class must store.
+    /// requirement an individual of the class must store. `owl:Nothing` and
+    /// its subclasses have no individuals, so they have no individual type.
     func knowsAllRequirements(of className: String) -> Bool {
         var visited: Set<String> = []
         var pending = [className]
         while let current = pending.popLast() {
             guard visited.insert(current).inserted, let declaration = ontology.declaration(named: current) else { continue }
+            if BootstrapTerm.isNothing("\(ontology.typeName).\(current)") { return false }
             for spelling in declaration.terms("SubClassOf") {
                 let canonical = ontology.canonical(spelling)
                 if BootstrapTerm.isResource(canonical) { continue }
+                if BootstrapTerm.isNothing(canonical) { return false }
                 guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
                 pending.append(name)
             }

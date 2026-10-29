@@ -128,7 +128,7 @@ An individual is an instance of a final class. Its identity inside the runtime i
 
 Each class protocol gets an individual type named after the class, `AnimalIndividual`, that conforms to the protocol and stores every requirement of the class and its superclasses. A named individual declared with `Individual("carnivore")` becomes a static constant of the ontology, the one instance of a private final class that conforms to all of its classes, so `Fauna.carnivore` is the same object wherever it is used.
 
-The macro knows the requirements of the classes the ontology itself declares. A class that refines another ontology's class (other than `rdfs:Resource`) is generated as a protocol only, and a named individual of such a class is reported as an error at its `Type(...)` annotation.
+The macro knows the requirements of the classes the ontology itself declares. A class that refines another ontology's class (other than `rdfs:Resource`) is generated as a protocol only, as is `owl:Nothing`, which has no individuals, and a named individual of such a class is reported as an error at its `Type(...)` annotation.
 
 Individuals are `Sendable` as checked by the compiler: the property values of an individual live in one `RDFCore.IndividualStorage`, a mutex, and each read and each write of a property takes the lock.
 

@@ -389,6 +389,56 @@ struct OntologyMacroTests {
         )
     }
 
+    @Test("owl:Nothing has no individual type")
+    func nothingHasNoIndividuals() {
+        assertExpansion(
+            """
+            @Ontology
+            struct OWL: Ontology {
+                func content() -> Content {
+                    Namespace("http://www.w3.org/2002/07/owl#")
+                    Class("Thing")
+                    Class("Nothing") {
+                        SubClassOf(OWL.Thing)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            struct OWL: Ontology {
+                func content() -> Content {
+                    Namespace("http://www.w3.org/2002/07/owl#")
+                    RDFCore.Class("Thing")
+                    RDFCore.Class("Nothing") {
+                                SubClassOf<OWL.Thing>()
+                            }
+                }
+
+                public protocol Thing: RDFCore.Resource {
+                }
+
+                /// An individual of ``OWL/Thing``.
+                public final class ThingIndividual: OWL.Thing {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/2002/07/owl#Thing", name: "Thing")
+
+                    private struct Values: Sendable {
+                    }
+
+                    private let storage: RDFCore.IndividualStorage<Values>
+
+                    /// Creates an individual with these property values.
+                    public init() {
+                        storage = RDFCore.IndividualStorage(Values())
+                    }
+                }
+
+                public protocol Nothing: OWL.Thing {
+                }
+            }
+            """
+        )
+    }
+
     @Test("Term mistakes are reported at the authored annotation")
     func diagnostics() {
         assertExpansion(

@@ -31,7 +31,7 @@ public struct OWL: Ontology {
 The vocabularies follow the same rules as any ontology:
 
 - Every class is a protocol: `RDFS.Class`, `RDF.Property`, `RDF.List`, `OWL.Thing`, `OWL.ObjectProperty`, `OWL.FunctionalProperty`. Its requirements are the properties the vocabulary declares with that class as domain (`RDF.List` requires `first` and `rest`; `OWL.Thing` requires `sameAs` and `differentFrom`), and `SubClassOf` becomes refinement (`OWL.Class` refines `RDFS.Class`).
-- Classes whose superclasses are all declared in the same vocabulary, or are `rdfs:Resource`, get an individual type (`RDF.ListIndividual`). Classes that refine another vocabulary's class (`OWL.Class` refines `RDFS.Class`) are protocols only.
+- Classes whose superclasses are all declared in the same vocabulary, or are `rdfs:Resource`, get an individual type (`RDF.ListIndividual`). Classes that refine another vocabulary's class (`OWL.Class` refines `RDFS.Class`) are protocols only, and so is `OWL.Nothing`, the class with no individuals.
 - Named individuals are static constants: `RDF.nil` is the one empty list.
 - `rdfs:Literal` and the datatypes (`RDF.HTML`, `RDF.langString`, `XSD.nonNegativeInteger`) are value types.
 - Properties are term types (`RDFS.subClassOf`, `OWL.sameAs`) that name their domain and range.
@@ -49,7 +49,7 @@ Some terms are the DSL itself. RDFCore provides them, and when a vocabulary decl
 
 The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
 
-The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` and `XSD.nonNegativeInteger` map to the Swift value types `String` and `UInt`, `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, and `OWL.FunctionalProperty` makes a property single-valued.
+The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` and `XSD.nonNegativeInteger` map to the Swift value types `String` and `UInt`, `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, `OWL.Nothing` has no individual type, and `OWL.FunctionalProperty` makes a property single-valued.
 
 ## What Stays
 
