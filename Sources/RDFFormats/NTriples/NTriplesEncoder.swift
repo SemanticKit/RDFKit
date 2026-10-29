@@ -1,5 +1,6 @@
 import IRIKit
 import RDFCore
+import RDFRuntime
 
 /// Encodes triples as canonical RDF 1.2 N-Triples (§4).
 ///
@@ -85,5 +86,19 @@ public struct NTriplesEncoder: Sendable {
             output += "^^"
             write(datatype, to: &output)
         }
+    }
+}
+
+extension NTriplesEncoder {
+    /// Encodes resources as a canonical N-Triples document: the triples
+    /// each resource's property values state, through its `Encodable`
+    /// conformance.
+    ///
+    ///     let document = try NTriplesEncoder().encode([alice, bob])
+    ///
+    /// - Throws: `EncodingError` when a resource writes something other than
+    ///   resources and literals keyed by property IRIs.
+    public func encode(_ resources: [any RDFRuntime.Resource]) throws -> String {
+        encode(try TripleEncoder().encode(resources))
     }
 }

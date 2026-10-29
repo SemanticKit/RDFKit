@@ -21,6 +21,14 @@ let package = Package(
         .library(
             name: "RDFFormats",
             targets: ["RDFFormats"]
+        ),
+        .library(
+            name: "RDFRuntime",
+            targets: ["RDFRuntime"]
+        ),
+        .plugin(
+            name: "RDFTranslatorPlugin",
+            targets: ["RDFTranslatorPlugin"]
         )
     ],
     dependencies: [
@@ -42,8 +50,7 @@ let package = Package(
                 "DSL_INVARIANTS.md",
                 "OWL/AGENTS.md",
                 "RDF/AGENTS.md",
-                "RDFS/AGENTS.md",
-                "Turtle/owl.ttl"
+                "RDFS/AGENTS.md"
             ]
         ),
         .macro(
@@ -54,6 +61,60 @@ let package = Package(
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
             ]
         ),
+        .target(
+            name: "RDFFormats",
+            dependencies: [
+                "IRIKit",
+                "RDFCore",
+                "RDFKit",
+                "RDFRuntime"
+            ]
+        ),
+
+        // RDF in, Swift out: the translator, the build tool plugin that runs
+        // it over a target's RDF documents, and what the Swift it writes uses.
+        .target(
+            name: "RDFRuntime",
+            dependencies: ["IRIKit", "RDFCore"]
+        ),
+        .executableTarget(
+            name: "RDFTranslator",
+            dependencies: ["IRIKit", "RDFCore", "RDFFormats"]
+        ),
+        .plugin(
+            name: "RDFTranslatorPlugin",
+            capability: .buildTool(),
+            dependencies: ["RDFTranslator"]
+        ),
+
+        // The layers: RDF and RDF Schema (rdf.ttl and rdfs.ttl, which refer
+        // to each other), then OWL 2 (owl.ttl).
+        .target(
+            name: "RDF",
+            dependencies: ["RDFRuntime"],
+            path: "Tests/ParallelTests/Fixtures/W3C",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        .target(
+            name: "OWL",
+            dependencies: ["RDF"],
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+
+        // Vocabularies and data built on the layers.
+        .target(
+            name: "FOAF",
+            dependencies: ["OWL", "RDF"],
+            path: "Tests/ParallelTests/Fixtures/FOAF",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        .target(
+            name: "AliceProfile",
+            dependencies: ["FOAF"],
+            path: "Tests/ParallelTests/Fixtures/AliceProfile",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+
         .testTarget(
             name: "RDFKitTests",
             dependencies: ["RDFKit"],
@@ -61,14 +122,6 @@ let package = Package(
                 "Data/shacl.rdf",
                 "Data/shacl.ttl",
                 "Fixtures/.gitkeep"
-            ]
-        ),
-        .target(
-            name: "RDFFormats",
-            dependencies: [
-                "IRIKit",
-                "RDFCore",
-                "RDFKit"
             ]
         ),
         .testTarget(
@@ -92,6 +145,29 @@ let package = Package(
                 "RDFKitMacros",
                 .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
             ]
+        ),
+        .testTarget(
+            name: "RDFTranslatorTests",
+            dependencies: [
+                "RDFCore",
+                "RDFFormats",
+                "RDFRuntime",
+                "RDF",
+                "OWL"
+            ],
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        .testTarget(
+            name: "ParallelTests",
+            dependencies: [
+                "RDFCore",
+                "RDFFormats",
+                "RDF",
+                "OWL",
+                "FOAF",
+                "AliceProfile"
+            ],
+            exclude: ["Fixtures"]
         )
     ]
 )

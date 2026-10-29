@@ -38,7 +38,10 @@ This reads like RDF. It IS RDF. The compiler enforces the structure.
 
 - **RDFCore** — the DSL machinery: protocols, result builders, node types
 - **RDFKit** — the standard ontologies: RDF, RDFS, OWL defined using the DSL
-- **RDFFormats** — the I/O boundary: RDF 1.2 Turtle and N-Triples decoders and a canonical N-Triples encoder, checked against the W3C test suites (`Scripts/fetch-w3c-rdf-tests.sh` refreshes them)
+- **RDFFormats** — the I/O boundary: RDF 1.2 Turtle and N-Triples decoders and a canonical N-Triples encoder (of triples, or of translated resources through their `Encodable` conformance), RDF graph isomorphism (RDF 1.2 Concepts §3.7), checked against the W3C test suites (`Scripts/fetch-w3c-rdf-tests.sh` refreshes them)
+- **RDFTranslatorPlugin** — a build tool plugin that runs **RDFTranslator** over a target's RDF documents (`.ttl`, `.nt`, `.rdf`) and writes the Swift they describe: each class a protocol named by its local name, each resource an object whose class conforms to the protocols of its classes, each property a member of its domain's protocol typed by its range, `rdfs:label` and `rdfs:comment` as DocC and `owl:deprecated` as `@available(*, deprecated)`. A target's dependencies are the layers it builds on.
+- **RDFRuntime** — what the translated Swift uses: the `Resource` protocol and the `PropertyValues` of each resource
+- **RDF** and **OWL** — rdf.ttl with rdfs.ttl, and owl.ttl, translated by the plugin; vocabularies such as FOAF build on them
 
 ### Protocol Hierarchy
 
