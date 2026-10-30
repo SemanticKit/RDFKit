@@ -189,7 +189,7 @@ struct EntityGenerator {
             /// An individual that stores its value of ``\(ontology.typeName)/\(names.className)`` in an
             /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
             @IndividualStoring
-            public protocol \(names.storing): RDFCore.PropertyValueStoring {
+            \(ontology.access)protocol \(names.storing): RDFCore.PropertyValueStoring {
                 var \(requirement.name): \(requirement.declaredType) { get set }
             }
             """,

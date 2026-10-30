@@ -200,7 +200,7 @@ struct OntologyMacroTests {
 
                 /// An individual that stores its value of ``Zoo/feeds`` in an
                 /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                public protocol feedsStoring: RDFCore.PropertyValueStoring {
+                protocol feedsStoring: RDFCore.PropertyValueStoring {
                     var feeds: [any Zoo.Animal] {
                         get
                         set
@@ -227,7 +227,7 @@ struct OntologyMacroTests {
 
                 /// An individual that stores its value of ``Zoo/name`` in an
                 /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                public protocol nameStoring: RDFCore.PropertyValueStoring {
+                protocol nameStoring: RDFCore.PropertyValueStoring {
                     var name: String? {
                         get
                         set
@@ -236,7 +236,7 @@ struct OntologyMacroTests {
             }
 
             extension feedsStoring {
-                public var feeds: [any Zoo.Animal] {
+                var feeds: [any Zoo.Animal] {
                     get {
                         withPropertyValue { (stored: inout feedsValue) in
                             stored.value
@@ -251,7 +251,7 @@ struct OntologyMacroTests {
             }
 
             extension nameStoring {
-                public var name: String? {
+                var name: String? {
                     get {
                         withPropertyValue { (stored: inout nameValue) in
                             stored.value
@@ -410,7 +410,7 @@ struct OntologyMacroTests {
         assertExpansion(
             """
             @Ontology
-            struct Units: Ontology {
+            public struct Units: Ontology {
                 var body: some Content {
                     Namespace("https://units.example.org/#")
                     Datatype("Kilograms") {
@@ -428,7 +428,7 @@ struct OntologyMacroTests {
             }
             """,
             expandedSource: """
-            struct Units: Ontology {
+            public struct Units: Ontology {
                 var body: some Content {
                     #sourceLocation(file: "test.swift", line: 4)
                     Namespace("https://units.example.org/#")

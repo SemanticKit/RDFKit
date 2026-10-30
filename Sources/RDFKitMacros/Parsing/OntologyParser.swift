@@ -41,6 +41,10 @@ struct OntologyParser {
 
         return ParsedOntology(
             typeName: structDecl.name.text,
+            access: structDecl.modifiers
+                .map(\.name.tokenKind)
+                .first { [.keyword(.public), .keyword(.open), .keyword(.package)].contains($0) }
+                .map { $0 == .keyword(.package) ? "package " : "public " } ?? "",
             namespace: namespace,
             declarations: declarations
         )

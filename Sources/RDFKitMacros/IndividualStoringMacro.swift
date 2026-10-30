@@ -24,12 +24,17 @@ public struct IndividualStoringMacro: ExtensionMacro {
         }
         let storingType = type.trimmedDescription
         let valueType = String(storingType.dropLast("Storing".count)) + "Value"
+        // The accessors are as visible as the protocol, which is as visible
+        // as the ontology that declares it.
+        let access = storing.modifiers
+            .first { [.keyword(.public), .keyword(.package)].contains($0.name.tokenKind) }
+            .map { $0.name.text + " " } ?? ""
         let accessors = storing.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }.compactMap { variable -> String? in
             guard let binding = variable.bindings.first,
                   let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                   let type = binding.typeAnnotation?.type.trimmedDescription else { return nil }
             return """
-                public var \(name): \(type) {
+                \(access)var \(name): \(type) {
                     get { withPropertyValue { (stored: inout \(valueType)) in stored.value } }
                     set { withPropertyValue { (stored: inout \(valueType)) in stored.value = newValue } }
                 }
