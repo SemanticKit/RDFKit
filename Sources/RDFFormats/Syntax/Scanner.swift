@@ -158,14 +158,14 @@ struct Scanner {
     /// the one string form of N-Triples.
     mutating func scanStringLiteralQuote() throws -> String {
         guard peek(is: "\"") else { throw error("expected a string") }
-        return try scanString(quote: "\"", isLong: false)
+        return try scanString(delimitedBy: "\"")
     }
 
     /// `versionSpecifier ::= STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE`
     /// (RDF 1.2 N-Triples §7, Turtle §7.3).
     mutating func scanVersionSpecifier() throws -> String {
         guard let quote = peek(), quote == "\"" || quote == "'" else { throw error("expected a quoted version specifier") }
-        return try scanString(quote: quote, isLong: false)
+        return try scanString(delimitedBy: String(quote))
     }
 
     /// A Turtle `String` (RDF 1.2 Turtle §7.3): `STRING_LITERAL_QUOTE`,
@@ -173,27 +173,26 @@ struct Scanner {
     /// `STRING_LITERAL_LONG_QUOTE`.
     mutating func scanTurtleString() throws -> (value: String, isLong: Bool) {
         guard let quote = peek(), quote == "\"" || quote == "'" else { throw error("expected a string") }
-        let isLong = peek(is: quote, at: 1) && peek(is: quote, at: 2)
-        return (try scanString(quote: quote, isLong: isLong), isLong)
+        let long = String(repeating: String(quote), count: 3)
+        if peek(spells: long) { return (try scanString(delimitedBy: long), true) }
+        return (try scanString(delimitedBy: String(quote)), false)
     }
 
-    /// The string between `quote`s, or between three of them when `isLong`,
-    /// with the cursor on the first quote.
-    private mutating func scanString(quote: Unicode.Scalar, isLong: Bool) throws -> String {
+    /// The string between two `delimiter`s, one quote for the short
+    /// forms or three for the long forms, which alone may hold line breaks,
+    /// with the cursor on the opening delimiter.
+    private mutating func scanString(delimitedBy delimiter: String) throws -> String {
         let start = index
-        advance(isLong ? 3 : 1)
+        let closing = Array(delimiter.unicodeScalars)
+        advance(closing.count)
         var value = String.UnicodeScalarView()
         while true {
             guard let scalar = peek() else { throw error("unterminated string", at: start) }
-            if scalar == quote {
-                if !isLong {
-                    advance()
-                    return String(value)
-                }
-                if peek(is: quote, at: 1) && peek(is: quote, at: 2) {
+            if scalar == closing[0] {
+                if peek(spells: delimiter) {
                     // The content cannot end with a quote, so the first
-                    // three quotes close the string.
-                    advance(3)
+                    // delimiter closes the string.
+                    advance(closing.count)
                     return String(value)
                 }
                 value.append(scalar)
@@ -204,7 +203,7 @@ struct Scanner {
             case "\\":
                 value.append(try scanStringEscape())
             case "\n", "\r":
-                guard isLong else { throw error("line break in a short string") }
+                guard closing.count == 3 else { throw error("line break in a short string") }
                 value.append(scalar)
                 advance()
             default:

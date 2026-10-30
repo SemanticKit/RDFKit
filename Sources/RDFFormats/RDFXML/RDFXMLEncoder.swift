@@ -116,7 +116,7 @@ private struct RDFXMLDocument {
     /// `nodeElement`: an `rdf:Description` of `subject` with a property
     /// element for each triple.
     private mutating func nodeElement(_ subject: SubjectTerm, _ triples: [Graph.Element], indent: String) throws -> String {
-        var text = "\(indent)<rdf:Description \(try nodeAttribute(subject, about: true))>\n"
+        var text = "\(indent)<rdf:Description \(try aboutAttribute(subject))>\n"
         for triple in triples {
             text += try propertyElement(triple, indent: indent + "  ")
         }
@@ -135,7 +135,7 @@ private struct RDFXMLDocument {
         let name = "\(prefixes[namespace]!):\(local)"
         switch triple.object {
         case .iri, .blankNode:
-            return "\(indent)<\(name) \(try nodeAttribute(triple.object.subject!, about: false))/>\n"
+            return "\(indent)<\(name) \(try resourceAttribute(triple.object.subject!))/>\n"
         case .literal(let literal):
             var attributes = ""
             if let language = literal.languageTag {
@@ -152,12 +152,19 @@ private struct RDFXMLDocument {
         }
     }
 
-    /// `rdf:about` or `rdf:resource` for an IRI, `rdf:nodeID` for a blank
-    /// node.
-    private mutating func nodeAttribute(_ node: SubjectTerm, about: Bool) throws -> String {
+    /// `rdf:about` for an IRI subject, `rdf:nodeID` for a blank node.
+    private mutating func aboutAttribute(_ node: SubjectTerm) throws -> String {
         switch node {
-        case .iri(let iri): return "rdf:\(about ? "about" : "resource")=\"\(try Self.attribute(iri.rawValue))\""
-        case .blankNode(let blank): return "rdf:nodeID=\"\(nodeID(blank))\""
+        case .iri(let iri): "rdf:about=\"\(try Self.attribute(iri.rawValue))\""
+        case .blankNode(let blank): "rdf:nodeID=\"\(nodeID(blank))\""
+        }
+    }
+
+    /// `rdf:resource` for an IRI object, `rdf:nodeID` for a blank node.
+    private mutating func resourceAttribute(_ node: SubjectTerm) throws -> String {
+        switch node {
+        case .iri(let iri): "rdf:resource=\"\(try Self.attribute(iri.rawValue))\""
+        case .blankNode(let blank): "rdf:nodeID=\"\(nodeID(blank))\""
         }
     }
 
