@@ -96,18 +96,10 @@ private struct TurtleDocument {
     private mutating func planInlineNodes() {
         var references: [BlankNode: Int] = [:]
         var inTripleTerms: Set<BlankNode> = []
-        func collect(_ term: Graph.Element) {
-            if case .blankNode(let node) = term.subject { inTripleTerms.insert(node) }
-            switch term.object {
-            case .blankNode(let node): inTripleTerms.insert(node)
-            case .tripleTerm(let inner): collect(inner)
-            case .iri, .literal: break
-            }
-        }
         for triple in graph {
             switch triple.object {
             case .blankNode(let node): references[node, default: 0] += 1
-            case .tripleTerm(let term): collect(term)
+            case .tripleTerm(let term): inTripleTerms.formUnion(term.blankNodes)
             case .iri, .literal: break
             }
         }

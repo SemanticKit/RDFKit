@@ -39,3 +39,17 @@ extension Triple: CustomStringConvertible where SubjectValue: CustomStringConver
     /// The triple as an N-Triples line writes it, without escaping.
     public var description: String { "\(subject) <\(predicate)> \(object) ." }
 }
+
+extension Triple where SubjectValue == SubjectTerm, ObjectValue == ObjectTerm {
+    /// The blank nodes in the triple, in the order they occur: the
+    /// subject's, then the object's, a node that occurs twice listed twice.
+    public var blankNodes: [BlankNode] {
+        subject.blankNodes + object.blankNodes
+    }
+
+    /// The same triple, each blank node in it replaced by the node `mapping`
+    /// gives it. A blank node `mapping` does not name stays as it is.
+    public func replacingBlankNodes(_ mapping: [BlankNode: BlankNode]) -> Triple {
+        Triple(subject: subject.replacingBlankNodes(mapping), predicate: predicate, object: object.replacingBlankNodes(mapping))
+    }
+}
