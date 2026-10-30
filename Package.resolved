@@ -1,5 +1,5 @@
 {
-  "originHash" : "c60a7278a5cb19e2b9517418b4579bd6f0a0288f16b16da2d2910e26204eee38",
+  "originHash" : "43552e6427f32b532adf39688d69f69110b43377fc4fa7d9153d2d60986cc09d",
   "pins" : [
     {
       "identity" : "irikit",
@@ -7,7 +7,16 @@
       "location" : "https://github.com/SemanticKit/IRIKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "2beed642c20fbd3bd0c8802e2f989d85380cac34"
+        "revision" : "f5611e8fccc1fe63f0d6dcde698b4c73bd3b683a"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
+        "version" : "604.0.0"
       }
     }
   ],
