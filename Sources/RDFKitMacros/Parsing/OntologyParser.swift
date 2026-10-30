@@ -65,8 +65,8 @@ struct OntologyParser {
     /// The body is read as syntax. `@Ontology` attaches the body macro
     /// `@OntologyContent` to this property, so the compiler never type-checks
     /// the authored statements themselves: `Domain(Fauna.Animal)` is read
-    /// here, and the body macro emits the content built from the generated
-    /// types.
+    /// here and written as declarations, and the body macro returns the
+    /// declarations with the annotations that carry text.
     static func bodyProperty(in declaration: some DeclGroupSyntax) -> VariableDeclSyntax? {
         declaration.memberBlock.members.lazy
             .compactMap { $0.decl.as(VariableDeclSyntax.self) }

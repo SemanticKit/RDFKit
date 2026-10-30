@@ -43,8 +43,8 @@ struct EntityGenerator {
             guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
-            case .alias(let form, let isGeneric):
-                sources = [alias(declaration, form: form, isGeneric: isGeneric)]
+            case .alias(let form):
+                sources = [alias(declaration, form: form)]
             case .classProtocol:
                 sources = classProtocol(declaration)
             case .value:
@@ -76,12 +76,9 @@ struct EntityGenerator {
 
     // MARK: - Shapes
 
-    private func alias(_ declaration: ParsedEntity, form: String, isGeneric: Bool) -> String {
+    private func alias(_ declaration: ParsedEntity, form: String) -> String {
         let name = SwiftIdentifier.escaped(declaration.name)
         let documentation = Documentation.docComment(for: declaration)
-        if isGeneric {
-            return "\(documentation)public typealias \(name)<Term> = RDFCore.`\(form)`<Term>"
-        }
         return "\(documentation)public typealias \(name) = RDFCore.`\(form)`"
     }
 
@@ -123,10 +120,9 @@ struct EntityGenerator {
         for annotation in declaration.annotations("Type") {
             guard let spelling = annotation.term else { continue }
             if let local = ontology.resolve(spelling).localName, ontology.declaration(named: local) == nil { return [] }
-            guard model.knowsAllRequirements(ofSpelling: spelling) else {
-                context.diagnose(Diagnostic(node: annotation.syntax, message: OntologyDiagnostic.individualOfForeignClass(spelling)))
-                return []
-            }
+            // rdf:type may name a class of any ontology (RDF 1.2 Semantics):
+            // the individual's type conforms to that class's protocol,
+            // whichever ontology declares it.
             let reference = ontology.resolve(spelling)
             let qualified = ontology.spelling(of: reference)
             if !classes.contains(qualified) { classes.append(qualified) }

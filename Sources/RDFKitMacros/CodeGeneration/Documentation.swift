@@ -1,14 +1,27 @@
 import Foundation
 
-/// DocC comments and metadata literals generated from `Label` and `Comment`.
+/// DocC comments, `@available` attributes and metadata literals generated
+/// from `Label`, `Comment` and `Deprecated`.
 enum Documentation {
-    /// `/// ...` lines for a declaration's `Comment`, indented to `indent`.
+    /// `/// ...` lines for a declaration's `Comment`, then
+    /// `@available(*, deprecated)` when it is `Deprecated()`, indented to
+    /// `indent`.
     static func docComment(for declaration: ParsedEntity, indent: String = "") -> String {
-        guard let comment = declaration.text("Comment") else { return "" }
-        return comment
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { "\(indent)/// \($0)\n" }
-            .joined()
+        var result = ""
+        if let comment = declaration.text("Comment") {
+            result = comment
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .map { "\(indent)/// \($0)\n" }
+                .joined()
+        }
+        if let deprecated = declaration.annotations("Deprecated").first {
+            if let message = deprecated.text {
+                result += "\(indent)@available(*, deprecated, message: \(literal(message)))\n"
+            } else {
+                result += "\(indent)@available(*, deprecated)\n"
+            }
+        }
+        return result
     }
 
     /// The `RDFMetadata(...)` expression for a local term.

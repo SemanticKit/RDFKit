@@ -8,7 +8,7 @@ struct OntologyDiagnostic: DiagnosticMessage {
 
     var diagnosticID: MessageID { MessageID(domain: "RDFKitMacros", id: id) }
 
-    /// `Domain<Fauna.Animal>()` or `Domain(Fauna.Animal.self)` written in content.
+    /// A term annotation written with a generic argument or a `.self` argument.
     static func writeRelatedTypeAsArgument(form: String, type: String) -> Self {
         Self(message: "Write \(form) with the related type as its argument: \(form)(\(type))", id: "relatedTypeArgument")
     }
@@ -29,14 +29,6 @@ struct OntologyDiagnostic: DiagnosticMessage {
         Self(
             message: "'\(name)' is declared in this ontology, so the individual type of '\(className)' cannot use that name",
             id: "individualTypeName"
-        )
-    }
-
-    /// A named individual of a class that refines another ontology's class.
-    static func individualOfForeignClass(_ spelling: String) -> Self {
-        Self(
-            message: "@Ontology generates the properties of individuals whose classes and superclasses are declared in this ontology (or are RDFS.Resource); '\(spelling)' is not",
-            id: "individualOfForeignClass"
         )
     }
 

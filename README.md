@@ -28,7 +28,7 @@ public struct OWL: Ontology {
 }
 ```
 
-Related terms are written as their types: `Type(RDFS.Class)`, `Domain(OWL.Thing)`. `@Ontology` generates `OWL.Thing` and the other term types from this content, and owns the getter of `var body`, so these annotations are read as written and `body` returns them built from the generated types.
+Related terms are written as their types: `Type(RDFS.Class)`, `Domain(OWL.Thing)`. `@Ontology` generates `OWL.Thing` and the other term types from this content, and owns the getter of `var body`, so these annotations are read as written. Each one becomes the Swift declaration it describes: `SubClassOf` is protocol refinement, `Domain` and `Range` make a property a requirement of its domain's class protocol with the range as its type, and `Deprecated()` is `@available(*, deprecated)`.
 
 This reads like RDF. It IS RDF. The compiler enforces the structure.
 

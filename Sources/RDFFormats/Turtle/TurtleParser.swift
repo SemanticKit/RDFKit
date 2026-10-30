@@ -173,7 +173,7 @@ struct TurtleParser {
     mutating func parseVerb() throws -> IRI {
         if current.token == .word("a") {
             try advance()
-            return RDF.type<any RDFCore.Resource>.metadata.id
+            return RDF.type.metadata.id
         }
         guard let iri = try parseIRIIfPresent() else { throw error("expected a predicate") }
         return iri

@@ -13,7 +13,7 @@
 struct OntologyModel {
     enum Shape: Equatable {
         /// A term RDFCore already provides.
-        case alias(form: String, isGeneric: Bool)
+        case alias(form: String)
         /// A class of individuals: a protocol.
         case classProtocol
         /// A datatype or literal class: a value type.
@@ -91,14 +91,6 @@ struct OntologyModel {
             }
         }
         return true
-    }
-
-    /// Whether a class spelling, local or foreign, has an individual type
-    /// this macro can generate.
-    func knowsAllRequirements(ofSpelling spelling: String) -> Bool {
-        if BootstrapTerm.isResource(ontology.canonical(spelling)) { return true }
-        guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
-        return knowsAllRequirements(of: name)
     }
 
     /// The properties whose `Domain` is this class, in declaration order.
@@ -186,7 +178,7 @@ struct OntologyModel {
 
     private func shape(computing declaration: ParsedEntity) -> Shape {
         if let form = BootstrapTerm.form(namespace: ontology.namespace, name: declaration.name) {
-            return .alias(form: form.type, isGeneric: form.isGeneric)
+            return .alias(form: form)
         }
         switch declaration.kind {
         case .class: return isLiteralClass(declaration.name) ? .value : .classProtocol

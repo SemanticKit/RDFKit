@@ -5,23 +5,21 @@
 /// `Property("label")` and written in content as `Label(...)`. When an
 /// ontology declares one of the terms RDFCore provides, the macro does not
 /// generate a second Swift type for the same term. It aliases the RDFCore
-/// type, so one term has one Swift type.
+/// type, so one term has one Swift type. The terms that relate one term to
+/// another (`rdf:type`, `rdfs:domain`, `rdfs:range`, `rdfs:subClassOf`,
+/// `rdfs:subPropertyOf`) have no RDFCore type: the macro writes them as
+/// Swift declarations, and their own declarations are property term types.
 enum BootstrapTerm {
-    /// The RDFCore type for a term, and whether that type is generic over a term.
-    static func form(namespace: String, name: String) -> (type: String, isGeneric: Bool)? {
+    /// The RDFCore type for a term.
+    static func form(namespace: String, name: String) -> String? {
         switch (namespace, name) {
-        case (rdfs, "Resource"): ("Resource", false)
-        case (rdfkit, "Namespace"): ("Namespace", false)
-        case (rdfkit, "Prefix"): ("Prefix", false)
-        case (rdf, "type"): ("Type", true)
-        case (rdfs, "domain"): ("Domain", true)
-        case (rdfs, "range"): ("Range", true)
-        case (rdfs, "subClassOf"): ("SubClassOf", true)
-        case (rdfs, "subPropertyOf"): ("SubPropertyOf", true)
-        case (rdfs, "label"): ("Label", false)
-        case (rdfs, "comment"): ("Comment", false)
-        case (rdfs, "seeAlso"): ("SeeAlso", false)
-        case (owl, "deprecated"): ("Deprecated", false)
+        case (rdfs, "Resource"): "Resource"
+        case (rdfkit, "Namespace"): "Namespace"
+        case (rdfkit, "Prefix"): "Prefix"
+        case (rdfs, "label"): "Label"
+        case (rdfs, "comment"): "Comment"
+        case (rdfs, "seeAlso"): "SeeAlso"
+        case (owl, "deprecated"): "Deprecated"
         default: nil
         }
     }

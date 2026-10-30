@@ -13,7 +13,9 @@
 | `Individual("carnivore") { Type(X) }` | `static let carnivore: any X`, the one instance of a final class that conforms to `X` |
 | `Datatype("HTML")`, `rdfs:Literal` and its subclasses | a value type (`struct`) |
 | `Label`, `Comment` | DocC on the generated declaration, and the term's static `metadata` |
-| a term RDFCore provides (`rdfs:label`, `rdfs:domain`, `rdfs:Resource`, ...) | a type alias of the RDFCore type |
+| `Deprecated()` | `@available(*, deprecated)` on the generated declaration |
+| a term RDFCore provides (`rdfs:label`, `rdfs:comment`, `rdfs:Resource`, ...) | a type alias of the RDFCore type |
+| `rdf:type`, `rdfs:domain`, `rdfs:range`, `rdfs:subClassOf`, `rdfs:subPropertyOf` | property term types, as any property: the relations they name are written as the declarations above |
 
 ## Example
 
@@ -128,7 +130,7 @@ An individual is an instance of a final class. Its identity inside the runtime i
 
 Each class protocol gets an individual type named after the class, `AnimalIndividual`, that conforms to the protocol and stores every requirement of the class and its superclasses. A named individual declared with `Individual("carnivore")` becomes a static constant of the ontology, the one instance of a private final class that conforms to all of its classes, so `Fauna.carnivore` is the same object wherever it is used.
 
-The macro knows the requirements of the classes the ontology itself declares. A class that refines another ontology's class (other than `rdfs:Resource`) is generated as a protocol only, as is `owl:Nothing`, which has no individuals, and a named individual of such a class is reported as an error at its `Type(...)` annotation.
+The macro knows the requirements of the classes the ontology itself declares. A class that refines another ontology's class (other than `rdfs:Resource`) is generated as a protocol only, as is `owl:Nothing`, which has no individuals, A named individual may be typed with a class of any ontology (`rdf:type` relates a resource to any class, RDF 1.2 Semantics): `Type(ServiceDescription.EntailmentRegime)` makes the individual's private final class conform to that class's protocol, whichever ontology declares it, and the individual stores the requirements of the classes this ontology declares.
 
 Individuals are `Sendable` as checked by the compiler: the property values of an individual live in one `RDFCore.IndividualStorage`, a mutex, and each read and each write of a property takes the lock.
 
@@ -148,9 +150,9 @@ Related terms are written with their type as the argument: `Domain(Fauna.Animal)
 
 ## Owning var body
 
-`@Ontology` attaches the body macro `@OntologyContent` to `var body`, so authors write only `@Ontology` on the type, as in SwiftUI. Swift cannot evaluate `Domain(Fauna.Animal)` as an expression, so the body macro owns the body and returns the same statements with:
+`@Ontology` attaches the body macro `@OntologyContent` to `var body`, so authors write only `@Ontology` on the type, as in SwiftUI. Swift cannot evaluate `Domain(Fauna.Animal)` as an expression, so the body macro owns the body and returns the statements that are values:
 
-- each term annotation written as the annotation type for that term: `Domain(Fauna.Animal)` becomes `Domain<Fauna.Animal>()`;
+- each term annotation left out, because `@Ontology` writes it as the Swift declaration it describes (protocol refinement, a requirement and its type, a property's `Domain` and `Range` type aliases); its lines stay blank, so the statements after it keep their authored lines;
 - each declaration form qualified by its module: `Class("Animal")` becomes `RDFCore.Class("Animal")`, because an ontology may declare a term with the same name (`RDFS.Class`, `RDF.Property`).
 
 Which annotations relate terms is read from how they are written, not from a list of annotation names. An annotation whose only argument is a type path (`Fauna.Animal`, or the bare name of a term the ontology declares) relates the declared term to that type. Annotations that carry text take a string literal, which the macro reads at compile time for DocC.
@@ -161,10 +163,9 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 
 The macros also report at the authored annotation:
 
-- `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`, with a fix-it to `Domain(Fauna.Animal)`;
+- a term annotation written with a generic argument or a `.self` argument, with a fix-it to `Domain(Fauna.Animal)`;
 - a related term written as a term of this ontology that it does not declare (`Fauna.Habitatt`);
 - a class whose individual type name is taken by a declared term;
-- a named individual of a class whose requirements the macro cannot see;
 - a functional property that would make a value type contain itself.
 
 ## Testing

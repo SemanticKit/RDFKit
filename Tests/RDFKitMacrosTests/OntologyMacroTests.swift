@@ -43,22 +43,22 @@ struct OntologyMacroTests {
                             }
                     #sourceLocation(file: "test.swift", line: 8)
                     RDFCore.Class("Keeper") {
-                                SubClassOf(Zoo.Animal)
+
                             }
                     #sourceLocation(file: "test.swift", line: 11)
                     RDFCore.Individual("rex") {
-                                Type(Zoo.Keeper)
+
                             }
                     #sourceLocation(file: "test.swift", line: 14)
                     RDFCore.Property("feeds") {
-                                Domain(Zoo.Keeper)
-                                Range(Zoo.Animal)
+
+
                             }
                     #sourceLocation(file: "test.swift", line: 18)
                     RDFCore.Property("name") {
-                                Type(OWL.FunctionalProperty)
-                                Domain(Zoo.Animal)
-                                Range(RDFS.Literal)
+
+
+
                             }
                     #sourceLocation()
                 }
@@ -250,13 +250,13 @@ struct OntologyMacroTests {
                     RDFCore.Class("Vet")
                     #sourceLocation(file: "test.swift", line: 7)
                     RDFCore.Class("KeeperVet") {
-                                SubClassOf(Zoo.Keeper)
-                                SubClassOf(Zoo.Vet)
+
+
                             }
                     #sourceLocation(file: "test.swift", line: 11)
                     RDFCore.Individual("rex") {
-                                Type(Zoo.Keeper)
-                                Type(Zoo.Vet)
+
+
                             }
                     #sourceLocation()
                 }
@@ -364,17 +364,17 @@ struct OntologyMacroTests {
                     Namespace("https://units.example.org/#")
                     #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Datatype("Kilograms") {
-                                SubClassOf(RDFS.Literal)
+
                             }
                     #sourceLocation(file: "test.swift", line: 8)
                     RDFCore.Class("Animal") {
-                                SubClassOf(OWL.Thing)
+
                             }
                     #sourceLocation(file: "test.swift", line: 11)
                     RDFCore.Property("weight") {
-                                Type(OWL.FunctionalProperty)
-                                Domain(Units.Animal)
-                                Range(Units.Kilograms)
+
+
+
                             }
                     #sourceLocation()
                 }
@@ -431,7 +431,7 @@ struct OntologyMacroTests {
                     RDFCore.Class("Thing")
                     #sourceLocation(file: "test.swift", line: 6)
                     RDFCore.Class("Nothing") {
-                                SubClassOf(OWL.Thing)
+
                             }
                     #sourceLocation()
                 }
@@ -495,21 +495,21 @@ struct OntologyMacroTests {
                     RDFCore.Class("Animal")
                     #sourceLocation(file: "test.swift", line: 6)
                     RDFCore.Class("Keeper") {
-                                SubClassOf(Zoo.Animl)
+
                             }
                     #sourceLocation(file: "test.swift", line: 9)
                     RDFCore.Class("AnimalIndividual")
                     #sourceLocation(file: "test.swift", line: 10)
                     RDFCore.Individual("rex") {
-                                Type(OWL.Thing)
+
                             }
                     #sourceLocation(file: "test.swift", line: 13)
                     RDFCore.Datatype("Weight")
                     #sourceLocation(file: "test.swift", line: 14)
                     RDFCore.Property("heavier") {
-                                Type(OWL.FunctionalProperty)
-                                Domain(Zoo.Weight)
-                                Range(Zoo.Weight)
+
+
+
                             }
                     #sourceLocation()
                 }
@@ -538,6 +538,22 @@ struct OntologyMacroTests {
                     }
                 }
 
+                public static let rex: any OWL.Thing = _rexIndividual()
+
+                private final class _rexIndividual: OWL.Thing {
+                    fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#rex", name: "rex")
+
+                    private struct Values: Sendable {
+                    }
+
+                    private let storage: RDFCore.IndividualStorage<Values>
+
+                    /// Creates an individual with these property values.
+                    fileprivate init() {
+                        storage = RDFCore.IndividualStorage(Values())
+                    }
+                }
+
                 public struct Weight: RDFCore.Entity {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Weight", name: "Weight")
 
@@ -562,9 +578,56 @@ struct OntologyMacroTests {
             diagnostics: [
                 DiagnosticSpec(message: "'Zoo.Animl' is not declared in Zoo", line: 7, column: 13),
                 DiagnosticSpec(message: "'AnimalIndividual' is declared in this ontology, so the individual type of 'Animal' cannot use that name", line: 5, column: 9),
-                DiagnosticSpec(message: "@Ontology generates the properties of individuals whose classes and superclasses are declared in this ontology (or are RDFS.Resource); 'OWL.Thing' is not", line: 11, column: 13),
                 DiagnosticSpec(message: "'heavier' has at most one 'Weight', which would make the value type 'Weight' contain itself; make the property many-valued", line: 14, column: 9),
             ]
+        )
+    }
+
+    @Test("A named individual may be typed with another ontology's class")
+    func individualOfAnotherOntologysClass() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Entailment: Ontology {
+                var body: some Content {
+                    Namespace("http://www.w3.org/ns/entailment/")
+                    Individual("RDFS") {
+                        Type(ServiceDescription.EntailmentRegime)
+                        Label("RDFS entailment")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            struct Entailment: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
+                    Namespace("http://www.w3.org/ns/entailment/")
+                    #sourceLocation(file: "test.swift", line: 5)
+                    RDFCore.Individual("RDFS") {
+
+                                Label("RDFS entailment")
+                            }
+                    #sourceLocation()
+                }
+
+                public static let RDFS: any ServiceDescription.EntailmentRegime = _RDFSIndividual()
+
+                private final class _RDFSIndividual: ServiceDescription.EntailmentRegime {
+                    fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/ns/entailment/RDFS", name: "RDFS", label: "RDFS entailment")
+
+                    private struct Values: Sendable {
+                    }
+
+                    private let storage: RDFCore.IndividualStorage<Values>
+
+                    /// Creates an individual with these property values.
+                    fileprivate init() {
+                        storage = RDFCore.IndividualStorage(Values())
+                    }
+                }
+            }
+            """
         )
     }
 

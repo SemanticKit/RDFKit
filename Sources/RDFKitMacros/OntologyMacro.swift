@@ -21,6 +21,11 @@ public struct OntologyMacro: MemberMacro, MemberAttributeMacro {
             return []
         }
         let ontology = try OntologyParser.parse(declaration: declaration)
+        if let statements = OntologyParser.bodyProperty(in: declaration).flatMap(OntologyParser.bodyStatements(of:)) {
+            let spellings = UnusedSpellingVisitor()
+            spellings.walk(statements)
+            spellings.diagnostics.forEach(context.diagnose)
+        }
         return EntityGenerator.generate(ontology: ontology, in: context)
     }
 

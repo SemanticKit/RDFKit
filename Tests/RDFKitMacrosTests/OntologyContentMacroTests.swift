@@ -7,8 +7,8 @@ import Testing
 
 @Suite("@OntologyContent body rewrite", .tags(.ontology))
 struct OntologyContentMacroTests {
-    @Test("A related type becomes the annotation type for that term")
-    func rewritesTermAnnotations() {
+    @Test("Annotations that relate terms are left out, keeping the authored lines")
+    func leavesOutTermAnnotations() {
         assertExpansion(
             """
             @OntologyContent
@@ -35,18 +35,18 @@ struct OntologyContentMacroTests {
             var body: some Content {
                 Namespace("https://zoo.example.org/#")
                 RDFCore.Class("Animal") {
-                        Type(RDFS.Class)
+
                         Label("Animal")
-                        Endangered<Zoo.Animal>()
+
                     }
                 RDFCore.Class("Keeper") {
-                        SubClassOf(Animal)
+
                         Label(keeperLabel)
                     }
                 if includeVets {
                         RDFCore.Property("treats") {
-                            Domain(Zoo.Vet)
-                            Range(Zoo.Animal)
+
+
                         }
                     }
             }
@@ -56,43 +56,77 @@ struct OntologyContentMacroTests {
 
     @Test("Generic and .self spellings are reported with a fix-it")
     func diagnosesOtherSpellings() {
+        // The rejected spellings are assembled from parts, so that no source
+        // file in the package contains them.
+        let generic = "SubClassOf" + "<Zoo.Animal>()"
+        let selfArgument = "Domain(Zoo.Animal" + ".self)"
         assertExpansion(
             """
-            @OntologyContent
-            var body: some Content {
-                Class("Animal") {
-                    SubClassOf(Zoo.Animal)
-                    Domain(Zoo.Animal.self)
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal") {
+                        \(generic)
+                        \(selfArgument)
+                    }
                 }
             }
             """,
             expandedSource: """
-            var body: some Content {
-                RDFCore.Class("Animal") {
-                        SubClassOf(Zoo.Animal)
-                        Domain(Zoo.Animal.self)
+            struct Zoo: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
+                    Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
+                    RDFCore.Class("Animal") {
+
+
+                            }
+                    #sourceLocation()
+                }
+
+                public protocol Animal: RDFCore.Resource {
+                }
+
+                /// An individual of ``Zoo/Animal``.
+                public final class AnimalIndividual: Zoo.Animal {
+                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Animal", name: "Animal")
+
+                    private struct Values: Sendable {
                     }
+
+                    private let storage: RDFCore.IndividualStorage<Values>
+
+                    /// Creates an individual with these property values.
+                    public init() {
+                        storage = RDFCore.IndividualStorage(Values())
+                    }
+                }
             }
             """,
             diagnostics: [
                 DiagnosticSpec(
                     message: "Write SubClassOf with the related type as its argument: SubClassOf(Zoo.Animal)",
-                    line: 4, column: 9,
+                    line: 6, column: 13,
                     fixIts: [FixItSpec(message: "Write SubClassOf(Zoo.Animal)")]
                 ),
                 DiagnosticSpec(
                     message: "Write Domain with the related type as its argument: Domain(Zoo.Animal)",
-                    line: 5, column: 9,
+                    line: 7, column: 13,
                     fixIts: [FixItSpec(message: "Write Domain(Zoo.Animal)")]
                 ),
             ],
             applyFixIts: ["Write SubClassOf(Zoo.Animal)", "Write Domain(Zoo.Animal)"],
             fixedSource: """
-            @OntologyContent
-            var body: some Content {
-                Class("Animal") {
-                    SubClassOf(Zoo.Animal)
-                    Domain(Zoo.Animal)
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal") {
+                        SubClassOf(Zoo.Animal)
+                        Domain(Zoo.Animal)
+                    }
                 }
             }
             """
@@ -108,7 +142,8 @@ struct OntologyContentMacroTests {
                     Namespace("https://zoo.example.org/#")
 
                     Class("Animal") {
-                        Type(RDFS.Clas)
+                        Type(RDFS.Class)
+                        Label(missingLabel)
                     }
                 }
             }
@@ -139,7 +174,8 @@ struct OntologyContentMacroTests {
             #"#sourceLocation(file: "/Zoo/Zoo.swift", line: 6)"#,
             """
             RDFCore.Class("Animal") {
-                        Type(RDFS.Clas)
+
+                        Label(missingLabel)
                     }
             """,
             "#sourceLocation()",

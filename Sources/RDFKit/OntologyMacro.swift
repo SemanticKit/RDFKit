@@ -47,15 +47,21 @@ import RDFCore
 /// - value types for datatypes and literal classes.
 /// - the property term type `Fauna.hasHabitat`, which names its `Domain`
 ///   and `Range` as type aliases.
+/// - DocC from each `Comment`, and `@available(*, deprecated)` on the
+///   declarations of a term marked `Deprecated()`.
+/// - for an `Individual` typed with another ontology's class,
+///   `Type(ServiceDescription.EntailmentRegime)`, conformance to that
+///   class's protocol.
 ///
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion and kept in its static `metadata`, for the
 /// boundary only.
 ///
 /// `@Ontology` also attaches ``OntologyContent()`` to `var body`. That body
-/// macro owns the authored body, so `Domain(Fauna.Animal)` is read as syntax
-/// and `body` returns the same declarations built from the generated
-/// types.
+/// macro owns the authored body, so `Domain(Fauna.Animal)` is read as syntax.
+/// The annotations that relate terms are the generated declarations, not
+/// values, so `body` returns the declarations with the annotations that
+/// carry text.
 @attached(member, names: arbitrary)
 @attached(memberAttribute)
 public macro Ontology() = #externalMacro(module: "RDFKitMacros", type: "OntologyMacro")
