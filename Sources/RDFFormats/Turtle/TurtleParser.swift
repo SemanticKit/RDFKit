@@ -391,7 +391,7 @@ struct TurtleParser {
             let start = current.position
             try advance()
             if case .atWord(let word) = current.token {
-                let literal = try lexer.scanner.languageTaggedLiteral(lexicalForm, atWord: word, at: current.position)
+                let literal = try lexer.scanner.literal(lexicalForm, languageDirection: word, at: current.position)
                 try advance()
                 return literal
             }

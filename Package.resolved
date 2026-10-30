@@ -1,5 +1,5 @@
 {
-  "originHash" : "1df425ccbfafed877c7e78eee8a2f12d4e86f90612d11be2bb6834b1439138d9",
+  "originHash" : "43552e6427f32b532adf39688d69f69110b43377fc4fa7d9153d2d60986cc09d",
   "pins" : [
     {
       "identity" : "irikit",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/SemanticKit/IRIKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "dc33434d8e212eb79e5952bf1318b6879be4d74c"
+        "revision" : "f5611e8fccc1fe63f0d6dcde698b4c73bd3b683a"
       }
     },
     {

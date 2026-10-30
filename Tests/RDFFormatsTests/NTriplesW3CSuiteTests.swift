@@ -33,4 +33,11 @@ struct NTriplesW3CSuiteTests {
         let expected = try test.readResult()
         #expect(Array(encoded.utf8) == Array(expected.utf8), "\(encoded)")
     }
+
+    @Test("Round trip: the graph encodes to N-Triples that decodes to the same graph", arguments: try W3CManifest.tests(in: manifest).filter { $0.kind == .positiveSyntax })
+    func roundTrip(_ test: W3CTestCase) throws {
+        let graph = try NTriplesDecoder().decode(try test.readAction())
+        let document = NTriplesEncoder().encode(graph)
+        #expect(try NTriplesDecoder().decode(document).isIsomorphic(to: graph), "\(document)")
+    }
 }

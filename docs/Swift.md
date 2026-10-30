@@ -75,7 +75,7 @@ struct Person: Resource, NamedIndividual {
     let age: Int
     
     // Conform to RDF terms
-    var rdfType: RDFS.Class { .Person }
+    var rdfType: RDF.Class { .Person }
     var rdfLabel: String { name }
     var rdfComment: String { "A person named \(name)" }
 }
@@ -95,7 +95,7 @@ let allDifferent = individuals.owlAllDifferent
 // Use custom types in ontologies
 let ontology = MyOntology {
     Class("Person") {
-        Type(RDFS.Class)
+        Type(RDF.Class)
         Label("Person")
         Comment("A person entity.")
     }

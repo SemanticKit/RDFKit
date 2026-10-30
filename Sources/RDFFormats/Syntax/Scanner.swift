@@ -154,17 +154,33 @@ struct Scanner {
 
     // MARK: - Strings
 
-    /// Scans a string literal at the cursor.
-    ///
-    /// `STRING_LITERAL_QUOTE`, and, when `allowsSingleQuotes`, also
-    /// `STRING_LITERAL_SINGLE_QUOTE`; when `allowsLongForms`, also the
-    /// triple-quoted forms.
-    mutating func scanString(allowsSingleQuotes: Bool, allowsLongForms: Bool) throws -> (value: String, isLong: Bool) {
+    /// `STRING_LITERAL_QUOTE ::= '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'`,
+    /// the one string form of N-Triples.
+    mutating func scanStringLiteralQuote() throws -> String {
+        guard peek(is: "\"") else { throw error("expected a string") }
+        return try scanString(quote: "\"", isLong: false)
+    }
+
+    /// `versionSpecifier ::= STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE`
+    /// (RDF 1.2 N-Triples §7, Turtle §7.3).
+    mutating func scanVersionSpecifier() throws -> String {
+        guard let quote = peek(), quote == "\"" || quote == "'" else { throw error("expected a quoted version specifier") }
+        return try scanString(quote: quote, isLong: false)
+    }
+
+    /// A Turtle `String` (RDF 1.2 Turtle §7.3): `STRING_LITERAL_QUOTE`,
+    /// `STRING_LITERAL_SINGLE_QUOTE`, `STRING_LITERAL_LONG_SINGLE_QUOTE` or
+    /// `STRING_LITERAL_LONG_QUOTE`.
+    mutating func scanTurtleString() throws -> (value: String, isLong: Bool) {
+        guard let quote = peek(), quote == "\"" || quote == "'" else { throw error("expected a string") }
+        let isLong = peek(is: quote, at: 1) && peek(is: quote, at: 2)
+        return (try scanString(quote: quote, isLong: isLong), isLong)
+    }
+
+    /// The string between `quote`s, or between three of them when `isLong`,
+    /// with the cursor on the first quote.
+    private mutating func scanString(quote: Unicode.Scalar, isLong: Bool) throws -> String {
         let start = index
-        guard let quote = peek(), quote == "\"" || (allowsSingleQuotes && quote == "'") else {
-            throw error("expected a string")
-        }
-        let isLong = allowsLongForms && peek(is: quote, at: 1) && peek(is: quote, at: 2)
         advance(isLong ? 3 : 1)
         var value = String.UnicodeScalarView()
         while true {
@@ -172,13 +188,13 @@ struct Scanner {
             if scalar == quote {
                 if !isLong {
                     advance()
-                    return (String(value), false)
+                    return String(value)
                 }
                 if peek(is: quote, at: 1) && peek(is: quote, at: 2) {
                     // The content cannot end with a quote, so the first
                     // three quotes close the string.
                     advance(3)
-                    return (String(value), true)
+                    return String(value)
                 }
                 value.append(scalar)
                 advance()
@@ -224,23 +240,16 @@ struct Scanner {
         return String(String.UnicodeScalarView(scalars[start..<index]))
     }
 
-    /// The language-tagged string `lexicalForm@word`, where `word` is the
-    /// text after `@`: a language tag and an optional `--` base direction.
-    /// RDFCore's `Literal` decides whether the tag is well-formed BCP 47;
-    /// this reports its refusal at `position`.
-    func languageTaggedLiteral(_ lexicalForm: String, atWord word: String, at position: Int) throws -> Literal {
-        let parts = word.components(separatedBy: "--")
-        var direction: BaseDirection?
-        if parts.count == 2 {
-            guard let value = BaseDirection(rawValue: parts[1]) else {
-                throw error("base direction must be 'ltr' or 'rtl'", at: position)
-            }
-            direction = value
-        }
+    /// The language-tagged string `lexicalForm@word`, reporting a tag
+    /// that is not well-formed BCP 47, or a direction that is not `ltr` or
+    /// `rtl`, at `position`. ``RDFCore/Literal`` decides.
+    func literal(_ lexicalForm: String, languageDirection word: String, at position: Int) throws -> Literal {
         do {
-            return try Literal(lexicalForm, languageTag: parts[0], baseDirection: direction)
+            return try Literal(lexicalForm, languageDirection: word)
+        } catch .malformedBaseDirection {
+            throw self.error("base direction must be 'ltr' or 'rtl'", at: position)
         } catch {
-            throw self.error("'\(parts[0])' is not a well-formed BCP 47 language tag", at: position)
+            throw self.error("'\(word.components(separatedBy: "--")[0])' is not a well-formed BCP 47 language tag", at: position)
         }
     }
 

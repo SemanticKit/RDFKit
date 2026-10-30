@@ -40,7 +40,7 @@ public protocol Content {
 ///         Class("Person")
 ///         Property("fullName") {
 ///             Domain(People.Person)
-///             Range(RDFS.Literal)
+///             Range(RDF.Literal)
 ///             Label("Full Name")
 ///         }
 ///     }

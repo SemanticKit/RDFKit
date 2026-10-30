@@ -55,10 +55,7 @@ struct NTriplesParser {
     mutating func parseVersion() throws {
         _ = scanner.consume("VERSION")
         skipSpace()
-        guard scanner.peek(is: "\"") || scanner.peek(is: "'") else {
-            throw scanner.error("expected a quoted version specifier")
-        }
-        _ = try scanner.scanString(allowsSingleQuotes: true, allowsLongForms: false)
+        _ = try scanner.scanVersionSpecifier()
     }
 
     /// Spaces and tabs, then an optional comment, then a line end or the end
@@ -137,7 +134,7 @@ struct NTriplesParser {
     /// `literal ::= STRING_LITERAL_QUOTE ('^^' IRIREF | LANG_DIR)?`
     mutating func parseLiteral() throws -> Literal {
         let start = scanner.index
-        let lexicalForm = try scanner.scanString(allowsSingleQuotes: false, allowsLongForms: false).value
+        let lexicalForm = try scanner.scanStringLiteralQuote()
         skipSpace()
         if scanner.consume("^^") {
             skipSpace()
@@ -151,7 +148,7 @@ struct NTriplesParser {
         if scanner.peek(is: "@") {
             let position = scanner.index
             let word = try scanner.scanAtWord()
-            return try scanner.languageTaggedLiteral(lexicalForm, atWord: word, at: position)
+            return try scanner.literal(lexicalForm, languageDirection: word, at: position)
         }
         return Literal(lexicalForm)
     }

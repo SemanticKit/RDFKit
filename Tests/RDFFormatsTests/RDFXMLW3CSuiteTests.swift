@@ -28,4 +28,12 @@ struct RDFXMLW3CSuiteTests {
         let expected = try NTriplesDecoder().decode(try test.readResult())
         #expect(decoded.isIsomorphic(to: expected), "\(NTriplesEncoder().encode(decoded))")
     }
+
+    @Test("Round trip: the graph encodes to RDF/XML that decodes to an isomorphic graph", arguments: try W3CManifest.tests(in: manifest).filter { $0.kind == .evaluation })
+    func roundTrip(_ test: W3CTestCase) throws {
+        let graph = try RDFXMLDecoder(base: test.action).decode(try test.readAction())
+        let document = try RDFXMLEncoder().encode(graph)
+        let decoded = try RDFXMLDecoder().decode(document)
+        #expect(decoded.isIsomorphic(to: graph), "\(document)")
+    }
 }

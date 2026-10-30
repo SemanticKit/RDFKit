@@ -1,151 +1,67 @@
 # RDFKit
 
-A protocol-oriented RDF ontology DSL for Swift.
+RDF and Swift, as one runtime, both ways.
 
 ## What This Is
 
-RDFKit is a Swift library for defining RDF ontologies using a declarative DSL. You write ontologies the way you think about them — classes, properties, relationships — and the Swift compiler validates the structure.
+RDF goes in, you build, and Swift comes out as the things the RDF describes. FOAF's `index.rdf` gives the protocols `Person` and `Agent`, the property `knows`, and Alice's profile gives `alice`, a `Person`:
 
 ```swift
+import AliceProfile
+import FOAF
+
+alice is Person                      // :alice a foaf:Person
+alice is Agent                       // foaf:Person rdfs:subClassOf foaf:Agent
+alice.knows.contains { $0 === bob }  // the values are the individuals themselves
+```
+
+`rdf.ttl`, `rdfs.ttl` and `owl.ttl` go through the same translation, into the modules `RDF` and `OWL`. Swift goes back to RDF through the same encoders for every individual:
+
+```swift
+let document = try TurtleEncoder().encode([alice, bob])
+```
+
+Vocabularies can also be written in Swift with the DSL. `@Ontology` generates the same Swift the translator writes, on the same runtime, and builds on the translated vocabularies:
+
+```swift
+import FOAF
+import IRIKit
+import RDF
+import RDFCore
+import RDFKit
+
 @Ontology
-public struct OWL: Ontology {
+public struct Club: Ontology {
     public var body: some Content {
-        Namespace("http://www.w3.org/2002/07/owl#")
-
-        Class("Thing") {
-            Type(RDFS.Class)
-            Label("Thing")
-            Comment("The class of OWL individuals.")
+        Namespace("https://club.example.org/#")
+        Class("Member") {
+            Type(RDF.Class)
+            SubClassOf(FOAF.Person)
+            Comment("A person who belongs to the club.")
         }
-
-        Property("sameAs") {
-            Type(RDF.Property)
-            Domain(OWL.Thing)
-            Range(OWL.Thing)
-            Label("sameAs")
+        Property("joined") {
+            Domain(Club.Member)
+            Range(RDF.Literal)
         }
     }
 }
 ```
 
-Related terms are written as their types: `Type(RDFS.Class)`, `Domain(OWL.Thing)`. `@Ontology` generates `OWL.Thing` and the other term types from this content, and owns the getter of `var body`, so these annotations are read as written. Each one becomes the Swift declaration it describes: `SubClassOf` is protocol refinement, `Domain` and `Range` make a property a requirement of its domain's class protocol with the range as its type, and `Deprecated()` is `@available(*, deprecated)`.
+Related terms are written as their types: `SubClassOf(FOAF.Person)`, `Range(RDF.Literal)`. A class is a protocol, a storing protocol and a final class whose instances are its members (`Club.MemberIndividual`); a property is a requirement of its domain's protocol, typed by the `Member` of its range's class.
 
-This reads like RDF. It IS RDF. The compiler enforces the structure.
+## Targets
 
-## Architecture
+- **RDFCore** — the RDF 1.2 data model at the boundary (`Graph`, `Triple`, `Literal`, `BlankNode`, `Dataset`, isomorphism), the runtime every individual uses (`Resource`, `ResourceClass`, `IndividualStorage`, `PropertyValue`, `PropertyKey`), and the DSL forms (`Class`, `Property`, `Label`, ...).
+- **RDFFormats** — the coders: `NTriplesDecoder`/`NTriplesEncoder`, `TurtleDecoder`/`TurtleEncoder`, `RDFXMLDecoder`/`RDFXMLEncoder`, and `GraphEncoder`, which turns individuals into a `Graph` through their `Encodable` conformance. Checked against the W3C RDF 1.2 test suites (`Scripts/fetch-w3c-rdf-tests.sh` refreshes them), decoding and round-tripping by isomorphism.
+- **RDFTranslatorPlugin** — a build tool plugin that runs **RDFTranslator** over a target's RDF documents (`.ttl`, `.nt`, `.rdf`) and writes the Swift they describe. A target's dependencies are the layers it builds on.
+- **RDF** and **OWL** — rdf.ttl with rdfs.ttl, and owl.ttl, translated by the plugin.
+- **RDFKit** — the `@Ontology` macro and the RDFKit vocabulary, declared with it.
 
-### Targets
+## Design Rules
 
-- **RDFCore** — the DSL machinery: protocols, result builders, node types
-- **RDFKit** — the standard ontologies: RDF, RDFS, OWL defined using the DSL
-- **RDFFormats** — the I/O boundary: RDF 1.2 Turtle and N-Triples decoders and a canonical N-Triples encoder (of triples, or of translated resources through their `Encodable` conformance), RDF graph isomorphism (RDF 1.2 Concepts §3.7), checked against the W3C test suites (`Scripts/fetch-w3c-rdf-tests.sh` refreshes them)
-- **RDFTranslatorPlugin** — a build tool plugin that runs **RDFTranslator** over a target's RDF documents (`.ttl`, `.nt`, `.rdf`) and writes the Swift they describe: each class both a protocol named by its local name (`Person`, for membership and multiple inheritance) and a final class whose instances are its members (`PersonIndividual`); each individual an instance of the class of its stated class (`alice` is a `FOAF.PersonIndividual`); each property a stored property of the classes of the things that have it, typed by its range, and a requirement of its domain's protocol; `rdfs:label` and `rdfs:comment` as DocC and `owl:deprecated` as `@available(*, deprecated)`. Every IRI has one Swift declaration, in the module whose documents describe it, and a class in object position is its Swift type. A target's dependencies are the layers it builds on.
-- **RDFRuntime** — what the translated Swift uses: the `Resource` and `Class` protocols, `Value` for a property whose range admits any resource, and the `Description`s each module lists as `ontology`, the way back to RDF
-- **RDF** and **OWL** — rdf.ttl with rdfs.ttl, and owl.ttl, translated by the plugin; vocabularies such as FOAF build on them
+`docs/DslInvariants.md` holds the rules of the DSL. The essential ones:
 
-### Protocol Hierarchy
-
-```
-Node
-  ├─ Term
-  │    ├─ Subject
-  │    ├─ Predicate
-  │    └─ Object
-  ├─ TermContent (can appear as child of a term declaration)
-  │    ├─ ClassDeclaration
-  │    ├─ PropertyDeclaration
-  │    ├─ IndividualDeclaration
-  │    ├─ DatatypeDeclaration
-  │    ├─ TypeAnnotation
-  │    ├─ SubClassOfAnnotation
-  │    ├─ SubPropertyOfAnnotation
-  │    ├─ DomainAnnotation
-  │    ├─ RangeAnnotation
-  │    ├─ LabelProtocol
-  │    ├─ CommentProtocol
-  │    ├─ SeeAlsoProtocol
-  │    └─ OWLDeprecatedProtocol
-  ├─ Namespace
-  └─ Prefix
-```
-
-### How It Works
-
-1. **Protocols define what something IS** — `ClassDeclaration`, `TypeAnnotation`, etc.
-2. **Extensions provide behavior** — `Ontology` gets `Class()`, `Property()` etc. for free via protocol extension
-3. **Structs hold data** — `TermDeclaration`, `LabelAnnotationValue` etc.
-4. **Result builders compose content** — `@ContentBuilder` and `@TermContentBuilder` use parameter packs
-
-### The Content Tree
-
-An ontology's `content` property produces a `[any Node]` — an ordered list of declarations, prefixes, and namespaces. Consumers walk this tree to find terms, annotations, and namespace context.
-
-```swift
-// The content tree contains:
-// - Prefix declarations (alias + namespace IRI)
-// - Namespace declaration (the ontology's own namespace IRI)
-// - Term declarations (class, property, individual, datatype)
-//   └─ Each term has children (annotations: Type, SubClassOf, Label, etc.)
-```
-
-### Key Design Rules
-
-See `DSL_INVARIANTS.md` for the full set. The essential ones:
-
-- **DSL terms match RDF/RDFS/OWL vocabulary names 1:1** — `Class` = `rdfs:Class`, `Label` = `rdfs:label`
-- **Ontology declarations are the source of truth** — not generated types
-- **Child declarations do not know parent context** — consumers walking the tree determine namespace, aliases, parent ontology
-- **Term identity is RDF IRI identity** — Swift type identity is never term identity
-- **Protocol-oriented, not class-per-term** — protocols define roles, structs conform
-
-## Package Structure
-
-```
-RDFKit/
-├── Package.swift
-├── AGENTS.md                    # Agent instructions
-├── DSL_INVARIANTS.md            # DSL design rules
-├── Sources/
-│   ├── RDFCore/                 # DSL machinery
-│   │   ├── API/
-│   │   │   ├── DefinedBy.swift
-│   │   │   └── Namespaced.swift
-│   │   ├── Node.swift           # Node, Subject, Predicate, Object protocols
-│   │   ├── Term.swift           # Term protocol
-│   │   ├── Ontology.swift       # Ontology protocol + DSL methods
-│   │   ├── Vocabulary.swift     # Protocols, concrete types, free functions
-│   │   ├── ContentBuilder.swift # @resultBuilder with parameter packs
-│   │   ├── ContentModifier.swift # Modifier protocol + tree walker
-│   │   ├── Namespace.swift      # Namespace type
-│   │   ├── Prefix.swift         # Prefix type
-│   │   ├── IRI+Identifiable.swift
-│   │   ├── IRI+Term.swift
-│   │   ├── Literal.swift
-│   │   ├── BlankNode.swift
-│   │   ├── Triple.swift
-│   │   └── ...
-│   └── RDFKit/                  # Standard ontologies
-│       ├── RDFKit.swift         # @_exported import RDFCore
-│       ├── RDF/                 # RDF ontology
-│       ├── RDFS/                # RDFS ontology
-│       └── OWL/                 # OWL ontology
-└── Tests/
-    └── RDFKitTests/             # Consumer-driven tests
-```
-
-## Status
-
-### Done
-- Protocol hierarchy and concrete types
-- Parameter pack result builders (no manual arity overloads)
-- Content modifier system (type-safe, target-specific)
-- RDF, RDFS, OWL ontologies defined using the DSL
-- Namespace extraction from content tree
-
-### In Progress
-- Eliminating scaffolding via compiler-generated types
-- Consumer test library
-
-### Next
-- Macros that read ontology metadata and generate type-safe term references
-- Self-describing loop: DSL defines ontology → compiler generates types → types ARE the DSL
+- **The type is the identity.** Inside the runtime, terms refer to each other as Swift types; an individual is an object. IRIs exist only at the boundary: the encoders and decoders.
+- **One runtime.** DSL-declared and translated individuals are the same kind of `Resource`, keep their values in an `IndividualStorage` as typed Swift values, and encode through the same encoders.
+- **A named individual is a module-level value** (`alice`), never a static member of an ontology type.
+- **`var body`, as in SwiftUI**, and related terms by inference: `Domain(Fauna.Animal)`.

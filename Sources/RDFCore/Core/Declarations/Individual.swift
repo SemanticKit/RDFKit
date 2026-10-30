@@ -1,9 +1,13 @@
 import IRIKit
 
-/// Declares a named individual. The `@Ontology` macro generates a static
-/// constant of the ontology for it, the one instance of a final class that
-/// conforms to the protocols of its classes: `Individual("nil")` becomes
-/// `RDF.nil`.
+/// Declares a named individual: in RDF's own vocabulary, `rdf:nil` is one,
+/// translated as the module-level value `RDF.nil`.
+///
+/// A named individual is a module-level value, never a member of an
+/// ontology type, and a macro cannot declare module-level names, so
+/// `@Ontology` reports `Individual` in a `var body`: a named individual
+/// comes from RDF data that `RDFTranslatorPlugin` translates, or is declared
+/// in Swift as an instance of its class.
 ///
 /// `owl:NamedIndividual`
 ///

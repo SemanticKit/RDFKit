@@ -1,9 +1,8 @@
 import IRIKit
 
 /// Declares an RDF property. The `@Ontology` macro generates a term type for
-/// it and a requirement on the protocol of its `Domain`, typed by its `Range`:
-/// many values by default, at most one when the property is typed
-/// `OWL.FunctionalProperty`.
+/// it and a requirement on the protocol of its `Domain`, the property's
+/// values typed by the members of its `Range`.
 ///
 /// `rdf:Property`
 ///

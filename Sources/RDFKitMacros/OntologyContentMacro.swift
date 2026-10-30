@@ -18,7 +18,7 @@ import SwiftSyntaxMacros
 /// declarations and the annotations that carry text, `Label`,
 /// `Comment`, `SeeAlso`, `Deprecated`, with each declaration form qualified
 /// by its module, `RDFCore.Class("Animal")`, because the ontology may
-/// declare a term of the same name (`RDFS.Class`). The statements keep the
+/// declare a term of the same name (`RDF.Class`). The statements keep the
 /// authored file and line, so the compiler reports an error in them at the
 /// line it was written on. `var body` takes ``ContentBuilder`` from the `Ontology`
 /// requirement, so the returned statements are built into `some Content`.

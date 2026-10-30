@@ -266,8 +266,8 @@ Each protocol gets its own clean file. Special protocols carry conforming types 
 
 **Ontology side (describes):**
 - `Class("Animal")` — declares a class named "Animal"
-- `Type(RDFS.Class)` — describes that Animal IS a class
-- `SubClassOf(RDFS.Resource)` — describes that Animal inherits from Resource
+- `Type(RDF.Class)` — describes that Animal IS a class
+- `SubClassOf(RDF.Resource)` — describes that Animal inherits from Resource
 - `Domain(Fauna.Animal)` — describes that hasHabitat has Animal as domain
 - `Range(Fauna.Habitat)` — describes that hasHabitat has Habitat as range
 

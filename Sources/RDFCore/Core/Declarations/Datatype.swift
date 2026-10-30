@@ -5,7 +5,7 @@ import IRIKit
 /// `rdfs:Datatype`
 ///
 ///     Datatype("HTML") {
-///         SubClassOf(RDFS.Literal)
+///         SubClassOf(RDF.Literal)
 ///     }
 public struct Datatype: Declaration {
     public static let metadata: any ContentMetadata = RDFMetadata(

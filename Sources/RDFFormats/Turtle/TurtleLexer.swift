@@ -63,7 +63,7 @@ struct TurtleLexer {
                 token = .punctuation(String(scalar))
             }
         case "\"", "'":
-            let (value, isLong) = try scanner.scanString(allowsSingleQuotes: true, allowsLongForms: true)
+            let (value, isLong) = try scanner.scanTurtleString()
             token = .string(value, isLong: isLong)
         case "@":
             token = .atWord(try scanner.scanAtWord())

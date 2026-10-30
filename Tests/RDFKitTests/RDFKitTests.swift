@@ -1,5 +1,6 @@
 import Testing
 import IRIKit
+import AliceProfile
 import FOAF
 import RDF
 import RDFCore
@@ -112,5 +113,23 @@ struct RDFKitTests {
         let output = try GraphEncoder().encode(prefix)
         #expect(output.count == 3)
         #expect(output.contains { $0.predicate == "http://semantickit.io/o/2026/06/rdfkit#id" && $0.object == .literal("foaf") })
+    }
+
+    /// Every individual, declared in the DSL, typed across vocabularies or
+    /// translated from RDF, encodes through each format's encoder, and the
+    /// documents decode to the same graph.
+    @Test func everyIndividualEncodesThroughEveryFormat() throws {
+        let carol = Club.MemberIndividual(iri: "https://club.example.org/#carol")
+        carol.name = ["Carol"]
+        carol.knows = [FOAF.PersonIndividual()]
+        let individuals: [any RDFCore.Description] = [carol, alice, bob]
+        let graph = try GraphEncoder().encode(individuals)
+        let nTriples = try NTriplesDecoder().decode(try NTriplesEncoder().encode(individuals))
+        let turtle = try TurtleDecoder().decode(try TurtleEncoder().encode(individuals))
+        let rdfXML = try RDFXMLDecoder().decode(try RDFXMLEncoder().encode(individuals))
+        #expect(graph.count == 10)
+        #expect(nTriples.isIsomorphic(to: graph))
+        #expect(turtle.isIsomorphic(to: graph))
+        #expect(rdfXML.isIsomorphic(to: graph))
     }
 }

@@ -120,6 +120,7 @@ let package = Package(
                 "RDF",
                 "OWL",
                 "FOAF",
+                "AliceProfile",
                 .product(name: "IRIKit", package: "IRIKit")
             ],
             exclude: [

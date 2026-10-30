@@ -8,7 +8,7 @@
 ## Architecture Documentation
 - All architecture docs live in `docs/` folder
 - Do not modify docs without user approval
-- Current docs: ARCHITECTURE_SPEC.md, ContentModifierDesign.md, DSL_INVARIANTS.md, MACRO_DESIGN.md, VocabularyPlan.md
+- Current docs: ArchitectureSpec.md, CodeGeneration.md, ContentModifierDesign.md, DslInvariants.md, MacroDesign.md, OrganizationPattern.md, Rdf12Concepts.md, Swift.md, VocabularyPlan.md
 
 ## Testing
 - Each protocol gets its own test file

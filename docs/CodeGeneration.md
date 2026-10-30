@@ -6,15 +6,15 @@ Everything declared in the DSL creates a type that conforms to `Entity`. Every E
 
 ```swift
 Class("Resource") {
-    Type(RDFS.Class)
+    Type(RDF.Class)
     Label("Resource")
     Comment("The class resource, everything.")
 }
 
 Property("label") {
     Type(RDF.Property)
-    Domain(RDFS.Resource)
-    Range(RDFS.Literal)
+    Domain(RDF.Resource)
+    Range(RDF.Literal)
     Label("label")
 }
 ```

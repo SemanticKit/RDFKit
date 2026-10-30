@@ -14,6 +14,12 @@ public enum TermError: Error, Hashable, Sendable {
     /// tags MUST be well-formed according to section 2.2.9 of [BCP47]".
     case malformedLanguageTag
 
+    /// A base direction is neither `ltr` nor `rtl`.
+    ///
+    /// RDF 1.2 Concepts §3.4 Literals: "a base direction, which MUST be one
+    /// of `ltr` or `rtl`".
+    case malformedBaseDirection
+
     /// A typed literal names `rdf:langString` or `rdf:dirLangString`, whose
     /// literals carry their datatype through a language tag.
     ///
