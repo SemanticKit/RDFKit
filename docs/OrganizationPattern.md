@@ -2,45 +2,34 @@
 
 ## File Structure
 
-Each RDF/RDFS/OWL term gets its own file. The file contains all layers for that term:
+Each DSL declaration form gets its own file. The file contains all layers for that form:
 
 ```
 Sources/RDFCore/
 ├── Core/
 │   ├── Declarations/
-│   │   └── Individual.swift  # DSL form for owl:NamedIndividual
-│   ├── Node.swift
+│   │   ├── Class.swift       # DSL form for owl:Class; generates a Swift class
+│   │   ├── Datatype.swift    # DSL form for rdfs:Datatype
+│   │   ├── Individual.swift  # DSL form for owl:NamedIndividual
+│   │   └── Property.swift    # DSL form for rdf:Property
+│   ├── Annotations/
+│   │   ├── Comment.swift     # rdfs:comment; generates DocC documentation
+│   │   ├── Deprecated.swift  # owl:deprecated; Deprecated("reason") generates @available
+│   │   ├── Label.swift       # rdfs:label; generates DocC documentation
+│   │   └── SeeAlso.swift     # rdfs:seeAlso
+│   ├── Entity.swift
 │   ├── Ontology.swift
-│   ├── OntologyTerm.swift
-│   ├── Term.swift
-│   ├── TermDeclaration.swift
 │   └── ...
-├── RDF/
-│   ├── Property.swift        # Protocol + DSL
-│   ├── Type.swift            # Protocol + Concrete Type + DSL
-│   └── ...
-├── RDFS/
-│   ├── Class.swift           # Protocol + DSL
-│   ├── Comment.swift         # Protocol + Concrete Type + DSL
-│   ├── Datatype.swift        # Protocol + DSL
-│   ├── Domain.swift          # Protocol + Concrete Type + DSL
-│   ├── IsDefinedBy.swift     # Protocol + Concrete Type + DSL
-│   ├── Label.swift           # Protocol + Concrete Type + DSL
-│   ├── Range.swift           # Protocol + Concrete Type + DSL
-│   ├── SeeAlso.swift         # Protocol + Concrete Type + DSL
-│   ├── SubClassOf.swift      # Protocol + Concrete Type + DSL
-│   ├── SubPropertyOf.swift   # Protocol + Concrete Type + DSL
-│   └── ...
-├── OWL/
-│   └── OWLDeprecated.swift   # Protocol + Concrete Type + DSL
 ├── Builders/
-│   ├── ContentBuilder.swift
-│   └── TermContentBuilder.swift
-└── Modifiers/
-    ├── ContentModifier.swift
-    ├── Node+Modifiers.swift
-    └── ApplyModifier.swift
+│   └── ContentBuilder.swift
+└── Runtime/
+    ├── Resource.swift
+    ├── ResourceClass.swift
+    ├── TermKey.swift
+    └── ...
 ```
+
+There is no `Modifiers/` layer: a declaration is never modified by chained methods (`add*`, `isDeclaredBy`). What a declaration states is written as declaration forms in its trailing closure, in the ontology's `var body`. The rdf, rdfs and owl terms themselves are not typed here; they come from translating rdf.ttl, rdfs.ttl and owl.ttl.
 
 ## MARK Convention
 
@@ -91,7 +80,7 @@ public func Label(_ text: String) -> LabelAnnotationValue {
 
 ## Rules
 
-1. Each term gets its own file
+1. Each declaration form gets its own file
 2. Files contain all layers (Protocol, Concrete Type, DSL)
 3. Use `// MARK:` sections to organize content
 4. Follow Swift API Design Guidelines

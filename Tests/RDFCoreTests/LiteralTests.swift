@@ -1,4 +1,3 @@
-import IRIKit
 import RDFCore
 import RDFFormats
 import Testing
