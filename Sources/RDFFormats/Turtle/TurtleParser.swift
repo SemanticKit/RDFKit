@@ -104,7 +104,7 @@ struct TurtleParser {
 
     /// `VersionSpecifier ::= STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE`
     mutating func parseVersion() throws {
-        guard case .string(_, isLong: false) = current.token else {
+        guard case .string(_, let form) = current.token, form == .quote || form == .singleQuote else {
             throw error("expected a single-line quoted version specifier")
         }
         try advance()
@@ -385,40 +385,28 @@ struct TurtleParser {
 
     /// `literal ::= RDFLiteral | NumericLiteral | BooleanLiteral`
     mutating func parseLiteralIfPresent() throws -> Literal? {
-        let literal: Literal
-        switch current.token {
-        case .string(let lexicalForm, _):
-            let start = current.position
+        if let literal = Literal(current.token) {
             try advance()
-            if case .atWord(let word) = current.token {
-                let literal = try lexer.scanner.literal(lexicalForm, languageDirection: word, at: current.position)
-                try advance()
-                return literal
-            }
-            if isPunctuation("^^") {
-                try advance()
-                guard let datatype = try parseIRIIfPresent() else { throw error("expected a datatype IRI") }
-                do {
-                    return try Literal(lexicalForm, datatype: datatype)
-                } catch {
-                    throw lexer.scanner.error("a language-tagged string cannot be written with '^^'", at: start)
-                }
-            }
-            return Literal(lexicalForm)
-        case .integer(let text):
-            literal = try Literal(text, datatype: IRI.xsdInteger)
-        case .decimal(let text):
-            literal = try Literal(text, datatype: IRI.xsdDecimal)
-        case .double(let text):
-            literal = try Literal(text, datatype: IRI.xsdDouble)
-        case .word("true"), .word("false"):
-            guard case .word(let text) = current.token else { return nil }
-            literal = try Literal(text, datatype: IRI.xsdBoolean)
-        default:
-            return nil
+            return literal
         }
+        guard case .string(let lexicalForm, _) = current.token else { return nil }
+        let start = current.position
         try advance()
-        return literal
+        if case .atWord(let word) = current.token {
+            let literal = try Literal(lexicalForm, languageDirection: word, at: current.position, in: lexer.scanner)
+            try advance()
+            return literal
+        }
+        if isPunctuation("^^") {
+            try advance()
+            guard let datatype = try parseIRIIfPresent() else { throw error("expected a datatype IRI") }
+            do {
+                return try Literal(lexicalForm, datatype: datatype)
+            } catch {
+                throw lexer.scanner.error("a language-tagged string cannot be written with '^^'", at: start)
+            }
+        }
+        return Literal(lexicalForm)
     }
 
     /// Resolves an `IRIREF` against the base IRI and validates the result.
@@ -427,9 +415,8 @@ struct TurtleParser {
         guard let base else {
             throw error("<\(reference)> is relative and there is no base IRI")
         }
-        let resolved = IRIReferenceResolution.resolve(reference, against: base)
-        guard let iri = IRI(rawValue: resolved) else {
-            throw error("<\(reference)> resolves to <\(resolved)>, which is not an IRI")
+        guard let iri = IRI(resolving: reference, against: base) else {
+            throw error("<\(reference)> does not resolve to an IRI against <\(base)>")
         }
         return iri
     }

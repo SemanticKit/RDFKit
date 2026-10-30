@@ -59,21 +59,21 @@ struct SwiftSource {
         source += "\n"
         for node in declarations.order {
             guard let individual = declarations.individuals[node] else { continue }
-            source += "private let \(handle(node)) = \(classReference(individual.instanceOf))(iri: \(node.iri.map { SwiftName.stringLiteral($0.rawValue) } ?? "nil"))\n"
+            source += "private let \(handle(node)) = \(classReference(individual.instanceOf))(iri: \(node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil"))\n"
         }
         source += "\n/// Sets the values the documents give the individuals, once.\nprivate let described: Void = {\n"
         for node in declarations.order where declarations.individuals[node] != nil {
             for (property, objects) in values(of: node) {
                 let declaration = propertyDeclaration(property)!
-                source += "    \(handle(node)).\(SwiftName.identifier(declaration.member)) = [\(objects.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
+                source += "    \(handle(node)).\(declaration.member.swiftIdentifier) = [\(objects.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
             }
         }
         source += "}()\n"
 
         for node in declarations.order {
             guard let individual = declarations.individuals[node], individual.isPublic else { continue }
-            source += "\n" + documentation(node)
-            source += "public let \(SwiftName.identifier(individual.name)): \(individual.publicType) = { _ = described; return \(handle(node)) }()\n"
+            source += "\n" + docComment(node) + deprecation(node)
+            source += "public let \(individual.name.swiftIdentifier): \(individual.publicType) = { _ = described; return \(handle(node)) }()\n"
         }
 
         for (index, node) in declarations.additions.enumerated() {
@@ -113,14 +113,14 @@ struct SwiftSource {
 
     private func classProtocol(_ declaration: ClassDeclaration) -> String {
         let refined = (declarations.refinements[declaration.node] ?? []).compactMap(classDeclaration).map(\.protocolReference)
-        var text = documentation(declaration.node)
-        text += "\(access(declaration.isPublic))protocol \(SwiftName.identifier(declaration.protocolName)): \(refined.isEmpty ? "RDFCore.Resource" : refined.joined(separator: ", ")) {"
+        var text = docComment(declaration.node) + deprecation(declaration.node)
+        text += "\(access(declaration.isPublic))protocol \(declaration.protocolName.swiftIdentifier): \(refined.isEmpty ? "RDFCore.Resource" : refined.joined(separator: ", ")) {"
         let requirements = (declarations.requirements[declaration.node] ?? []).compactMap(propertyDeclaration)
         if requirements.isEmpty { return text + "}\n" }
         text += "\n"
         for requirement in requirements {
-            text += documentation(requirement.node, indent: "    ")
-            text += "    var \(SwiftName.identifier(requirement.member)): \(type(of: requirement.kind)) { get set }\n"
+            text += docComment(requirement.node, indent: "    ") + deprecation(requirement.node, indent: "    ")
+            text += "    var \(requirement.member.swiftIdentifier): \(type(of: requirement.kind)) { get set }\n"
         }
         return text + "}\n"
     }
@@ -131,7 +131,7 @@ struct SwiftSource {
         let refined = [declaration.protocolReference] + declaration.storing.map(reference)
         var text = "/// A member of ``\(declaration.isPublic ? declaration.protocolName : "")`` that keeps its property values in an ``RDFCore/IndividualStorage``.\n"
         if !declaration.isPublic { text = "/// A member of the class that keeps its property values in an ``RDFCore/IndividualStorage``.\n" }
-        text += "\(access(declaration.isPublic))protocol \(SwiftName.identifier(declaration.storingName)): \(refined.joined(separator: ", ")) {}\n"
+        text += "\(access(declaration.isPublic))protocol \(declaration.storingName.swiftIdentifier): \(refined.joined(separator: ", ")) {}\n"
         return text
     }
 
@@ -140,9 +140,9 @@ struct SwiftSource {
     /// description too.
     private func individualClass(of declaration: ClassDeclaration) -> String {
         let access = self.access(declaration.isPublic)
-        var text = documentation(declaration.node)
-        text += "\(access)final class \(SwiftName.identifier(declaration.className)): \(declaration.storingReference), RDFCore.ResourceClass {\n"
-        text += "    public static let iri: IRIKit.IRI? = \(declaration.node.iri.map { SwiftName.stringLiteral($0.rawValue) } ?? "nil")\n\n"
+        var text = docComment(declaration.node) + deprecation(declaration.node)
+        text += "\(access)final class \(declaration.className.swiftIdentifier): \(declaration.storingReference), RDFCore.ResourceClass {\n"
+        text += "    public static let iri: IRIKit.IRI? = \(declaration.node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil")\n\n"
         text += "    /// A member of the class as a property value.\n"
         text += "    public typealias Member = \(memberType(of: declaration.member))\n\n"
         text += individual(stated: [declaration.node])
@@ -155,7 +155,7 @@ struct SwiftSource {
     private func combinationClass(_ combination: Combination) -> String {
         let conformances = combination.storing.map(reference)
         var text = "/// An individual that is a member of \(combination.stated.isEmpty ? "no stated class" : "several classes"), or has properties its class's members cannot have.\n"
-        text += "private final class \(SwiftName.identifier(combination.name)): \(conformances.isEmpty ? "RDFCore.PropertyValueStoring" : (conformances + ["RDFCore.PropertyValueStoring"]).joined(separator: ", ")) {\n"
+        text += "private final class \(combination.name.swiftIdentifier): \(conformances.isEmpty ? "RDFCore.PropertyValueStoring" : (conformances + ["RDFCore.PropertyValueStoring"]).joined(separator: ", ")) {\n"
         text += individual(stated: combination.stated)
         return text + "}\n"
     }
@@ -179,7 +179,7 @@ struct SwiftSource {
     private func propertyValue(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
         var text = "/// The values an individual has for \(property.isPublic ? "``\(property.name)``" : "the property").\n"
-        text += "\(access)struct \(SwiftName.identifier(property.valueName)): RDFCore.PropertyValue {\n"
+        text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore.PropertyValue {\n"
         text += "    public var value: \(type(of: property.kind)) = []\n\n"
         text += "    public init() {}\n\n"
         text += "    public func encode(to encoder: any Encoder) throws {\n"
@@ -192,12 +192,12 @@ struct SwiftSource {
     /// The storing protocol that gives an individual a property's accessor.
     private func propertyStoring(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
-        let member = SwiftName.identifier(property.member)
-        let value = SwiftName.identifier(property.valueName)
+        let member = property.member.swiftIdentifier
+        let value = property.valueName.swiftIdentifier
         var text = "/// An individual that has \(property.isPublic ? "``\(property.name)``" : "the property").\n"
-        text += "\(access)protocol \(SwiftName.identifier(property.storingName)): RDFCore.PropertyValueStoring {}\n\n"
-        text += "extension \(SwiftName.identifier(property.storingName)) {\n"
-        text += documentation(property.node, indent: "    ", deprecation: false)
+        text += "\(access)protocol \(property.storingName.swiftIdentifier): RDFCore.PropertyValueStoring {}\n\n"
+        text += "extension \(property.storingName.swiftIdentifier) {\n"
+        text += docComment(property.node, indent: "    ")
         text += "    \(property.isPublic ? "public " : "")var \(member): \(type(of: property.kind)) {\n"
         text += "        get { storage[\(value).self].value }\n"
         text += "        set { storage[\(value).self].value = newValue }\n"
@@ -239,7 +239,7 @@ struct SwiftSource {
     }
 
     private func additionName(_ index: Int) -> String {
-        SwiftName.identifier("addition \(index)")
+        ("addition \(index)").swiftIdentifier
     }
 
     // MARK: - References
@@ -262,13 +262,13 @@ struct SwiftSource {
     private func classReference(_ instanceClass: InstanceClass) -> String {
         switch instanceClass {
         case .class(let node): classDeclaration(node)!.classReference
-        case .combination(let index): SwiftName.identifier(declarations.combinations[index].name)
+        case .combination(let index): declarations.combinations[index].name.swiftIdentifier
         }
     }
 
     /// The private constant holding an individual this module declares.
     private func handle(_ node: SubjectTerm) -> String {
-        SwiftName.identifier("resource \(declarations.order.firstIndex(of: node)!)")
+        ("resource \(declarations.order.firstIndex(of: node)!)").swiftIdentifier
     }
 
     /// An individual, as an expression: its private constant here, its
@@ -321,9 +321,8 @@ struct SwiftSource {
 
     // MARK: - Documentation
 
-    /// DocC documentation from `rdfs:label` and `rdfs:comment`, and
-    /// `@available(*, deprecated)` from `owl:deprecated true`.
-    private func documentation(_ node: SubjectTerm, indent: String = "", deprecation: Bool = true) -> String {
+    /// DocC documentation from `rdfs:label` and `rdfs:comment`.
+    private func docComment(_ node: SubjectTerm, indent: String = "") -> String {
         var paragraphs: [[String]] = []
         for literal in vocabulary.literals(.rdfsLabel, of: node) + vocabulary.literals(.rdfsComment, of: node) {
             var lines = literal.lexicalForm.split(separator: "\n", omittingEmptySubsequences: false)
@@ -332,26 +331,27 @@ struct SwiftSource {
             while lines.last?.isEmpty == true { lines.removeLast() }
             if !lines.isEmpty { paragraphs.append(lines) }
         }
-        var text = paragraphs.map { lines in lines.map { indent + ($0.isEmpty ? "///" : "/// " + $0) }.joined(separator: "\n") }
+        let text = paragraphs.map { lines in lines.map { indent + ($0.isEmpty ? "///" : "/// " + $0) }.joined(separator: "\n") }
             .joined(separator: "\n\(indent)///\n")
-        if !text.isEmpty { text += "\n" }
-        if deprecation, vocabulary.isDeprecated(node) {
-            text += indent + "@available(*, deprecated)\n"
-        }
-        return text
+        return text.isEmpty ? "" : text + "\n"
+    }
+
+    /// `@available(*, deprecated)` from `owl:deprecated true`.
+    private func deprecation(_ node: SubjectTerm, indent: String = "") -> String {
+        vocabulary.isDeprecated(node) ? indent + "@available(*, deprecated)\n" : ""
     }
 
     // MARK: - Literals
 
     static func expression(_ literal: Literal) -> String {
-        let lexical = SwiftName.stringLiteral(literal.lexicalForm)
+        let lexical = literal.lexicalForm.swiftStringLiteral
         if literal.languageTag == nil, literal.datatype == nil {
             return "RDFCore.Literal(\(lexical))"
         }
         var arguments = [lexical]
-        if let language = literal.languageTag { arguments.append("languageTag: \(SwiftName.stringLiteral(language))") }
+        if let language = literal.languageTag { arguments.append("languageTag: \(language.swiftStringLiteral)") }
         if let direction = literal.baseDirection { arguments.append("baseDirection: .\(direction.rawValue)") }
-        if let datatype = literal.datatype { arguments.append("datatype: \(SwiftName.stringLiteral(datatype.rawValue))") }
+        if let datatype = literal.datatype { arguments.append("datatype: \(datatype.rawValue.swiftStringLiteral)") }
         return "try! RDFCore.Literal(\(arguments.joined(separator: ", ")))"
     }
 }

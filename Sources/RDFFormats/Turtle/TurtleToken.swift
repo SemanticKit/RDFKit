@@ -10,8 +10,8 @@ enum TurtleToken: Equatable {
     /// `BLANK_NODE_LABEL`, without `_:`.
     case blankNodeLabel(String)
 
-    /// One of the four string forms, unescaped.
-    case string(String, isLong: Bool)
+    /// A string, unescaped, and the form it was written in.
+    case string(String, StringForm)
 
     /// `@` followed by a word: a `LANG_DIR` after a string, or one of the
     /// `@prefix`, `@base` and `@version` directive keywords.

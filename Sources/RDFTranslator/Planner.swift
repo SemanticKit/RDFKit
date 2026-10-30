@@ -302,7 +302,7 @@ struct Planner {
     /// it is a member of beyond them.
     private func combinationName(stated: [SubjectTerm], conformances: [SubjectTerm]) -> String {
         func name(_ node: SubjectTerm) -> String {
-            classDeclaration(node).map(\.protocolName) ?? node.iri.map(SwiftName.localName) ?? "blank node"
+            classDeclaration(node).map(\.protocolName) ?? node.iri.map(\.localName) ?? "blank node"
         }
         var text = stated.isEmpty ? "Untyped" : stated.map(name).joined(separator: " & ")
         let beyond = conformances.filter { !stated.contains($0) && !Self.universal.contains($0) }

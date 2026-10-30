@@ -73,7 +73,7 @@ private struct RDFXMLDocument {
 
     /// Notes what the document must declare for one triple.
     private mutating func collect(_ triple: Graph.Element) {
-        if let (namespace, _) = Self.split(triple.predicate), prefixes[namespace] == nil {
+        if let (namespace, _) = triple.predicate.xmlNameParts, prefixes[namespace] == nil {
             prefixes[namespace] = "ns\(namespaceOrder.count)"
             namespaceOrder.append(namespace)
         }
@@ -126,7 +126,7 @@ private struct RDFXMLDocument {
     /// `propertyElt`: the triple's predicate as an element, its object as
     /// an attribute, text, or a nested triple.
     private mutating func propertyElement(_ triple: Graph.Element, indent: String) throws -> String {
-        guard !Self.reservedPredicates.contains(triple.predicate.rawValue), let (namespace, local) = Self.split(triple.predicate) else {
+        guard !Self.reservedPredicates.contains(triple.predicate.rawValue), let (namespace, local) = triple.predicate.xmlNameParts else {
             throw EncodingError.invalidValue(triple.predicate, EncodingError.Context(
                 codingPath: [],
                 debugDescription: "RDF/XML writes a predicate as an element name, an XML name that is not one of the syntax's own (RDF 1.2 XML Syntax §5.1): <\(triple.predicate)>"
@@ -183,17 +183,6 @@ private struct RDFXMLDocument {
     }
 
     // MARK: - XML
-
-    /// The namespace and local name of an IRI written as an element name:
-    /// the longest suffix that is an XML `NCName`.
-    static func split(_ iri: IRI) -> (namespace: String, local: String)? {
-        let scalars = Array(iri.rawValue.unicodeScalars)
-        var start = scalars.endIndex
-        while start > scalars.startIndex, isNameCharacter(scalars[start - 1]) { start -= 1 }
-        while start < scalars.endIndex, !isNameStartCharacter(scalars[start]) { start += 1 }
-        guard start < scalars.endIndex, start > scalars.startIndex else { return nil }
-        return (String(String.UnicodeScalarView(scalars[..<start])), String(String.UnicodeScalarView(scalars[start...])))
-    }
 
     /// `NCName`: an XML `Name` without `:` (Namespaces in XML 1.0, §3).
     static func isNCName(_ text: String) -> Bool {
@@ -272,5 +261,20 @@ private struct RDFXMLDocument {
             codingPath: [],
             debugDescription: "XML 1.0 cannot hold every character of this text (XML 1.0, §2.2 Char)."
         ))
+    }
+}
+
+extension IRI {
+    /// The namespace and local name of the IRI written as an XML element
+    /// name (RDF 1.2 XML Syntax §5.1): the local name is the longest suffix
+    /// that is an XML `NCName`. `nil` when no suffix is one, or the whole
+    /// IRI would be the local name.
+    var xmlNameParts: (namespace: String, local: String)? {
+        let scalars = Array(rawValue.unicodeScalars)
+        var start = scalars.endIndex
+        while start > scalars.startIndex, RDFXMLDocument.isNameCharacter(scalars[start - 1]) { start -= 1 }
+        while start < scalars.endIndex, !RDFXMLDocument.isNameStartCharacter(scalars[start]) { start += 1 }
+        guard start < scalars.endIndex, start > scalars.startIndex else { return nil }
+        return (String(String.UnicodeScalarView(scalars[..<start])), String(String.UnicodeScalarView(scalars[start...])))
     }
 }

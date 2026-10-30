@@ -210,7 +210,7 @@ private struct TurtleDocument {
             add(triple.predicate)
             switch triple.object {
             case .iri(let iri): add(iri)
-            case .literal(let literal): if let datatype = literal.datatype, Self.shortForm(of: literal) == nil { add(datatype) }
+            case .literal(let literal): if let datatype = literal.datatype, literal.turtleShortForm == nil { add(datatype) }
             case .tripleTerm(let term): add(term)
             case .blankNode: break
             }
@@ -302,26 +302,9 @@ private struct TurtleDocument {
     }
 
     private func term(_ literal: Literal) -> String {
-        if let short = Self.shortForm(of: literal) { return short }
+        if let short = literal.turtleShortForm { return short }
         if let languageDirection = literal.languageDirection { return literal.quotedLexicalForm + "@" + languageDirection }
         if let datatype = literal.datatype { return literal.quotedLexicalForm + "^^" + term(datatype) }
         return literal.quotedLexicalForm
-    }
-
-    /// The lexical form itself, when Turtle reads it back as this literal
-    /// (RDF 1.2 Turtle §2.5.2): `INTEGER`, `DECIMAL` and `DOUBLE` with their
-    /// XML Schema datatypes, and `true` and `false` as `xsd:boolean`.
-    static func shortForm(of literal: Literal) -> String? {
-        guard let datatype = literal.datatype else { return nil }
-        let text = literal.lexicalForm
-        let matches: Bool
-        switch datatype {
-        case .xsdInteger: matches = text.wholeMatch(of: #/[+-]?[0-9]+/#) != nil
-        case .xsdDecimal: matches = text.wholeMatch(of: #/[+-]?[0-9]*\.[0-9]+/#) != nil
-        case .xsdDouble: matches = text.wholeMatch(of: #/[+-]?(?:[0-9]+\.[0-9]*|\.?[0-9]+)[eE][+-]?[0-9]+/#) != nil
-        case .xsdBoolean: matches = text == "true" || text == "false"
-        default: matches = false
-        }
-        return matches ? text : nil
     }
 }

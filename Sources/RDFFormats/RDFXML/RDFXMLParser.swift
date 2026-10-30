@@ -475,13 +475,19 @@ struct RDFXMLParser {
             }
             return iri
         }
-        return try makeIRI(IRIReferenceResolution.resolve(reference, against: base), at: element)
+        guard let iri = IRI(resolving: reference, against: base) else {
+            throw error("<\(reference)> does not resolve to an IRI against <\(base)>", at: element)
+        }
+        return iri
     }
 
     /// XML Base: an `xml:base` value resolved against the parent's base.
     func resolveBase(_ value: String, against parent: String?, at element: XMLInfoset.Element) throws -> String {
         guard let parent else { return value }
-        return IRIReferenceResolution.resolve(value, against: parent)
+        guard let base = IRI(resolving: value, against: parent) else {
+            throw error("xml:base <\(value)> does not resolve to an IRI against <\(parent)>", at: element)
+        }
+        return base.rawValue
     }
 
     /// The IRI of an `rdf:ID` value (production idAttr): `#` and the value, resolved

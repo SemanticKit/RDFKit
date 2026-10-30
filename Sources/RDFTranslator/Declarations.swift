@@ -96,8 +96,8 @@ struct Declarations {
         var taken = Self.reserved
         var names: [SubjectTerm: String] = [:]
         for node in byPrecedence {
-            let name = SwiftName.localName(of: node.iri!)
-            guard SwiftName.isUsable(name), !taken.contains(name) else { continue }
+            let name = node.iri!.localName
+            guard name.isUsableAsIdentifier, !taken.contains(name) else { continue }
             let derived = vocabulary.isClass(node) ? [name + "Individual", name + "Storing"]
                 : vocabulary.isProperty(node) ? [name + "Value", name + "Storing"] : []
             guard derived.allSatisfy({ !taken.contains($0) }) else { continue }
@@ -116,7 +116,7 @@ struct Declarations {
                     // where Swift can spell it; only the private classes
                     // that store it have it.
                     var member = name ?? handle
-                    if name == nil, let iri = node.iri, case let local = SwiftName.localName(of: iri), SwiftName.isUsable(local) {
+                    if name == nil, let iri = node.iri, case let local = iri.localName, local.isUsableAsIdentifier {
                         member = local
                     }
                     if Self.memberNames.contains(member) { member += "_" }
@@ -199,7 +199,7 @@ struct ClassDeclaration {
     var storingReference: String { reference(storingName) }
 
     private func reference(_ name: String) -> String {
-        isPublic ? "\(module).\(SwiftName.identifier(name))" : SwiftName.identifier(name)
+        isPublic ? "\(module).\(name.swiftIdentifier)" : name.swiftIdentifier
     }
 }
 
@@ -224,7 +224,7 @@ struct PropertyDeclaration {
     var storingReference: String { reference(storingName) }
 
     private func reference(_ name: String) -> String {
-        isPublic ? "\(module).\(SwiftName.identifier(name))" : SwiftName.identifier(name)
+        isPublic ? "\(module).\(name.swiftIdentifier)" : name.swiftIdentifier
     }
 }
 
@@ -254,7 +254,7 @@ struct IndividualDeclaration {
 
     /// The individual, as Swift refers to it from any module.
     var reference: String {
-        isPublic ? "\(module).\(SwiftName.identifier(name))" : SwiftName.identifier(name)
+        isPublic ? "\(module).\(name.swiftIdentifier)" : name.swiftIdentifier
     }
 }
 
@@ -345,37 +345,38 @@ struct Lower {
     }
 }
 
-/// Spelling Swift identifiers for RDF names.
-enum SwiftName {
-    /// The local name of an IRI: what follows its last `#`, or else its
+extension IRI {
+    /// The local name of the IRI: what follows its last `#`, or else its
     /// last `/`.
-    static func localName(of iri: IRI) -> String {
-        let iri = iri.rawValue
-        if let hash = iri.lastIndex(of: "#") { return String(iri[iri.index(after: hash)...]) }
-        if let slash = iri.lastIndex(of: "/") { return String(iri[iri.index(after: slash)...]) }
+    var localName: String {
+        if let hash = rawValue.lastIndex(of: "#") { return String(rawValue[rawValue.index(after: hash)...]) }
+        if let slash = rawValue.lastIndex(of: "/") { return String(rawValue[rawValue.index(after: slash)...]) }
         return ""
     }
+}
 
-    /// Whether a local name can be a raw identifier (SE-0451, Permitted
+/// Spelling RDF names as Swift identifiers and string literals.
+extension String {
+    /// Whether the name can be a raw identifier (SE-0451, Permitted
     /// characters): it is not empty, not only whitespace or operator
     /// characters, and has no backtick, backslash or control character.
-    static func isUsable(_ name: String) -> Bool {
-        guard !name.isEmpty,
-              !name.unicodeScalars.allSatisfy(\.properties.isWhitespace),
-              !name.allSatisfy({ "/=-+!*%<>&|^~?.".contains($0) }) else { return false }
-        return !name.unicodeScalars.contains { $0 == "`" || $0 == "\\" || $0.value < 0x20 || $0.value == 0x7F }
+    var isUsableAsIdentifier: Bool {
+        guard !isEmpty,
+              !unicodeScalars.allSatisfy(\.properties.isWhitespace),
+              !allSatisfy({ "/=-+!*%<>&|^~?.".contains($0) }) else { return false }
+        return !unicodeScalars.contains { $0 == "`" || $0 == "\\" || $0.value < 0x20 || $0.value == 0x7F }
     }
 
-    /// The identifier, always in backticks, so keywords and names Swift's
+    /// The name as an identifier, always in backticks, so keywords and names Swift's
     /// identifier grammar does not allow are raw identifiers (SE-0451).
-    static func identifier(_ name: String) -> String {
-        "`" + name + "`"
+    var swiftIdentifier: String {
+        "`" + self + "`"
     }
 
-    /// A Swift string literal of `text`.
-    static func stringLiteral(_ text: String) -> String {
+    /// A Swift string literal of the text.
+    var swiftStringLiteral: String {
         var literal = "\""
-        for scalar in text.unicodeScalars {
+        for scalar in unicodeScalars {
             switch scalar {
             case "\"": literal += "\\\""
             case "\\": literal += "\\\\"

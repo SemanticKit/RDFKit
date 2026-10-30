@@ -157,32 +157,30 @@ struct Scanner {
     /// `STRING_LITERAL_QUOTE ::= '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'`,
     /// the one string form of N-Triples.
     mutating func scanStringLiteralQuote() throws -> String {
-        guard peek(is: "\"") else { throw error("expected a string") }
-        return try scanString(delimitedBy: "\"")
+        guard StringForm(at: self) == .quote else { throw error("expected a string") }
+        return try scanString(.quote)
     }
 
     /// `versionSpecifier ::= STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE`
     /// (RDF 1.2 N-Triples §7, Turtle §7.3).
     mutating func scanVersionSpecifier() throws -> String {
-        guard let quote = peek(), quote == "\"" || quote == "'" else { throw error("expected a quoted version specifier") }
-        return try scanString(delimitedBy: String(quote))
+        guard let form = StringForm(at: self), form == .quote || form == .singleQuote else {
+            throw error("expected a quoted version specifier")
+        }
+        return try scanString(form)
     }
 
-    /// A Turtle `String` (RDF 1.2 Turtle §7.3): `STRING_LITERAL_QUOTE`,
-    /// `STRING_LITERAL_SINGLE_QUOTE`, `STRING_LITERAL_LONG_SINGLE_QUOTE` or
-    /// `STRING_LITERAL_LONG_QUOTE`.
-    mutating func scanTurtleString() throws -> (value: String, isLong: Bool) {
-        guard let quote = peek(), quote == "\"" || quote == "'" else { throw error("expected a string") }
-        let long = String(repeating: String(quote), count: 3)
-        if peek(spells: long) { return (try scanString(delimitedBy: long), true) }
-        return (try scanString(delimitedBy: String(quote)), false)
+    /// A Turtle `String` (RDF 1.2 Turtle §7.3) in whichever of its four
+    /// forms starts at the cursor.
+    mutating func scanTurtleString() throws -> (value: String, form: StringForm) {
+        guard let form = StringForm(at: self) else { throw error("expected a string") }
+        return (try scanString(form), form)
     }
 
-    /// The string between two `delimiter`s, one quote for the short
-    /// forms or three for the long forms, which alone may hold line breaks,
-    /// with the cursor on the opening delimiter.
-    private mutating func scanString(delimitedBy delimiter: String) throws -> String {
+    /// The string in `form`, with the cursor on its opening delimiter.
+    private mutating func scanString(_ form: StringForm) throws -> String {
         let start = index
+        let delimiter = form.delimiter
         let closing = Array(delimiter.unicodeScalars)
         advance(closing.count)
         var value = String.UnicodeScalarView()
@@ -203,7 +201,7 @@ struct Scanner {
             case "\\":
                 value.append(try scanStringEscape())
             case "\n", "\r":
-                guard closing.count == 3 else { throw error("line break in a short string") }
+                guard form.allowsLineBreaks else { throw error("line break in a short string") }
                 value.append(scalar)
                 advance()
             default:
@@ -237,19 +235,6 @@ struct Scanner {
             }
         }
         return String(String.UnicodeScalarView(scalars[start..<index]))
-    }
-
-    /// The language-tagged string `lexicalForm@word`, reporting a tag
-    /// that is not well-formed BCP 47, or a direction that is not `ltr` or
-    /// `rtl`, at `position`. ``RDFCore/Literal`` decides.
-    func literal(_ lexicalForm: String, languageDirection word: String, at position: Int) throws -> Literal {
-        do {
-            return try Literal(lexicalForm, languageDirection: word)
-        } catch .malformedBaseDirection {
-            throw self.error("base direction must be 'ltr' or 'rtl'", at: position)
-        } catch {
-            throw self.error("'\(word.components(separatedBy: "--")[0])' is not a well-formed BCP 47 language tag", at: position)
-        }
     }
 
     // MARK: - Blank node labels

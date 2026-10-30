@@ -104,4 +104,18 @@ extension Literal {
         }
         try self.init(lexicalForm, languageTag: parts[0], baseDirection: direction)
     }
+
+    /// A language-tagged string read from a document: `word` is the
+    /// `LANG_DIR` after `@`, and a tag that is not well-formed BCP 47, or a
+    /// direction that is not `ltr` or `rtl`, is reported at `position` in
+    /// the document `scanner` reads.
+    init(_ lexicalForm: String, languageDirection word: String, at position: Int, in scanner: Scanner) throws {
+        do {
+            try self.init(lexicalForm, languageDirection: word)
+        } catch .malformedBaseDirection {
+            throw scanner.error("base direction must be 'ltr' or 'rtl'", at: position)
+        } catch {
+            throw scanner.error("'\(word.components(separatedBy: "--")[0])' is not a well-formed BCP 47 language tag", at: position)
+        }
+    }
 }
