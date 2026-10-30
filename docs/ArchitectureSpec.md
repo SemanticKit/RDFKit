@@ -32,6 +32,7 @@ Implements the standards in Swift. This is the foundation everything builds on.
 **Declaration Protocols — what gets generated:**
 - `Class` — generates a Swift class
 - `Property` — generates a property on a type
+- `Individual` — `owl:NamedIndividual`: generates an instance of its declared classes
 - `Datatype` — generates a datatype
 
 **Relationship Protocols — what modifies generated types:**
@@ -62,7 +63,7 @@ Users write ontologies using the DSL. The DSL maps 1:1 to the standards.
 
 **Components:**
 - ContentBuilder — result builder for content
-- DSL functions — Class(), Property(), Datatype()
+- DSL functions — Class(), Property(), Individual(), Datatype()
 - Content modifiers — .deprecated(), .isDeclaredBy()
 
 ### Layer 4: Code Generation (Macro)
@@ -112,6 +113,7 @@ Common behaviors go in RDFCore — the shared API consumed by the macro. These a
 **1. Declaration Protocols — what gets generated**
 - `Class` — generates a Swift class
 - `Property` — generates a property on a type
+- `Individual` — `owl:NamedIndividual`: generates an instance of its declared classes
 - `Datatype` — generates a datatype
 
 **2. Relationship Protocols — what modifies generated types**
@@ -239,6 +241,7 @@ Each protocol gets its own clean file. Special protocols carry conforming types 
 | `Ontology` | `Ontology.swift` | `OntologyTests.swift` | |
 | `Class` | `Class.swift` | `ClassTests.swift` | |
 | `Property` | `Property.swift` | `PropertyTests.swift` | |
+| `Individual` | `Core/Declarations/Individual.swift` | `IndividualMacroTests.swift` | `owl:NamedIndividual` |
 | `Datatype` | `Datatype.swift` | `DatatypeTests.swift` | |
 | `Domain` | `Domain.swift` | `DomainTests.swift` | |
 | `Range` | `Range.swift` | `RangeTests.swift` | |

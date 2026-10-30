@@ -1,11 +1,38 @@
 import IRIKit
 
+/// Why an IRI reference written in a document denotes no IRI.
+enum IRIReferenceError: Error {
+    /// The reference is relative and no base IRI is in scope.
+    case relativeWithoutBase
+    /// The reference, resolved against the base, is not an IRI.
+    case unresolvable(base: String)
+}
+
 extension IRI {
-    /// The IRI that `reference` denotes against `base`: RFC 3986 §5.2
-    /// reference resolution, applied where a document's relative references
-    /// enter the runtime. `nil` when the target is not an IRI.
-    init?(resolving reference: String, against base: String) {
-        self.init(rawValue: IRIReferenceComponents(reference).resolved(against: IRIReferenceComponents(base)).string)
+    /// The IRI an IRI reference written in a document denotes, the one
+    /// routine every format decoder resolves `IRIREF`s, `rdf:about`,
+    /// `rdf:resource` and the other IRI-valued attributes, and `xml:base`
+    /// with.
+    ///
+    /// RDF 1.2 Turtle (IRI references) and RDF 1.2 XML Syntax (Resolving
+    /// IRIs) resolve *relative* IRI references against the base with the
+    /// algorithm of RFC 3986 §5.2. A reference that is already an IRI is not
+    /// relative, so it is that IRI, unchanged, whether or not a base is in
+    /// scope: the IRI the document writes, compared as a string (RDF 1.2
+    /// Concepts §3.2), with no dot segments removed and no other
+    /// normalization.
+    ///
+    /// - Throws: ``IRIReferenceError`` when the reference is relative and
+    ///   there is no base, or does not resolve to an IRI against it.
+    init(reference: String, base: String?) throws(IRIReferenceError) {
+        if let iri = IRI(rawValue: reference) {
+            self = iri
+            return
+        }
+        guard let base else { throw .relativeWithoutBase }
+        let target = IRIReferenceComponents(reference).resolved(against: IRIReferenceComponents(base))
+        guard let iri = IRI(rawValue: target.string) else { throw .unresolvable(base: base) }
+        self = iri
     }
 }
 

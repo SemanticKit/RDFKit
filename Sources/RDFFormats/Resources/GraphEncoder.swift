@@ -35,7 +35,8 @@ public struct GraphEncoder: Sendable {
     /// The triples of the descriptions and of the blank nodes they reach.
     ///
     /// - Throws: `EncodingError` when a description writes something other
-    ///   than resources, classes and literals keyed by property IRIs.
+    ///   than resources, classes, literals and the IRIs of resources outside
+    ///   the runtime, keyed by property IRIs.
     public func encode(_ descriptions: [any Description]) throws -> Graph {
         let graph = EncodedGraph(context: context)
         for description in descriptions {
@@ -219,6 +220,10 @@ struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
             object = try graph.object(.individual(resource))
         } else if let literal = value as? Literal {
             object = .literal(literal)
+        } else if let iri = value as? IRI {
+            // A resource outside the runtime that a description names by
+            // its address, such as the document `rdfs:seeAlso` gives.
+            object = .iri(iri)
         } else {
             throw EncodingError.invalidValue(value, EncodingError.Context(
                 codingPath: codingPath + [key],

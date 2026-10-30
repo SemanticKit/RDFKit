@@ -77,7 +77,6 @@ public struct GraphDecoder: Sendable {
     public func decode<Member: DecodableResource>(_ type: Member.Type, for nodes: [IRI], from graph: Graph, context: DocumentContext) throws -> [Member] {
         let run = DecodingRun(decoder: self, graph: graph, context: context)
         let members = try nodes.map { iri in
-            if let decoded = context.individual(for: iri) as? Member { return decoded }
             guard let member = try run.individual(for: .iri(iri), as: type, stating: false) as? Member else {
                 throw DecodingError.typeMismatch(Member.self, DecodingError.Context(
                     codingPath: [],
@@ -142,8 +141,9 @@ final class DecodingRun {
     }
 
     /// The individual for `node`: the one already made for it, the named
-    /// individual it names, or a new member of the class the graph states,
-    /// else of `default`.
+    /// individual it names, the one the context has for its IRI, or a new
+    /// member of the class the graph states, else of `default`, which the
+    /// context records for its IRI.
     ///
     /// With `stating` false, a new individual is a member of `default`
     /// whatever the graph states.
@@ -153,6 +153,12 @@ final class DecodingRun {
             made[node] = named
             return named
         }
+        // An earlier decoding with this context made the individual the
+        // IRI names, and read its values then.
+        if case .iri(let iri) = node, let decoded = context.individual(for: iri) {
+            made[node] = decoded
+            return decoded
+        }
         guard let type = (stating ? stated(node) : nil) ?? `default` else {
             throw DecodingError.dataCorrupted(DecodingError.Context(
                 codingPath: [],
@@ -160,8 +166,13 @@ final class DecodingRun {
             ))
         }
         let individual = type.init()
-        made[node] = individual
-        if case .iri(let iri) = node { context.record(individual, for: iri) }
+        if case .iri(let iri) = node {
+            let recorded = context.individual(for: iri) { individual }
+            made[node] = recorded
+            guard recorded === individual else { return recorded }
+        } else {
+            made[node] = individual
+        }
         pending.append((individual, node))
         return individual
     }

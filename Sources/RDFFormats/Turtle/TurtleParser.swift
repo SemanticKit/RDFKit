@@ -89,7 +89,7 @@ struct TurtleParser {
         guard case .iriReference(let reference) = current.token else {
             throw error("expected an IRI for prefix '\(prefix):'")
         }
-        namespaces[Array(prefix.unicodeScalars)] = try resolve(reference).rawValue
+        namespaces[Array(prefix.unicodeScalars)] = try IRI(turtleReference: reference, in: self).rawValue
         try advance()
     }
 
@@ -98,7 +98,7 @@ struct TurtleParser {
         guard case .iriReference(let reference) = current.token else {
             throw error("expected a base IRI")
         }
-        base = try resolve(reference).rawValue
+        base = try IRI(turtleReference: reference, in: self).rawValue
         try advance()
     }
 
@@ -175,13 +175,13 @@ struct TurtleParser {
             try advance()
             return IRI.rdfType
         }
-        guard let iri = try parseIRIIfPresent() else { throw error("expected a predicate") }
+        guard let iri = try IRI(turtle: &self) else { throw error("expected a predicate") }
         return iri
     }
 
     /// `subject ::= iri | BlankNode | collection`
     mutating func parseSubject() throws -> SubjectTerm {
-        if let iri = try parseIRIIfPresent() { return .iri(iri) }
+        if let iri = try IRI(turtle: &self) { return .iri(iri) }
         switch current.token {
         case .blankNodeLabel(let label):
             try advance()
@@ -195,8 +195,8 @@ struct TurtleParser {
 
     /// `object ::= iri | BlankNode | collection | blankNodePropertyList | literal | tripleTerm | reifiedTriple`
     mutating func parseObject() throws -> ObjectTerm {
-        if let iri = try parseIRIIfPresent() { return .iri(iri) }
-        if let literal = try parseLiteralIfPresent() { return .literal(literal) }
+        if let iri = try IRI(turtle: &self) { return .iri(iri) }
+        if let literal = try Literal(turtle: &self) { return .literal(literal) }
         switch current.token {
         case .blankNodeLabel(let label):
             try advance()
@@ -212,7 +212,7 @@ struct TurtleParser {
         case .punctuation("("):
             return try parseCollection().object
         case .punctuation("<<("):
-            return .tripleTerm(try parseTripleTerm())
+            return .tripleTerm(try Graph.Element(turtle: &self))
         case .punctuation("<<"):
             return try parseReifiedTriple().object
         default:
@@ -273,8 +273,8 @@ struct TurtleParser {
 
     /// The `(iri | BlankNode)?` after `~`.
     mutating func parseReifierIdentifier() throws -> SubjectTerm? {
-        if let iri = try parseIRIIfPresent() { return .iri(iri) }
-        if let node = try parseBlankNodeIfPresent() { return .blankNode(node) }
+        if let iri = try IRI(turtle: &self) { return .iri(iri) }
+        if let node = try BlankNode(turtle: &self) { return .blankNode(node) }
         return nil
     }
 
@@ -284,9 +284,9 @@ struct TurtleParser {
         try expect("<<", "to open a reified triple")
         // rtSubject ::= iri | BlankNode | reifiedTriple
         let subject: SubjectTerm
-        if let iri = try parseIRIIfPresent() {
+        if let iri = try IRI(turtle: &self) {
             subject = .iri(iri)
-        } else if let node = try parseBlankNodeIfPresent() {
+        } else if let node = try BlankNode(turtle: &self) {
             subject = .blankNode(node)
         } else if isPunctuation("<<") {
             subject = try parseReifiedTriple()
@@ -299,7 +299,7 @@ struct TurtleParser {
         if isPunctuation("<<") {
             object = try parseReifiedTriple().object
         } else {
-            object = try parseTripleTermObject(context: "a reified triple")
+            object = try ObjectTerm(turtleTripleTermObject: &self, of: "a reified triple")
         }
         var reifier: SubjectTerm?
         if isPunctuation("~") {
@@ -310,115 +310,6 @@ struct TurtleParser {
         let node = try reifier ?? .blankNode(blankNodes.fresh())
         emit(node, IRI.rdfReifies, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
         return node
-    }
-
-    /// `tripleTerm ::= '<<(' ttSubject verb ttObject ')>>'`
-    mutating func parseTripleTerm() throws -> Graph.Element {
-        try expect("<<(", "to open a triple term")
-        // ttSubject ::= iri | BlankNode
-        let subject: SubjectTerm
-        if let iri = try parseIRIIfPresent() {
-            subject = .iri(iri)
-        } else if let node = try parseBlankNodeIfPresent() {
-            subject = .blankNode(node)
-        } else {
-            throw error("expected an IRI or blank node as the subject of a triple term")
-        }
-        let predicate = try parseVerb()
-        let object = try parseTripleTermObject(context: "a triple term")
-        try expect(")>>", "to close a triple term")
-        return Graph.Element(subject: subject, predicate: predicate, object: object)
-    }
-
-    /// `ttObject ::= iri | BlankNode | literal | tripleTerm`
-    mutating func parseTripleTermObject(context: String) throws -> ObjectTerm {
-        if let iri = try parseIRIIfPresent() { return .iri(iri) }
-        if let node = try parseBlankNodeIfPresent() { return .blankNode(node) }
-        if let literal = try parseLiteralIfPresent() { return .literal(literal) }
-        if isPunctuation("<<(") { return .tripleTerm(try parseTripleTerm()) }
-        throw error("expected an IRI, blank node, literal or triple term as the object of \(context)")
-    }
-
-    // MARK: - Terms
-
-    /// `BlankNode ::= BLANK_NODE_LABEL | ANON`
-    mutating func parseBlankNodeIfPresent() throws -> BlankNode? {
-        switch current.token {
-        case .blankNodeLabel(let label):
-            try advance()
-            return try blankNodes.node(labelled: label)
-        case .punctuation("["):
-            // ANON ::= '[' WS* ']'
-            let position = current.position
-            try advance()
-            guard isPunctuation("]") else {
-                throw lexer.scanner.error("expected ']': a blank node property list is not allowed here", at: position)
-            }
-            try advance()
-            return try blankNodes.fresh()
-        default:
-            return nil
-        }
-    }
-
-    /// `iri ::= IRIREF | PrefixedName`
-    mutating func parseIRIIfPresent() throws -> IRI? {
-        switch current.token {
-        case .iriReference(let reference):
-            let iri = try resolve(reference)
-            try advance()
-            return iri
-        case .prefixedName(let prefix, let local):
-            guard let namespace = namespaces[Array(prefix.unicodeScalars)] else {
-                throw error("prefix '\(prefix):' is not declared")
-            }
-            let expanded = namespace + local
-            guard let iri = IRI(rawValue: expanded) else {
-                throw error("'\(prefix):\(local)' expands to <\(expanded)>, which is not an IRI")
-            }
-            try advance()
-            return iri
-        default:
-            return nil
-        }
-    }
-
-    /// `literal ::= RDFLiteral | NumericLiteral | BooleanLiteral`
-    mutating func parseLiteralIfPresent() throws -> Literal? {
-        if let literal = Literal(current.token) {
-            try advance()
-            return literal
-        }
-        guard case .string(let lexicalForm, _) = current.token else { return nil }
-        let start = current.position
-        try advance()
-        if case .atWord(let word) = current.token {
-            let literal = try Literal(lexicalForm, languageDirection: word, at: current.position, in: lexer.scanner)
-            try advance()
-            return literal
-        }
-        if isPunctuation("^^") {
-            try advance()
-            guard let datatype = try parseIRIIfPresent() else { throw error("expected a datatype IRI") }
-            do {
-                return try Literal(lexicalForm, datatypeIRI: datatype)
-            } catch {
-                throw lexer.scanner.error("a language-tagged string cannot be written with '^^'", at: start)
-            }
-        }
-        return Literal(lexicalForm)
-    }
-
-    /// Resolves an `IRIREF` against the base IRI and validates the result.
-    func resolve(_ reference: String) throws -> IRI {
-        if let iri = IRI(rawValue: reference) { return iri }
-        guard let base else {
-            throw error("<\(reference)> is relative and there is no base IRI")
-        }
-        guard let iri = IRI(resolving: reference, against: base) else {
-            throw error("<\(reference)> does not resolve to an IRI against <\(base)>")
-        }
-        return iri
     }
 
     mutating func emit(_ subject: SubjectTerm, _ predicate: IRI, _ object: ObjectTerm) {

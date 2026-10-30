@@ -75,7 +75,13 @@ private struct TurtleDocument {
     init(_ graph: Graph, prefixes: [Prefix]) {
         self.graph = graph
         labels = BlankNodeLabelling(graph)
-        for prefix in prefixes where prefixNames[prefix.namespace.rawValue] == nil {
+        // A given prefix is declared when its label is a `PN_PREFIX` (or
+        // empty, `PNAME_NS ::= PN_PREFIX? ':'`) not declared for another
+        // namespace: a second `PREFIX` for one label redefines it (§6.3), so
+        // the names written with the first would read back as other IRIs.
+        for prefix in prefixes where prefix.isTurtleLabel
+            && prefixNames[prefix.namespace.rawValue] == nil
+            && !prefixNames.values.contains(prefix.prefix) {
             prefixNames[prefix.namespace.rawValue] = prefix.prefix
             directives.append("PREFIX \(prefix.prefix): \(prefix.namespace.iriReference)")
         }
@@ -298,5 +304,18 @@ private struct TurtleDocument {
         if let languageDirection = literal.languageDirection { return literal.quotedLexicalForm + "@" + languageDirection }
         if let datatype = literal.datatype { return literal.quotedLexicalForm + "^^" + term(datatype) }
         return literal.quotedLexicalForm
+    }
+}
+
+private extension Prefix {
+    /// Whether the label can be written in a `PNAME_NS`: empty, or
+    /// `PN_PREFIX ::= PN_CHARS_BASE ((PN_CHARS | '.')* PN_CHARS)?`.
+    var isTurtleLabel: Bool {
+        let scalars = Array(prefix.unicodeScalars)
+        guard let first = scalars.first, let last = scalars.last else { return true }
+        guard Scanner.isPNCharsBase(first) else { return false }
+        guard scalars.count > 1 else { return true }
+        return Scanner.isPNChars(last)
+            && scalars.dropFirst().dropLast().allSatisfy { Scanner.isPNChars($0) || $0 == "." }
     }
 }

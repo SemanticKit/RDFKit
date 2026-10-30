@@ -1,0 +1,13 @@
+@prefix : <http://pets.example/#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Classes that are blank nodes, which the translator orders with the classes
+# named by IRIs.
+:Pet a owl:Class ;
+    rdfs:subClassOf
+        [ a owl:Restriction ; owl:onProperty :name ; owl:minCardinality 1 ] ,
+        [ a owl:Restriction ; owl:onProperty :owner ; owl:minCardinality 1 ] ,
+        [ a owl:Restriction ; owl:onProperty :species ; owl:cardinality 1 ] .
+:Dog a owl:Class .
+:rex a :Pet , :Dog .

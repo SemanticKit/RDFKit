@@ -1,0 +1,5 @@
+<http://example/s> <http://example/composed> "\u00E9" .
+<http://example/s> <http://example/decomposed> "e\u0301" .
+<http://example/s> <http://example/tagged> "\u00E9"@fr .
+<http://example/s> <http://example/tagged> "\u00E9"@FR .
+<http://example/s> <http://example/tagged> "e\u0301"@fr .
