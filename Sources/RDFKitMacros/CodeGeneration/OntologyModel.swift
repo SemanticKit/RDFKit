@@ -1,3 +1,5 @@
+import SwiftSyntax
+
 /// What each declared term becomes, and how classes, properties and
 /// individuals relate in the generated code.
 ///
@@ -34,13 +36,13 @@ struct OntologyModel {
         /// The property declaration.
         let declaration: ParsedEntity
         /// The Swift type of one value, by the property's range.
-        let memberType: String
+        let memberType: TypeSyntax
 
         /// The property name as a Swift identifier.
-        var name: String { SwiftIdentifier.escaped(declaration.name) }
+        var name: TokenSyntax { .declared(declaration.name) }
 
         /// The values: a property has any number of them.
-        var declaredType: String { "[\(memberType)]" }
+        var declaredType: TypeSyntax { .array(memberType) }
     }
 
     let ontology: ParsedOntology
@@ -70,17 +72,17 @@ struct OntologyModel {
     /// The protocols a class protocol refines: those of its superclasses,
     /// here or in other modules, or `RDF.Resource` when it names none, since
     /// every resource is an `rdfs:Resource` (RDF 1.2 Semantics, rdfs4).
-    func refinements(of className: String) -> [String] {
-        var result: [String] = []
-        for spelling in superclassSpellings(of: className) where !result.contains(spelling) {
-            result.append(spelling)
+    func refinements(of className: String) -> [QualifiedName] {
+        var result: [QualifiedName] = []
+        for name in superclassNames(of: className) where !result.contains(name) {
+            result.append(name)
         }
         return result.isEmpty ? [ClassNames.resource] : result
     }
 
     /// The storing protocols a class's storing protocol refines for its
     /// superclasses.
-    func superclassStoring(of className: String) -> [String] {
+    func superclassStoring(of className: String) -> [QualifiedName] {
         refinements(of: className).map { ClassNames(qualifiedClass: $0).qualifiedStoring }
     }
 
@@ -94,8 +96,8 @@ struct OntologyModel {
     }
 
     /// The Swift type of a member of a class of this ontology as a value.
-    func memberType(ofClass name: String) -> String {
-        shapes[name] == .datatype ? "RDFCore.Literal" : "any \(ontology.spelling(of: .local(name)))"
+    func memberType(ofClass name: String) -> TypeSyntax {
+        shapes[name] == .datatype ? QualifiedName("RDFCore", "Literal").type : .any(ontology.name(of: .local(name)).type)
     }
 
     // MARK: - Properties
@@ -103,7 +105,7 @@ struct OntologyModel {
     func requirement(for property: ParsedEntity) -> PropertyRequirement {
         PropertyRequirement(
             declaration: property,
-            memberType: property.term("Range").map(memberType(ofRange:)) ?? "RDFCore.Value"
+            memberType: property.term("Range").map(memberType(ofRange:)) ?? QualifiedName("RDFCore", "Value").type
         )
     }
 
@@ -111,12 +113,12 @@ struct OntologyModel {
     /// A class of another module is resolved through the `Member` of its
     /// generated Swift class, so `Range(RDF.Literal)` is `RDFCore.Literal`
     /// and `Range(FOAF.Person)` is `any FOAF.Person`.
-    func memberType(ofRange spelling: String) -> String {
+    func memberType(ofRange spelling: String) -> TypeSyntax {
         let reference = ontology.resolve(spelling)
         if let name = reference.localName, isClass(name) {
             return memberType(ofClass: name)
         }
-        return ClassNames(qualifiedClass: ontology.spelling(of: reference)).qualifiedIndividual + ".Member"
+        return ClassNames(qualifiedClass: ontology.name(of: reference)).qualifiedIndividual.appending("Member").type
     }
 
     /// Whether a property has a `Domain` that is a class of this ontology,
@@ -128,13 +130,13 @@ struct OntologyModel {
         }
     }
 
-    /// The spellings of the protocols a class's `SubClassOf` annotations name.
-    private func superclassSpellings(of className: String) -> [String] {
+    /// The names of the protocols a class's `SubClassOf` annotations name.
+    private func superclassNames(of className: String) -> [QualifiedName] {
         guard let declaration = ontology.declaration(named: className) else { return [] }
         return declaration.terms("SubClassOf").compactMap { spelling in
             let reference = ontology.resolve(spelling)
             if let local = reference.localName, !isClass(local) { return nil }
-            return ontology.spelling(of: reference)
+            return ontology.name(of: reference)
         }
     }
 }
@@ -145,10 +147,10 @@ struct OntologyModel {
 /// `hasHabitatValue` and storing protocol `hasHabitatStoring`.
 struct ClassNames {
     /// The protocol of `rdfs:Resource`, which every class refines.
-    static let resource = "RDF.Resource"
+    static let resource = QualifiedName("RDF", "Resource")
 
-    /// The qualified class, `Fauna`, when it is named from another ontology.
-    let qualifier: String?
+    /// The qualifier, `Fauna`, when the class is named from its ontology.
+    let qualifier: QualifiedName?
     let className: String
 
     init(className: String) {
@@ -156,21 +158,19 @@ struct ClassNames {
         self.className = className
     }
 
-    /// The names for a class spelled `Fauna.Animal`.
-    init(qualifiedClass: String) {
-        let components = qualifiedClass.split(separator: ".").map { $0.trimmingCharacters(in: ["`"]) }
-        qualifier = components.dropLast().joined(separator: ".")
-        className = SwiftIdentifier.sanitized(components.last ?? qualifiedClass)
+    /// The names for a class named `Fauna.Animal`.
+    init(qualifiedClass: QualifiedName) {
+        qualifier = qualifiedClass.qualifier
+        className = SwiftIdentifier.sanitized(qualifiedClass.name)
     }
 
     var value: String { className + "Value" }
     var storing: String { className + "Storing" }
     var individual: String { className + "Individual" }
-    var qualifiedStoring: String { qualified(storing) }
-    var qualifiedIndividual: String { qualified(individual) }
+    var qualifiedStoring: QualifiedName { qualified(storing) }
+    var qualifiedIndividual: QualifiedName { qualified(individual) }
 
-    private func qualified(_ name: String) -> String {
-        guard let qualifier, !qualifier.isEmpty else { return name }
-        return qualifier + "." + name
+    private func qualified(_ name: String) -> QualifiedName {
+        qualifier?.appending(name) ?? QualifiedName(name)
     }
 }

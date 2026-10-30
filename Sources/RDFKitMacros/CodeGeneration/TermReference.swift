@@ -23,11 +23,12 @@ extension ParsedOntology {
         return .external(trimmed)
     }
 
-    /// The Swift spelling of a resolved term, qualified by its ontology.
-    func spelling(of reference: TermReference) -> String {
+    /// The Swift name of a resolved term, qualified by its ontology:
+    /// `Fauna.Habitat`.
+    func name(of reference: TermReference) -> QualifiedName {
         switch reference {
-        case .local(let name): return "\(typeName).\(SwiftIdentifier.escaped(name))"
-        case .external(let spelling): return spelling
+        case .local(let name): QualifiedName(typeName, name)
+        case .external(let spelling): QualifiedName(spelling: spelling)
         }
     }
 
