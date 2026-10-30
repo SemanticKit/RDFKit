@@ -83,10 +83,10 @@ final class EncodedGraph {
             case .individual(let individual): subject = try term(of: individual)
             case .class(let type): subject = try term(type.classKey, ObjectIdentifier(type))
             case .property(let property): subject = try term(property.key)
-            case .literal(let literal):
-                throw EncodingError.invalidValue(literal, EncodingError.Context(
+            case .literal, .tripleTerm:
+                throw EncodingError.invalidValue(addition.resource, EncodingError.Context(
                     codingPath: [],
-                    debugDescription: "A subject is an IRI or a blank node (RDF 1.2 Concepts §3.1), not a literal."
+                    debugDescription: "A subject is an IRI or a blank node (RDF 1.2 Concepts §3.1), not a literal or a triple term."
                 ))
             }
         } else {
@@ -150,6 +150,17 @@ final class EncodedGraph {
             return try term(type.classKey, identity).object
         case .property(let property):
             return try term(property.key).object
+        case .tripleTerm(let subject, let predicate, let object):
+            // RDF 1.2 Concepts §3.6: a triple term is a triple, whose subject
+            // is an IRI or a blank node and whose predicate is an IRI.
+            guard let node = try self.object(subject).subject,
+                  case .iri(let property) = try term(predicate.key) else {
+                throw EncodingError.invalidValue(value, EncodingError.Context(
+                    codingPath: [],
+                    debugDescription: "The subject of a triple term is an IRI or a blank node (RDF 1.2 Concepts §3.1)."
+                ))
+            }
+            return .tripleTerm(Graph.Element(subject: node, predicate: property, object: try self.object(object)))
         }
     }
 }

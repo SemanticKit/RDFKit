@@ -78,6 +78,34 @@ struct GraphDecoderTests {
         #expect(agents[0].name == alice.name)
     }
 
+    /// `:alice rdfs:seeAlso <<( :bob foaf:name "Bob" )>>`: a property whose
+    /// range admits any resource holds a triple term as a
+    /// ``RDFCore/Value/tripleTerm(subject:predicate:object:)`` of Swift
+    /// values, and encodes back to the same triple term.
+    @Test("A triple term decodes to the Swift values of its components, and encodes back")
+    func tripleTermValue() throws {
+        let url = URL(filePath: #filePath).deletingLastPathComponent()
+            .appending(path: "Fixtures/triple-term-value.ttl")
+        let graph = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
+        let context = DocumentContext()
+        let people = try GraphDecoder(classes: [FOAF.PersonIndividual.self], properties: [FOAF.name.self])
+            .decode((any FOAF.PersonStoring).self, from: graph, context: context)
+        #expect(people.count == 2)
+        let decodedAlice = try #require(people.first { $0.name.first?.lexicalForm == "Alice" })
+        let decodedBob = try #require(people.first { $0.name.first?.lexicalForm == "Bob" })
+        #expect(decodedAlice.seeAlso.count == 1)
+        guard case .tripleTerm(.individual(let subject), let predicate, .literal(let object))? = decodedAlice.seeAlso.first else {
+            Issue.record("expected a triple term of an individual, a property and a literal")
+            return
+        }
+        #expect(subject === decodedBob)
+        #expect(ObjectIdentifier(predicate) == ObjectIdentifier(FOAF.name.self))
+        #expect(decodedBob.name == [object])
+
+        let encoded = try GraphEncoder(context: context).encode(people)
+        #expect(encoded.isIsomorphic(to: graph))
+    }
+
     /// The profile, as the document states it (`alice.ttl`).
     private func profile() throws -> Graph {
         let url = URL(filePath: #filePath).deletingLastPathComponent()

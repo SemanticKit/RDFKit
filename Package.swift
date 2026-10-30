@@ -173,7 +173,8 @@ let package = Package(
             ],
             exclude: [
                 "W3C/README.md",
-                "Vocabularies"
+                "Vocabularies",
+                "Fixtures"
             ],
             resources: [
                 .copy("W3C/rdf-tests")

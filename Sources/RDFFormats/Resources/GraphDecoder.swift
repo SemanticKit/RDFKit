@@ -287,12 +287,32 @@ struct ObjectsDecoder: PropertyObjectsDecoder {
     }
 
     func values(_ class: (any DecodableResource.Type)?) throws -> [Value] {
-        try objects.map { object in
-            if case .literal(let literal) = object { return .literal(literal) }
+        try objects.map { try value(of: $0, as: `class`) }
+    }
+
+    /// The Swift value `object` denotes. The components of a triple term are
+    /// the values they denote; the range of the property does not apply to
+    /// them, so a node in one is a value only when the graph or the decoder
+    /// gives it a class.
+    private func value(of object: ObjectTerm, as class: (any DecodableResource.Type)?) throws -> Value {
+        switch object {
+        case .literal(let literal):
+            return .literal(literal)
+        case .tripleTerm(let triple):
+            guard let predicate = run.property(.iri(triple.predicate)) else {
+                throw mismatch(Value.self, "The predicate of a triple term names no property the decoder knows.")
+            }
+            return .tripleTerm(
+                subject: try value(of: triple.subject.object, as: nil),
+                predicate: predicate,
+                object: try value(of: triple.object, as: nil)
+            )
+        case .iri(let iri):
             if let type = run.class(object) { return .class(type) }
             if let property = run.property(object) { return .property(property) }
-            guard let node = object.subject else { throw mismatch(Value.self, "A triple term has no Swift value yet.") }
-            return .individual(try run.individual(for: node, as: `class`))
+            return .individual(try run.individual(for: .iri(iri), as: `class`))
+        case .blankNode(let node):
+            return .individual(try run.individual(for: .blankNode(node), as: `class`))
         }
     }
 
