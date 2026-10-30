@@ -27,13 +27,24 @@ import RDFCore
 /// ``RDFCore/IndividualStorage``, the storage `@Ontology` uses too, so a
 /// translated individual and one declared in the DSL are the same kind of
 /// ``RDFCore/Resource``.
-struct SwiftSource {
+struct SwiftSource: DeclarationScope {
     let layer: Layer
     let vocabulary: Vocabulary
     let declarations: Declarations
     let below: [Declarations]
+    let lower: Lower
 
-    private var lower: Lower { Lower(below) }
+    /// The nodes whose Swift is `@available(*, deprecated)`.
+    private var deprecations = Deprecations()
+
+    init(layer: Layer, vocabulary: Vocabulary, declarations: Declarations, below: [Declarations]) {
+        self.layer = layer
+        self.vocabulary = vocabulary
+        self.declarations = declarations
+        self.below = below
+        self.lower = Lower(below)
+        self.deprecations = Deprecations(self, vocabulary)
+    }
 
     func render() -> String {
         var source = """
@@ -61,7 +72,14 @@ struct SwiftSource {
                 source += "\n" + propertyStoring(property)
             }
         }
-        for combination in declarations.combinations {
+        // A combination class is generated only for the blank nodes that
+        // are its instances; a named individual's own class conforms to the
+        // same storing protocols instead.
+        let instantiated = Set(declarations.order.compactMap { node -> Int? in
+            guard node.iri == nil, case .combination(let index)? = declarations.individuals[node]?.instanceOf else { return nil }
+            return index
+        })
+        for (index, combination) in declarations.combinations.enumerated() where instantiated.contains(index) {
             source += "\n" + combinationClass(combination)
         }
 
@@ -76,16 +94,8 @@ struct SwiftSource {
         for node in declarations.order {
             guard let individual = declarations.individuals[node] else { continue }
             let type = node.iri == nil ? classReference(individual.instanceOf) : namedIndividualClassName(node)
-            source += "private let \(handle(node)) = \(type)()\n"
+            source += deprecation(node) + "private let \(handle(node)) = \(type)()\n"
         }
-        source += "\n/// Sets the values the documents give the individuals, once.\nprivate let described: Swift::Void = {\n"
-        for node in declarations.order where declarations.individuals[node] != nil {
-            for (property, objects) in values(of: node) {
-                let declaration = propertyDeclaration(property)!
-                source += "    \(handle(node)).\(declaration.member.swiftIdentifier) = [\(objects.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
-            }
-        }
-        source += "}()\n"
 
         for node in declarations.order {
             guard let individual = declarations.individuals[node], individual.isPublic else { continue }
@@ -105,6 +115,40 @@ struct SwiftSource {
         for (index, node) in declarations.additions.enumerated() {
             source += "\n" + addition(node, index: index)
         }
+        return source + documents()
+    }
+
+    /// The values the documents give the individuals and the descriptions
+    /// they give, which name every declaration of the module, deprecated
+    /// ones included. Swift warns where a declaration that is not deprecated
+    /// names a deprecated one, so they are named in deprecated members of a
+    /// private type, and `described` and `ontology` reach those members
+    /// through the requirements of a protocol, which are not deprecated.
+    private func documents() -> String {
+        var source = """
+
+            /// What the documents give the individuals and the descriptions they give.
+            private protocol `what the documents state` {
+                /// Sets the values the documents give the individuals, once.
+                static var described: Swift::Void { get }
+
+                /// The descriptions the documents give.
+                static var ontology: [any RDFCore::Description] { get }
+            }
+
+            /// Names every declaration of the module, deprecated ones included, without a warning.
+            private struct `the documents`: `what the documents state` {
+                @available(*, deprecated)
+                static let described: Swift::Void = {
+
+            """
+        for node in declarations.order where declarations.individuals[node] != nil {
+            for (property, objects) in values(of: node) {
+                let declaration = propertyDeclaration(property)!
+                source += "        \(handle(node)).\(declaration.member.swiftIdentifier) = [\(objects.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
+            }
+        }
+        source += "    }()\n\n"
 
         let subjects = Set(layer.graph.map(\.subject))
         var entries: [String] = []
@@ -118,6 +162,14 @@ struct SwiftSource {
             }
         }
         entries += declarations.additions.indices.map { "\(additionName($0))()" }
+        source += "    @available(*, deprecated)\n"
+        source += "    static var ontology: [any RDFCore::Description] {\n        ["
+        source += entries.map { "\n            \($0)," }.joined()
+        source += entries.isEmpty ? "]\n" : "\n        ]\n"
+        source += "    }\n}\n\n"
+        source += "/// Sets the values the documents give the individuals, once.\n"
+        source += "private let described: Swift::Void = (`the documents`.self as any `what the documents state`.Type).described\n"
+
         let describers = layer.documents.isEmpty ? "this module's documents" : layer.documents.joined(separator: " and ")
         source += """
 
@@ -126,10 +178,12 @@ struct SwiftSource {
             /// Encoding them gives back the documents' graph:
             ///
             ///     let document = try NTriplesEncoder().encode(ontology)
-            public let ontology: [any RDFCore::Description] = { _ = described; return [
+            public let ontology: [any RDFCore::Description] = {
+                _ = described
+                return (`the documents`.self as any `what the documents state`.Type).ontology
+            }()
+
             """
-        source += entries.map { "\n    \($0)," }.joined()
-        source += entries.isEmpty ? "] }()\n" : "\n] }()\n"
         return source
     }
 
@@ -159,6 +213,7 @@ struct SwiftSource {
         let refined = [declaration.protocolReference] + declaration.storing.map(reference)
         var text = "/// A member of ``\(declaration.isPublic ? declaration.protocolName : "")`` that keeps its property values in an ``RDFCore/IndividualStorage``.\n"
         if !declaration.isPublic { text = "/// A member of the class that keeps its property values in an ``RDFCore/IndividualStorage``.\n" }
+        text += deprecation(declaration.node)
         text += "\(access(declaration.isPublic))protocol \(declaration.storingName.swiftIdentifier): \(refined.joined(separator: ", ")) {}\n"
         return text
     }
@@ -186,6 +241,7 @@ struct SwiftSource {
     private func combinationClass(_ combination: Combination) -> String {
         let conformances = combination.storing.map(reference)
         var text = "/// An individual that is a member of \(combination.stated.isEmpty ? "no stated class" : "several classes"), or has properties its class's members cannot have.\n"
+        text += Deprecations.attribute(deprecations.contains(combination))
         text += "private final class \(combination.name.swiftIdentifier): \(conformances.isEmpty ? "RDFCore::PropertyValueStoring" : (conformances + ["RDFCore::PropertyValueStoring"]).joined(separator: ", ")) {\n"
         text += individual(stated: combination.stated)
         return text + "}\n"
@@ -205,7 +261,7 @@ struct SwiftSource {
             stated = combination.stated
             conformances = combination.storing.map(reference) + ["RDFCore::PropertyValueStoring"]
         }
-        var text = "/// The class of \(node.iri!.rawValue), a named individual.\n"
+        var text = "/// The class of \(node.iri!.rawValue), a named individual.\n" + deprecation(node)
         text += "private final class \(namedIndividualClassName(node)): \(conformances.joined(separator: ", ")) {\n"
         text += "    static let key: RDFCore::TermKey? = \(key(node))\n\n"
         text += individual(stated: stated)
@@ -220,14 +276,16 @@ struct SwiftSource {
 
     /// The namespaces of the IRIs this module declares, and of the
     /// predicates its documents use that no module declares as a property,
-    /// each a ``RDFCore/Vocabulary`` that the declared keys refer to.
+    /// each a ``RDFCore/Vocabulary`` that the declared keys refer to. Two
+    /// namespaces are one only when their Unicode scalars are the same:
+    /// Swift's `==` on `String` would make a precomposed `é` and `e` with
+    /// U+0301 one namespace, and so give two IRIs one key.
     private var namespaces: [String] {
         var namespaces: [String] = []
         let undeclared = layer.graph.map { SubjectTerm.iri($0.predicate) }.filter { propertyDeclaration($0) == nil }
         for node in declarations.order + undeclared {
-            guard let iri = node.iri else { continue }
-            let namespace = String(iri.rawValue.dropLast(iri.localName.count))
-            if !namespaces.contains(namespace) { namespaces.append(namespace) }
+            guard let namespace = node.iri?.namespace else { continue }
+            if namespaces.firstIndex(ofScalars: namespace) == nil { namespaces.append(namespace) }
         }
         return namespaces
     }
@@ -244,8 +302,7 @@ struct SwiftSource {
     /// for a blank node.
     private func key(_ node: SubjectTerm) -> String {
         guard let iri = node.iri else { return "nil" }
-        let namespace = String(iri.rawValue.dropLast(iri.localName.count))
-        let index = namespaces.firstIndex(of: namespace)!
+        let index = namespaces.firstIndex(ofScalars: iri.namespace)!
         return "RDFCore::TermKey(\(iri.localName.swiftStringLiteral), in: \(("namespace \(index)").swiftIdentifier).self)"
     }
 
@@ -278,13 +335,16 @@ struct SwiftSource {
         return text
     }
 
-    /// The value type that holds a property's values on an individual.
+    /// The value type that holds a property's values on an individual. It
+    /// carries the property's declared key itself, as the term type does, so
+    /// that it names no deprecated term type: every class whose members can
+    /// have the property names it.
     private func propertyValue(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
         var text = "/// The values an individual has for \(property.isPublic ? "``\(property.name)``" : "the property").\n"
         text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore::PropertyValue, Swift::Decodable {\n"
         text += "    /// The declared key of the property, from which an encoder derives its IRI.\n"
-        text += "    public static var key: RDFCore::TermKey { \(property.termReference).key }\n\n"
+        text += "    public static let key = \(key(property.node))\n\n"
         text += "    public var value: \(type(of: property.kind)) = []\n\n"
         text += "    public init() {}\n\n"
         text += "    public init(from decoder: any Swift::Decoder) throws {\n"
@@ -316,7 +376,7 @@ struct SwiftSource {
         var text = "/// An individual that has \(property.isPublic ? "``\(property.name)``" : "the property").\n"
         text += "\(access)protocol \(property.storingName.swiftIdentifier): RDFCore::PropertyValueStoring {}\n\n"
         text += "extension \(property.storingName.swiftIdentifier) {\n"
-        text += docComment(property.node, indent: "    ")
+        text += docComment(property.node, indent: "    ") + deprecation(property.node, indent: "    ")
         text += "    \(property.isPublic ? "public " : "")var \(member): \(type(of: property.kind)) {\n"
         text += "        get { storage[\(value).self].value }\n"
         text += "        set { storage[\(value).self].value = newValue }\n"
@@ -349,7 +409,7 @@ struct SwiftSource {
     /// property, which its value type carries.
     private func propertyKey(_ predicate: IRI) -> String {
         if let declaration = propertyDeclaration(.iri(predicate)) {
-            return "RDFCore::PropertyKey(\(declaration.termReference).key)"
+            return "RDFCore::PropertyKey(\(declaration.valueReference).key)"
         }
         return "RDFCore::PropertyKey(\(key(.iri(predicate))))"
     }
@@ -360,7 +420,7 @@ struct SwiftSource {
             ?? lower.property(node).map { ".property(\($0.termReference).self)" }
             ?? ".individual(\(lower.individual(node)!.reference))"
         var text = "/// What \(layer.documents.joined(separator: " and ")) state\(layer.documents.count == 1 ? "s" : "") about \(node.iri?.rawValue ?? "a resource"), which a module below declares.\n"
-        text += "private struct \(additionName(index)): RDFCore::Addition {\n"
+        text += deprecation(node) + "private struct \(additionName(index)): RDFCore::Addition {\n"
         text += "    var resource: RDFCore::Value { \(subject) }\n\n"
         text += "    func encode(to encoder: any Swift::Encoder) throws {\n"
         text += description(of: node, indent: "        ")
@@ -373,14 +433,6 @@ struct SwiftSource {
     }
 
     // MARK: - References
-
-    private func classDeclaration(_ node: SubjectTerm) -> ClassDeclaration? {
-        declarations.classes[node] ?? lower.class(node)
-    }
-
-    private func propertyDeclaration(_ node: SubjectTerm) -> PropertyDeclaration? {
-        declarations.properties[node] ?? lower.property(node)
-    }
 
     private func reference(_ storing: Storing) -> String {
         switch storing {
@@ -411,8 +463,7 @@ struct SwiftSource {
     private func expression(_ value: ObjectTerm, as kind: ValueKind) -> String {
         switch value {
         case .literal(let literal):
-            let text = Self.expression(literal)
-            return kind == .values ? ".literal(\(text))" : text
+            return kind == .values ? ".literal(\(literal.swiftExpression))" : literal.swiftExpression
         case .iri, .blankNode, .tripleTerm:
             let node = value.node!
             if let declaration = classDeclaration(node) {
@@ -440,19 +491,6 @@ struct SwiftSource {
         }
     }
 
-    private func values(of node: SubjectTerm) -> [(property: SubjectTerm, values: [ObjectTerm])] {
-        var values: [(property: SubjectTerm, values: [ObjectTerm])] = []
-        for triple in layer.graph where triple.subject == node && triple.predicate != .rdfType {
-            let property = SubjectTerm.iri(triple.predicate)
-            if let index = values.firstIndex(where: { $0.property == property }) {
-                values[index].values.append(triple.object)
-            } else {
-                values.append((property, [triple.object]))
-            }
-        }
-        return values
-    }
-
     // MARK: - Documentation
 
     /// DocC documentation from `rdfs:label` and `rdfs:comment`.
@@ -470,22 +508,9 @@ struct SwiftSource {
         return text.isEmpty ? "" : text + "\n"
     }
 
-    /// `@available(*, deprecated)` from `owl:deprecated true`.
+    /// `@available(*, deprecated)` from `owl:deprecated true`, on the Swift
+    /// of a deprecated resource and of one that names it (``Deprecations``).
     private func deprecation(_ node: SubjectTerm, indent: String = "") -> String {
-        vocabulary.isDeprecated(node) ? indent + "@available(*, deprecated)\n" : ""
-    }
-
-    // MARK: - Literals
-
-    static func expression(_ literal: Literal) -> String {
-        let lexical = literal.lexicalForm.swiftStringLiteral
-        if literal.languageTag == nil, literal.datatype == nil {
-            return "RDFCore::Literal(\(lexical))"
-        }
-        var arguments = [lexical]
-        if let language = literal.languageTag { arguments.append("languageTag: \(language.swiftStringLiteral)") }
-        if let direction = literal.baseDirection { arguments.append("baseDirection: .\(direction.rawValue)") }
-        if let datatype = literal.datatype { arguments.append("datatype: \(datatype.rawValue.swiftStringLiteral)") }
-        return "try! RDFCore::Literal(\(arguments.joined(separator: ", ")))"
+        Deprecations.attribute(deprecations.contains(node), indent: indent)
     }
 }
