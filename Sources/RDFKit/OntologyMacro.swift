@@ -49,15 +49,27 @@ import RDFCore
 ///
 /// - the property term type `Fauna.hasHabitat`, and the value type and
 ///   storing protocol that keep its values on an individual.
-/// - DocC from each `Comment`, and `@available(*, deprecated)` on the
-///   declarations of a term marked `Deprecated()`.
+/// - for `Individual("tweety") { Type(Fauna.Animal) }`, the named individual
+///   (`owl:NamedIndividual`, OWL 2 Structural Specification §5.6): the one
+///   instance of a final class of its own, `Fauna.tweetyIndividual`, which
+///   conforms to the storing protocol of each class its `Type` gives
+///   (ClassAssertion, §9.6.1), so it is a `Fauna.Animal`. The
+///   ontology member `tweety` gives that instance.
+/// - DocC from each `Label` and `Comment`, and `@available(*, deprecated)` on
+///   the declarations of a term marked `Deprecated()`.
 ///
-/// Terms refer to each other as types. Each term's IRI is computed from the
-/// namespace during expansion, for the boundary only.
+/// Statements about one term may be split over several declarations of it
+/// with the same form, as an RDF graph is a set of triples: they generate
+/// one term with everything each declaration states.
 ///
-/// The DSL declares vocabulary, not data. A named individual comes from RDF
-/// that `RDFTranslatorPlugin` translates, as a module-level value (`alice`),
-/// never a member of the ontology type.
+/// Terms refer to each other as types. No generated type stores an IRI:
+/// each carries its declared name in the ontology, and an encoder derives
+/// the IRI from it and the `Namespace` when the term leaves the runtime.
+///
+/// The DSL is for authored ontologies. W3C vocabularies (`rdf`, `rdfs`,
+/// `owl`, `shacl`, ...) and their individuals come from translating their
+/// published Turtle with `RDFTranslatorPlugin`, and data such as a profile
+/// document is decoded or translated, never written as an `@Ontology`.
 ///
 /// `@Ontology` also attaches ``OntologyContent()`` to `var body`. That body
 /// macro owns the authored body, so `Domain(Fauna.Animal)` is read as syntax.

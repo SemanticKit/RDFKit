@@ -64,10 +64,10 @@ struct TurtleDecoderTests {
             <http://example/s> <http://example/p> 1, 1.5, 1e5, true, "x"^^xsd:string .
             """)
         #expect(Set(graph.map(\.object)) == [
-            .literal(try Literal("1", datatype: "http://www.w3.org/2001/XMLSchema#integer")),
-            .literal(try Literal("1.5", datatype: "http://www.w3.org/2001/XMLSchema#decimal")),
-            .literal(try Literal("1e5", datatype: "http://www.w3.org/2001/XMLSchema#double")),
-            .literal(try Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")),
+            .literal(Literal("1", datatype: "http://www.w3.org/2001/XMLSchema#integer")),
+            .literal(Literal("1.5", datatype: "http://www.w3.org/2001/XMLSchema#decimal")),
+            .literal(Literal("1e5", datatype: "http://www.w3.org/2001/XMLSchema#double")),
+            .literal(Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")),
             .literal(Literal("x")),
         ])
     }

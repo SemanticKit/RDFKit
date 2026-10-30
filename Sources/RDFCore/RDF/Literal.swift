@@ -9,11 +9,14 @@ import IRIKit
 /// non-empty language tag, … if and only if the datatype IRI is
 /// `rdf:dirLangString`, a base direction."
 ///
-/// The datatype IRI of a simple literal (`xsd:string`) and of a
-/// language-tagged string (`rdf:langString`, `rdf:dirLangString`) follows
-/// from its form, so ``datatype`` holds only the datatype IRI of any other
-/// typed literal. ``init(_:datatype:)`` makes a typed literal: `xsd:string`
-/// gives the same literal as ``init(_:)``, so equal literals are equal values.
+/// A literal has one of four forms: a simple literal, a language-tagged
+/// string, a directional language-tagged string, or a typed literal with
+/// its ``datatype`` IRI. The datatype IRI of the first three follows from
+/// the form (`xsd:string`, `rdf:langString`, `rdf:dirLangString`), so
+/// ``datatype`` is `nil` for them. Those three IRIs are terms of the
+/// vocabularies RDFCore sits below; the format decoders and encoders, at the
+/// boundary, map `^^xsd:string`, `rdf:langString` and `rdf:dirLangString` to
+/// and from the forms, so that a typed literal here never names them.
 ///
 /// Two literals are the same term when their lexical forms, datatype IRIs,
 /// language tags (compared case-insensitively) and base directions are
@@ -33,8 +36,8 @@ public struct Literal: Object, Hashable, Sendable, Comparable, CustomStringConve
     /// The base direction of a directional language-tagged string.
     public let baseDirection: BaseDirection?
 
-    /// The datatype IRI of a typed literal whose datatype is not
-    /// `xsd:string`; `nil` for simple literals and language-tagged strings.
+    /// The datatype IRI of a typed literal; `nil` for simple literals and
+    /// language-tagged strings, whose datatype follows from their form.
     public let datatype: IRI?
 
     /// Creates a simple literal, whose datatype is `xsd:string`.
@@ -65,50 +68,19 @@ public struct Literal: Object, Hashable, Sendable, Comparable, CustomStringConve
         self.datatype = nil
     }
 
-    /// Creates a typed literal.
+    /// Creates a typed literal with the datatype IRI `datatype`.
     ///
-    /// RDF 1.2 Concepts §3.4 Literals: the datatype IRI of a simple literal is
-    /// `xsd:string`, so `Literal("a", datatype: xsd:string)` is the same
-    /// literal as `Literal("a")`. A language-tagged string carries its
-    /// datatype through its language tag, so `rdf:langString` and
-    /// `rdf:dirLangString` need one.
-    ///
-    /// - Throws: ``TermError/datatypeRequiresLanguageTag`` for
-    ///   `rdf:langString` and `rdf:dirLangString`.
-    public init(_ lexicalForm: String, datatype: IRI) throws(TermError) {
-        if datatype == Self.xsdString {
-            self.init(lexicalForm)
-            return
-        }
-        guard datatype != Self.rdfLangString, datatype != Self.rdfDirLangString else {
-            throw .datatypeRequiresLanguageTag
-        }
-        self.init(typed: lexicalForm, datatype: datatype)
-    }
-
-    private init(typed lexicalForm: String, datatype: IRI) {
+    /// Only the format decoders and encoders and the translator make typed
+    /// literals. A decoder reads `^^xsd:string` as a simple literal
+    /// (``init(_:)``) and refuses `^^rdf:langString` and
+    /// `^^rdf:dirLangString`, whose literals carry a language tag (RDF 1.2
+    /// Concepts §3.4), before it calls this.
+    public init(_ lexicalForm: String, datatype: IRI) {
         self.lexicalForm = lexicalForm
         self.languageTag = nil
         self.baseDirection = nil
         self.datatype = datatype
     }
-
-    /// The literal's datatype IRI as RDF 1.2 Concepts §3.4 gives it:
-    /// `rdf:dirLangString` for a directional language-tagged string,
-    /// `rdf:langString` for any other language-tagged string, `xsd:string`
-    /// for a simple literal, and ``datatype`` otherwise.
-    public var datatypeIRI: IRI {
-        if languageTag != nil {
-            return baseDirection == nil ? Self.rdfLangString : Self.rdfDirLangString
-        }
-        return datatype ?? Self.xsdString
-    }
-
-    /// The three datatype IRIs RDF 1.2 Concepts §3.4 ties to a literal's
-    /// form rather than to its ``datatype``.
-    private static let xsdString: IRI = "http://www.w3.org/2001/XMLSchema#string"
-    private static let rdfLangString: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
-    private static let rdfDirLangString: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"
 
     /// The literal as N-Triples writes it, without escaping.
     public var description: String {

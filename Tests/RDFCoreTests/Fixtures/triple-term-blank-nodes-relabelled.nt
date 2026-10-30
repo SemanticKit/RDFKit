@@ -1,0 +1,2 @@
+_:y <http://example/p> <<( _:x <http://example/p> _:y )>> .
+_:x <http://example/p> "1" .

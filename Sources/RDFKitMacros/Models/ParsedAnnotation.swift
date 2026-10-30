@@ -3,7 +3,7 @@ import SwiftSyntax
 /// An annotation read from a declaration's trailing closure.
 struct ParsedAnnotation {
     /// What the annotation was given.
-    enum Argument {
+    enum Argument: Equatable {
         /// No argument: `Deprecated()`.
         case none
         /// A string literal's value, with escapes resolved: `Label("Animal")`.
@@ -30,5 +30,11 @@ struct ParsedAnnotation {
     var text: String? {
         if case .text(let source) = argument { return source }
         return nil
+    }
+
+    /// Whether this annotation states what `other` states: the same form
+    /// with the same argument, wherever each was written.
+    func states(_ other: ParsedAnnotation) -> Bool {
+        name == other.name && argument == other.argument
     }
 }

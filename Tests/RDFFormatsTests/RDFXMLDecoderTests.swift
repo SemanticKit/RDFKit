@@ -44,4 +44,30 @@ struct RDFXMLDecoderTests {
         let form = try xmlLiteralForm(#"a &lt; b &amp;&#xD; c<!-- note --><ex:q v="&quot;&#x9;&lt;"/>"#)
         #expect(form == #"a &lt; b &amp;&#xD; c<!-- note --><ex:q xmlns:ex="http://example/" v="&quot;&#x9;&lt;"></ex:q>"#)
     }
+
+    /// Only relative IRI references are resolved against a base (RDF 1.2
+    /// Turtle, IRI references; RDF 1.2 XML Syntax, Resolving IRIs), so an
+    /// absolute IRI whose path has dot segments is the IRI the document
+    /// writes, in Turtle and RDF/XML alike, with a base in scope or none, as
+    /// in N-Triples, which resolves nothing.
+    @Test("An absolute IRI with dot segments is the IRI written, whatever the format and base")
+    func absoluteReferencesAreNotResolved() throws {
+        let written = try NTriplesDecoder().decode(
+            "<http://ex.example/a/../b> <http://ex.example/p> <http://ex.example/c/./d> .\n"
+        )
+        let turtle = "<http://ex.example/a/../b> <http://ex.example/p> <http://ex.example/c/./d> ."
+        let rdfXML = { (base: String) in
+            """
+            <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:ex="http://ex.example/" \(base)>
+              <rdf:Description rdf:about="http://ex.example/a/../b"><ex:p rdf:resource="http://ex.example/c/./d"/></rdf:Description>
+            </rdf:RDF>
+            """
+        }
+        #expect(try TurtleDecoder().decode(turtle) == written)
+        #expect(try TurtleDecoder().decode("BASE <http://ex.example/base>\n" + turtle) == written)
+        #expect(try TurtleDecoder(base: "http://ex.example/base").decode(turtle) == written)
+        #expect(try RDFXMLDecoder().decode(rdfXML("")) == written)
+        #expect(try RDFXMLDecoder().decode(rdfXML(#"xml:base="http://ex.example/base""#)) == written)
+        #expect(try RDFXMLDecoder(base: "http://ex.example/base").decode(rdfXML("")) == written)
+    }
 }

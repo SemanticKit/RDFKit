@@ -53,11 +53,12 @@ struct EntityGenerator {
     /// properties.
     func members() -> [DeclSyntax] {
         diagnoseUndeclaredTerms()
-        var generated: Set<String> = []
+        diagnoseRedeclarations()
         var descriptions: [ExprSyntax] = []
+        // Every declaration of a term is merged into one by the parser, so
+        // each term gets one set of types.
         let members = ontology.declarations.flatMap { declaration -> [DeclSyntax] in
-            // A term declared twice gets one type.
-            guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
+            guard let shape = model.shape(of: declaration.name) else { return [] }
             let declarations: [DeclSyntax]
             switch shape {
             case .class, .datatype:
@@ -119,6 +120,22 @@ struct EntityGenerator {
                     message: OntologyDiagnostic.undeclaredTerm(spelling, ontology: ontology.typeName)
                 ))
             }
+        }
+    }
+
+    /// Reports, at the later declaration, a term declared again with
+    /// another form: `Property("name")` after `Class("name")`.
+    private func diagnoseRedeclarations() {
+        for redeclaration in ontology.redeclarations {
+            let declaration = redeclaration.declaration
+            context.diagnose(Diagnostic(
+                node: declaration.syntax,
+                message: OntologyDiagnostic.declaredWithAnotherForm(
+                    declaration.name,
+                    form: declaration.kind.rawValue,
+                    firstForm: redeclaration.firstKind.rawValue
+                )
+            ))
         }
     }
 
@@ -344,53 +361,20 @@ struct EntityGenerator {
                 statements.append(encode(ExprSyntax.array(literals), for: QualifiedName("RDF", property, "key").expression))
             }
         }
-        // A document `SeeAlso` names is a resource outside the runtime,
-        // dereferenced by its IRI: its declared key is the document's IRI as
-        // a namespace with no local name.
-        for (index, document) in declaration.annotations("SeeAlso").compactMap(\.text).enumerated() {
-            let namespace = "SeeAlsoNamespace\(index)"
-            let resource = "SeeAlsoDocument\(index)"
-            statements.append(.decl(DeclSyntax(StructDeclSyntax(
-                name: .identifier(namespace),
-                inheritanceClause: InheritanceClauseSyntax([rdfCore("Vocabulary").type]),
-                memberBlock: MemberBlockSyntax([
-                    DeclSyntax(VariableDeclSyntax(
-                        modifiers: DeclModifierListSyntax(access: "").andStatic,
-                        .var,
-                        .identifier("namespace"),
-                        type: QualifiedName("String").type,
-                        accessors: .getter(ExprSyntax.string(document))
-                    )),
-                ])
-            ))))
-            statements.append(.decl(DeclSyntax(ClassDeclSyntax(
-                modifiers: [DeclModifierSyntax(name: .keyword(.final))],
-                name: .identifier(resource),
-                inheritanceClause: InheritanceClauseSyntax([rdfCore("Resource").type]),
-                memberBlock: MemberBlockSyntax([
-                    DeclSyntax(VariableDeclSyntax(
-                        modifiers: DeclModifierListSyntax(access: "").andStatic,
-                        .var,
-                        .identifier("key"),
-                        type: TypeSyntax(OptionalTypeSyntax(wrappedType: rdfCore("TermKey").type)),
-                        accessors: .getter(rdfCore("TermKey").expression.call(
-                            LabeledExprSyntax(expression: ExprSyntax.string("")),
-                            LabeledExprSyntax("in", QualifiedName(namespace).expression.dotSelf)
-                        ))
-                    )),
-                    encodeFunction(named: "encode", modifiers: [], body: []),
-                ])
-            ))))
-            statements.append(encode(
-                ExprSyntax.array([QualifiedName(resource).expression.call()]).as(TypeSyntax.array(.any(rdfCore("Resource").type))),
-                for: QualifiedName("RDF", "seeAlso", "key").expression
-            ))
+        // The document `SeeAlso` names is a resource outside the runtime,
+        // known only by its address: it is written as that IRI, and the
+        // encoder makes it the object node, at the boundary.
+        for document in declaration.annotations("SeeAlso").compactMap(\.text) {
+            statements.append(.expr(ExprSyntax.named("container").member("encode").call(
+                LabeledExprSyntax(expression: QualifiedName("IRIKit", "IRI").expression.call(LabeledExprSyntax("validating", ExprSyntax.string(document)))),
+                LabeledExprSyntax("forKey", propertyKey(QualifiedName("RDF", "seeAlso", "key").expression))
+            ).tried))
         }
         if !declaration.annotations("Deprecated").isEmpty {
             let literal = rdfCore("Literal").expression.call(
                 LabeledExprSyntax(expression: ExprSyntax.string("true")),
                 LabeledExprSyntax("datatype", ExprSyntax.string("http://www.w3.org/2001/XMLSchema#boolean"))
-            ).tried
+            )
             statements.append(encode(ExprSyntax.array([literal]), for: QualifiedName("OWL", "deprecatedValue", "key").expression))
         }
         guard !statements.isEmpty else {

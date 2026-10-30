@@ -29,4 +29,17 @@ extension SubjectTerm {
         case .blankNode(let node): node.description
         }
     }
+
+    /// The blank node the term is, if it is one.
+    public var blankNodes: [BlankNode] {
+        if case .blankNode(let node) = self { return [node] }
+        return []
+    }
+
+    /// The same term, a blank node replaced by the node `mapping` gives it.
+    /// A blank node `mapping` does not name stays as it is.
+    public func replacingBlankNodes(_ mapping: [BlankNode: BlankNode]) -> SubjectTerm {
+        if case .blankNode(let node) = self, let mapped = mapping[node] { return .blankNode(mapped) }
+        return self
+    }
 }

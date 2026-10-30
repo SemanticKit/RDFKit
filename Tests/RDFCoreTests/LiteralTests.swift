@@ -12,6 +12,7 @@ struct LiteralTests {
         let graph = try Fixture.graph("language-tag-case.nt")
         #expect(graph.count == 1)
         #expect(graph.literals.map(\.languageTag) == ["fr-ca"])
+        #expect(try graph.roundTripped() == graph)
     }
 
     @Test("The base direction is part of the term")
@@ -20,6 +21,23 @@ struct LiteralTests {
         #expect(graph.count == 3)
         #expect(Set(graph.literals.map(\.baseDirection)) == [.ltr, .rtl, nil])
         #expect(graph.literals.first?.description == #""chat"@fr--ltr"#)
+        #expect(try graph.roundTripped() == graph)
+    }
+
+    @Test("Lexical forms compare Unicode scalar by Unicode scalar, not by canonical equivalence")
+    func lexicalFormScalars() throws {
+        let graph = try Fixture.graph("lexical-forms.nt")
+        // U+00E9 and e U+0301, then the tagged forms, of which "\u{E9}"@fr
+        // and "\u{E9}"@FR are one term.
+        #expect(graph.count == 4)
+        let literals = graph.literals
+        let (composed, decomposed) = (literals[0], literals[1])
+        #expect(composed != decomposed)
+        #expect(Set([composed, decomposed]).count == 2)
+        #expect(decomposed < composed)
+        #expect(!(composed < decomposed))
+        #expect(literals[2] != literals[3])
+        #expect(try graph.roundTripped() == graph)
     }
 
     @Test("A literal typed xsd:string is the simple literal")
@@ -27,6 +45,7 @@ struct LiteralTests {
         let graph = try Fixture.graph("xsd-string.nt")
         #expect(graph.count == 1)
         #expect(graph.literals.first?.datatype == nil)
+        #expect(try graph.roundTripped() == graph)
     }
 
     @Test("rdf:langString and rdf:dirLangString need a language tag", arguments: ["lang-string-without-tag.nt", "dir-lang-string-without-tag.nt"])
@@ -37,26 +56,12 @@ struct LiteralTests {
         }
     }
 
-    @Test("Every literal has the datatype IRI RDF 1.2 gives it")
-    func datatypeIRI() throws {
-        let graph = try Fixture.graph("datatypes.nt")
-        let subjects = Set(graph.map(\.subject))
-        #expect(subjects.count == 4)
-        for subject in subjects {
-            let values = graph.triples(subject: subject).literals
-            let datatypes: [ObjectTerm] = graph.triples(subject: subject).compactMap { triple in
-                if case .literal = triple.object { nil } else { triple.object }
-            }
-            #expect(values.count == 1)
-            #expect(datatypes == values.map { .iri($0.datatypeIRI) }, "\(subject)")
-        }
-    }
-
     @Test("Typed literals compare lexical form and datatype IRI")
     func typedEquality() throws {
         let graph = try Fixture.graph("typed-literals.nt")
         // "1"^^xsd:integer once, "01"^^xsd:integer, "1"^^xsd:decimal and "1".
         #expect(graph.count == 4)
         #expect(Set(graph.literals).count == 4)
+        #expect(try graph.roundTripped() == graph)
     }
 }

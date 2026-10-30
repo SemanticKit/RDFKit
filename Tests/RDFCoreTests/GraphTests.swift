@@ -39,5 +39,48 @@ struct GraphTests {
         #expect(left.isIsomorphic(to: right))
         #expect(!left.isIsomorphic(to: try Fixture.graph("chain-bc-more.nt")))
         #expect(!left.isIsomorphic(to: try Fixture.graph("chain-ab-swapped.nt")))
+        #expect(left.isIsomorphic(to: try left.roundTripped()))
+    }
+
+    @Test("Blank nodes inside triple terms are mapped with the rest")
+    func tripleTermIsomorphism() throws {
+        let graph = try Fixture.graph("triple-term-blank-nodes.nt")
+        #expect(graph.isIsomorphic(to: try Fixture.graph("triple-term-blank-nodes-relabelled.nt")))
+        #expect(!graph.isIsomorphic(to: try Fixture.graph("triple-term-blank-nodes-reversed.nt")))
+        #expect(graph.isIsomorphic(to: try graph.roundTripped()))
+    }
+
+    /// A 200-node chain of blank nodes against the same chain with shuffled
+    /// labels and triples: every node looks alike until colours are refined
+    /// to the end of the chain.
+    @Test("A long blank node chain is isomorphic to itself relabelled, in bounded time", .timeLimit(.minutes(1)))
+    func longChain() throws {
+        let chain = try Fixture.graph("blank-chain.nt")
+        let shuffled = try Fixture.graph("blank-chain-shuffled.nt")
+        #expect(chain.count == 200)
+        #expect(chain != shuffled)
+        let elapsed = ContinuousClock().measure {
+            #expect(chain.isIsomorphic(to: shuffled))
+            #expect(shuffled.isIsomorphic(to: chain))
+        }
+        #expect(elapsed < .seconds(10))
+    }
+
+    /// One 48-node blank cycle against two 24-node cycles: the same number
+    /// of nodes and triples, every node of either with one triple in and one
+    /// out, and no bijection.
+    @Test("One blank node cycle is not two, decided in bounded time", .timeLimit(.minutes(1)))
+    func cycles() throws {
+        let one = try Fixture.graph("blank-cycle.nt")
+        let two = try Fixture.graph("blank-two-cycles.nt")
+        #expect(one.count == two.count)
+        let elapsed = ContinuousClock().measure {
+            #expect(!one.isIsomorphic(to: two))
+            #expect(!two.isIsomorphic(to: one))
+            #expect(one.isIsomorphic(to: one))
+            #expect(two.isIsomorphic(to: two))
+        }
+        #expect(elapsed < .seconds(10))
+        #expect(two.isIsomorphic(to: try two.roundTripped()))
     }
 }

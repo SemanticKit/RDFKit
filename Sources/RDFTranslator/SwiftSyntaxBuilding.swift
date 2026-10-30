@@ -1,3 +1,4 @@
+import RDFCore
 import SwiftParser
 import SwiftSyntax
 import SwiftSyntaxBuilder
@@ -279,6 +280,13 @@ extension AccessorBlockSyntax {
         ])))
     }
 
+    /// `{ get }`: a protocol's requirement of a readable property.
+    static var get: AccessorBlockSyntax {
+        AccessorBlockSyntax(accessors: .accessors(AccessorDeclListSyntax([
+            AccessorDeclSyntax(accessorSpecifier: .keyword(.get)),
+        ])))
+    }
+
     /// A getter with one expression: `{ value }`.
     static func getter(_ expression: some ExprSyntaxProtocol) -> AccessorBlockSyntax {
         AccessorBlockSyntax(accessors: .getter(CodeBlockItemListSyntax([CodeBlockItemSyntax(item: .expr(ExprSyntax(expression)))])))
@@ -355,5 +363,23 @@ extension Trivia {
         Trivia(pieces: lines.flatMap { line -> [TriviaPiece] in
             [.docLineComment(line.isEmpty ? "///" : "/// " + line), .newlines(1)]
         })
+    }
+}
+
+extension Literal {
+    /// The literal as a Swift expression that makes it: its lexical form,
+    /// language tag, base direction and datatype, unchanged.
+    var swiftExpression: ExprSyntax {
+        let literal = SwiftReference.rdfCore("Literal").expression
+        let lexical = LabeledExprSyntax(expression: ExprSyntax.string(lexicalForm))
+        if languageTag == nil, datatype == nil {
+            return literal.call(lexical)
+        }
+        var arguments = [lexical]
+        if let languageTag { arguments.append(LabeledExprSyntax("languageTag", ExprSyntax.string(languageTag))) }
+        if let baseDirection { arguments.append(LabeledExprSyntax("baseDirection", ExprSyntax.implicitMember(baseDirection.rawValue))) }
+        if let datatype { arguments.append(LabeledExprSyntax("datatype", ExprSyntax.string(datatype.rawValue))) }
+        // Only a language tag can be refused; a typed literal cannot.
+        return languageTag == nil ? literal.call(arguments) : literal.call(arguments).forceTried
     }
 }

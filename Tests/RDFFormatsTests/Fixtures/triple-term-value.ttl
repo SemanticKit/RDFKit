@@ -1,0 +1,11 @@
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix : <https://alice.example/profile#> .
+
+# rdfs:seeAlso's range is rdfs:Resource, so its value may be a triple term.
+:alice a foaf:Person ;
+    foaf:name "Alice" ;
+    rdfs:seeAlso <<( :bob foaf:name "Bob" )>> .
+
+:bob a foaf:Person ;
+    foaf:name "Bob" .

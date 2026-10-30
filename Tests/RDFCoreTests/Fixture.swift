@@ -15,6 +15,11 @@ enum Fixture {
 }
 
 extension Graph {
+    /// The graph encoded as Turtle and decoded again.
+    func roundTripped() throws -> Graph {
+        try TurtleDecoder().decode(TurtleEncoder().encode(self))
+    }
+
     /// The literal objects of the graph's triples, in document order.
     var literals: [Literal] {
         compactMap { triple in

@@ -1,0 +1,4 @@
+@prefix : <http://people.example/#> .
+
+:alice a :Person ;
+    :name "Alice" .

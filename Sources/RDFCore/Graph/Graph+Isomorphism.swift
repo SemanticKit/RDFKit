@@ -14,138 +14,206 @@ extension Graph {
     }
 }
 
-/// The search for a blank node bijection between two graphs.
+/// The search for a blank node bijection between two graphs, by colour
+/// refinement and individualization.
 ///
-/// Blank nodes are first coloured by the shape of the triples they occur in,
-/// and the colours are refined from their neighbours' colours; the search
-/// then only tries to map nodes of the same colour onto each other.
+/// Every blank node starts with the same colour. A round gives each node a
+/// new colour from its old one and the shapes of the triples it occurs in,
+/// with the other blank nodes in them replaced by their colours; rounds run
+/// until the partition into colours stops changing. A bijection maps each
+/// node onto a node of the same colour, so the two graphs must have as many
+/// nodes of each colour. When every colour is one node's, that is the only
+/// bijection left, and it holds when it maps the triples onto each other.
+/// Otherwise one node of the smallest colour shared by several nodes is
+/// given a colour of its own, together with each node of that colour in the
+/// other graph in turn, and the colours are refined again. The search keeps
+/// its branches on a stack, so a graph of any size needs no deeper call
+/// stack.
 struct GraphIsomorphism {
     let left: Graph
     let right: Graph
 
     func holds() -> Bool {
         guard left.count == right.count else { return false }
-        let leftNodes = Self.blankNodes(in: left)
-        let rightNodes = Self.blankNodes(in: right)
-        guard leftNodes.count == rightNodes.count else { return false }
-        // Triples without blank nodes must be equal as they are.
-        let leftGround = Graph(left.filter { Self.blankNodes(in: $0).isEmpty })
-        let rightGround = Graph(right.filter { Self.blankNodes(in: $0).isEmpty })
-        guard leftGround == rightGround else { return false }
+        let leftStructure = BlankStructure(left)
+        let rightStructure = BlankStructure(right)
+        guard leftStructure.ground == rightStructure.ground,
+              leftStructure.nodes.count == rightStructure.nodes.count,
+              leftStructure.triples.count == rightStructure.triples.count
+        else { return false }
+        guard !leftStructure.nodes.isEmpty else { return true }
 
-        let leftColours = Self.colours(of: leftNodes, in: left)
-        let rightColours = Self.colours(of: rightNodes, in: right)
-        guard leftColours.values.sorted() == rightColours.values.sorted() else { return false }
-
-        let ordered = leftNodes.sorted()
-        var mapping: [BlankNode: BlankNode] = [:]
-        var taken: Set<BlankNode> = []
-        let leftTriples = left.subtracting(leftGround).map { ($0, Self.blankNodes(in: $0)) }
-        return search(ordered[...], leftColours, rightColours, rightNodes.sorted(), leftTriples, &mapping, &taken)
-    }
-
-    func search(
-        _ remaining: ArraySlice<BlankNode>,
-        _ leftColours: [BlankNode: Int],
-        _ rightColours: [BlankNode: Int],
-        _ candidates: [BlankNode],
-        _ leftTriples: [(Graph.Element, Set<BlankNode>)],
-        _ mapping: inout [BlankNode: BlankNode],
-        _ taken: inout Set<BlankNode>
-    ) -> Bool {
-        guard let node = remaining.first else { return true }
-        for candidate in candidates where !taken.contains(candidate) && rightColours[candidate] == leftColours[node] {
-            mapping[node] = candidate
-            taken.insert(candidate)
-            let consistent = leftTriples.allSatisfy { triple, nodes in
-                !nodes.contains(node) || !nodes.isSubset(of: mapping.keys) || right.contains(Self.map(triple, mapping))
-            }
-            if consistent && search(remaining.dropFirst(), leftColours, rightColours, candidates, leftTriples, &mapping, &taken) {
-                return true
-            }
-            mapping[node] = nil
-            taken.remove(candidate)
-        }
-        return false
-    }
-
-    // MARK: - Colours
-
-    static func colours(of nodes: Set<BlankNode>, in graph: Graph) -> [BlankNode: Int] {
-        var colours = Dictionary(uniqueKeysWithValues: nodes.map { ($0, 0) })
-        for _ in 0..<4 {
-            var next: [BlankNode: [String]] = [:]
-            for triple in graph {
-                for node in blankNodes(in: triple) {
-                    next[node, default: []].append(signature(triple, from: node, colours))
+        var branches: [Branch] = []
+        var next: Colouring? = Colouring(
+            left: Array(repeating: 0, count: leftStructure.nodes.count),
+            right: Array(repeating: 0, count: rightStructure.nodes.count)
+        )
+        while true {
+            if let colouring = next, let refined = colouring.refined(leftStructure, rightStructure) {
+                if let branch = refined.branch() {
+                    branches.append(branch)
+                } else if refined.maps(leftStructure, onto: rightStructure, in: right) {
+                    return true
                 }
             }
-            colours = next.mapValues { $0.sorted().joined(separator: "|").hashValue }
+            next = nil
+            guard var branch = branches.popLast() else { return false }
+            guard let candidate = branch.candidates.popLast() else { continue }
+            branches.append(branch)
+            next = branch.colouring.individualizing(branch.node, candidate)
         }
-        return colours
     }
 
-    /// The triple with every blank node replaced by its colour, and `node`
-    /// itself marked.
-    static func signature(_ triple: Graph.Element, from node: BlankNode, _ colours: [BlankNode: Int]) -> String {
-        func name(_ blank: BlankNode) -> String { blank == node ? "*" : "_\(colours[blank] ?? 0)" }
-        func subject(_ term: SubjectTerm) -> String {
-            switch term {
-            case .iri(let iri): "<\(iri)>"
-            case .blankNode(let blank): name(blank)
+    /// A node of the left graph to individualize, and the nodes of the right
+    /// graph not yet tried for it.
+    struct Branch {
+        let colouring: Colouring
+        let node: Int
+        var candidates: [Int]
+    }
+}
+
+/// The blank nodes of a graph, numbered, and its triples that hold them.
+struct BlankStructure {
+    /// The triples without blank nodes, which must be equal as they are.
+    let ground: Set<Graph.Element>
+    /// The blank nodes, numbered by their place here.
+    let nodes: [BlankNode]
+    /// The triples with blank nodes.
+    let triples: [Graph.Element]
+    /// For each triple, its shape: the triple with every blank node replaced
+    /// by the same placeholder.
+    let shapes: [Int]
+    /// For each triple, the numbers of its blank nodes in the order they
+    /// occur, so with ``shapes`` it says where each node stands.
+    let slots: [[Int]]
+    /// For each node, the triples it occurs in.
+    let incidence: [[Int]]
+
+    init(_ graph: Graph) {
+        var ground: Set<Graph.Element> = []
+        var nodes: [BlankNode] = []
+        var numbers: [BlankNode: Int] = [:]
+        var triples: [Graph.Element] = []
+        var shapes: [Int] = []
+        var slots: [[Int]] = []
+        var incidence: [[Int]] = []
+        let placeholder = try! BlankNode("_")  // never empty
+        for triple in graph {
+            let blankNodes = triple.blankNodes
+            guard !blankNodes.isEmpty else {
+                ground.insert(triple)
+                continue
             }
-        }
-        func object(_ term: ObjectTerm) -> String {
-            switch term {
-            case .iri(let iri): "<\(iri)>"
-            case .blankNode(let blank): name(blank)
-            case .literal(let literal): literal.description
-            case .tripleTerm(let inner): "<<(\(subject(inner.subject)) <\(inner.predicate)> \(object(inner.object)))>>"
+            let index = triples.count
+            triples.append(triple)
+            shapes.append(triple.replacingBlankNodes(Dictionary(blankNodes.map { ($0, placeholder) }) { first, _ in first }).hashValue)
+            var numbered: [Int] = []
+            for node in blankNodes {
+                let number: Int
+                if let known = numbers[node] {
+                    number = known
+                } else {
+                    number = nodes.count
+                    numbers[node] = number
+                    nodes.append(node)
+                    incidence.append([])
+                }
+                if incidence[number].last != index { incidence[number].append(index) }
+                numbered.append(number)
             }
+            slots.append(numbered)
         }
-        return "\(subject(triple.subject)) <\(triple.predicate)> \(object(triple.object))"
+        self.ground = ground
+        self.nodes = nodes
+        self.triples = triples
+        self.shapes = shapes
+        self.slots = slots
+        self.incidence = incidence
     }
 
-    // MARK: - Blank nodes
-
-    static func blankNodes(in graph: Graph) -> Set<BlankNode> {
-        graph.reduce(into: []) { $0.formUnion(blankNodes(in: $1)) }
+    /// The colours one round of refinement gives the nodes.
+    func round(_ colours: [Int]) -> [Int] {
+        incidence.indices.map { node in
+            var signatures = incidence[node].map { triple in
+                var hasher = Hasher()
+                hasher.combine(shapes[triple])
+                for slot in slots[triple] {
+                    if slot == node {
+                        hasher.combine(true)
+                    } else {
+                        hasher.combine(false)
+                        hasher.combine(colours[slot])
+                    }
+                }
+                return hasher.finalize()
+            }
+            signatures.sort()
+            var hasher = Hasher()
+            hasher.combine(colours[node])
+            hasher.combine(signatures)
+            return hasher.finalize()
+        }
     }
+}
 
-    static func blankNodes(in triple: Graph.Element) -> Set<BlankNode> {
-        blankNodes(in: triple.subject).union(blankNodes(in: triple.object))
-    }
+/// The colours of the blank nodes of both graphs.
+struct Colouring {
+    var left: [Int]
+    var right: [Int]
 
-    static func blankNodes(in term: SubjectTerm) -> Set<BlankNode> {
-        if case .blankNode(let node) = term { return [node] }
-        return []
-    }
-
-    static func blankNodes(in term: ObjectTerm) -> Set<BlankNode> {
-        switch term {
-        case .blankNode(let node): [node]
-        case .tripleTerm(let inner): blankNodes(in: inner.subject).union(blankNodes(in: inner.object))
-        case .iri, .literal: []
+    /// The colouring refined until its partition stops changing, or `nil`
+    /// when the graphs have different numbers of nodes of some colour, so
+    /// no bijection respects it.
+    func refined(_ leftStructure: BlankStructure, _ rightStructure: BlankStructure) -> Colouring? {
+        var colouring = self
+        var classes = Set(colouring.left).count
+        while true {
+            guard colouring.left.sorted() == colouring.right.sorted() else { return nil }
+            let next = Colouring(left: leftStructure.round(colouring.left), right: rightStructure.round(colouring.right))
+            let nextClasses = Set(next.left).count
+            // A round only splits colours, so a round that splits none is the
+            // last.
+            if nextClasses <= classes {
+                return next.left.sorted() == next.right.sorted() ? colouring : nil
+            }
+            colouring = next
+            classes = nextClasses
         }
     }
 
-    // MARK: - Mapping
-
-    static func map(_ triple: Graph.Element, _ mapping: [BlankNode: BlankNode]) -> Graph.Element {
-        Graph.Element(subject: map(triple.subject, mapping), predicate: triple.predicate, object: map(triple.object, mapping))
+    /// The branch that individualizes the first node of the smallest colour
+    /// several nodes share, or `nil` when every node has a colour of its own.
+    func branch() -> GraphIsomorphism.Branch? {
+        var members: [Int: [Int]] = [:]
+        for (node, colour) in left.enumerated() { members[colour, default: []].append(node) }
+        guard let (colour, nodes) = members.filter({ $0.value.count > 1 }).min(by: { lhs, rhs in
+            lhs.value.count != rhs.value.count ? lhs.value.count < rhs.value.count : lhs.value[0] < rhs.value[0]
+        }) else { return nil }
+        let candidates = right.indices.filter { right[$0] == colour }
+        return GraphIsomorphism.Branch(colouring: self, node: nodes[0], candidates: candidates.reversed())
     }
 
-    static func map(_ term: SubjectTerm, _ mapping: [BlankNode: BlankNode]) -> SubjectTerm {
-        if case .blankNode(let node) = term, let mapped = mapping[node] { return .blankNode(mapped) }
-        return term
+    /// The colouring with `node` of the left graph and `candidate` of the
+    /// right graph given the same colour, which no other node has.
+    func individualizing(_ node: Int, _ candidate: Int) -> Colouring {
+        var hasher = Hasher()
+        hasher.combine(left[node])
+        hasher.combine("individualized")
+        hasher.combine(node)
+        let colour = hasher.finalize()
+        var colouring = self
+        colouring.left[node] = colour
+        colouring.right[candidate] = colour
+        return colouring
     }
 
-    static func map(_ term: ObjectTerm, _ mapping: [BlankNode: BlankNode]) -> ObjectTerm {
-        switch term {
-        case .blankNode(let node): .blankNode(mapping[node] ?? node)
-        case .tripleTerm(let inner):
-            .tripleTerm(Graph.Element(subject: map(inner.subject, mapping), predicate: inner.predicate, object: map(inner.object, mapping)))
-        case .iri, .literal: term
-        }
+    /// Whether the bijection this colouring gives, each left node onto the
+    /// right node of its colour, maps the left graph's triples with blank
+    /// nodes onto those of `graph`. Every colour is one node's.
+    func maps(_ leftStructure: BlankStructure, onto rightStructure: BlankStructure, in graph: Graph) -> Bool {
+        let rightNodes = Dictionary(uniqueKeysWithValues: right.enumerated().map { ($0.element, rightStructure.nodes[$0.offset]) })
+        let mapping = Dictionary(uniqueKeysWithValues: left.enumerated().map { (leftStructure.nodes[$0.offset], rightNodes[$0.element]!) })
+        return leftStructure.triples.allSatisfy { graph.contains($0.replacingBlankNodes(mapping)) }
     }
 }

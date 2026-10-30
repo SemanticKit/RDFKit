@@ -25,7 +25,7 @@ import RDFCore
 ///   class it is a member of and gives it every property it has. Otherwise
 ///   it is an instance of a class generated in this module for its stated
 ///   and entailed classes and its properties.
-struct Planner {
+struct Planner: DeclarationScope {
     var declarations: Declarations
     let lower: Lower
     let vocabulary: Vocabulary
@@ -58,16 +58,6 @@ struct Planner {
 
     // MARK: - Protocols
 
-    /// The class declaration of `node`, here or below.
-    func classDeclaration(_ node: SubjectTerm) -> ClassDeclaration? {
-        declarations.classes[node] ?? lower.class(node)
-    }
-
-    /// The property declaration of `node`, here or below.
-    func propertyDeclaration(_ node: SubjectTerm) -> PropertyDeclaration? {
-        declarations.properties[node] ?? lower.property(node)
-    }
-
     /// The protocols of `rdfs:Resource` and `owl:Thing`, where declared.
     private var universalProtocols: Set<SubjectTerm> {
         Set(Self.universal.filter { classDeclaration($0) != nil })
@@ -92,28 +82,25 @@ struct Planner {
     /// The protocols of the classes an individual is a member of, stated
     /// and entailed, and of the classes every resource is a member of.
     private func protocols(of node: SubjectTerm) -> Set<SubjectTerm> {
-        Set((vocabulary.classes(of: node).union(stated(node))).filter { classDeclaration($0) != nil })
+        Set((vocabulary.classes(of: node).union(layer.stated(node))).filter { classDeclaration($0) != nil })
             .union(universalProtocols)
-    }
-
-    /// The classes the documents state `node` is a member of.
-    func stated(_ node: SubjectTerm) -> [SubjectTerm] {
-        var types: [SubjectTerm] = []
-        for triple in layer.graph where triple.subject == node && triple.predicate == .rdfType {
-            if let type = triple.object.node, !types.contains(type) { types.append(type) }
-        }
-        return types.sorted(by: SubjectTerm.inIRIOrder)
     }
 
     // MARK: - Properties
 
-    /// The Swift type of a property's values, by its range.
+    /// The Swift type of a property's values, by its range. A range class
+    /// that is deprecated, or a subclass of one, is left out: its protocol
+    /// is `@available(*, deprecated)`, and the property's value type, which
+    /// is not, would warn on naming it.
     func kind(ofRanges ranges: [SubjectTerm]) -> ValueKind {
         if ranges.contains(where: vocabulary.isLiteralClass) { return .literals }
         if ranges.contains(where: vocabulary.isMetaclass) { return .classes }
         if ranges.contains(where: vocabulary.isPropertyClass) { return .properties }
         if ranges.isEmpty || ranges.contains(.iri(.rdfsResource)) { return .values }
-        let protocols = Set(ranges.filter { classDeclaration($0)?.isPublic == true })
+        let protocols = Set(ranges.filter { range in
+            classDeclaration(range)?.isPublic == true
+                && !vocabulary.superclassClosure(of: range).contains(where: vocabulary.isDeprecated)
+        })
         return .individuals(minimal(protocols))
     }
 
@@ -244,23 +231,9 @@ struct Planner {
 
     // MARK: - Individuals
 
-    /// The values each property has on `node`, in document order.
-    func values(of node: SubjectTerm) -> [(property: SubjectTerm, values: [ObjectTerm])] {
-        var values: [(property: SubjectTerm, values: [ObjectTerm])] = []
-        for triple in layer.graph where triple.subject == node && triple.predicate != .rdfType {
-            let property = SubjectTerm.iri(triple.predicate)
-            if let index = values.firstIndex(where: { $0.property == property }) {
-                values[index].values.append(triple.object)
-            } else {
-                values.append((property, [triple.object]))
-            }
-        }
-        return values
-    }
-
     private mutating func planIndividual(_ node: SubjectTerm) throws {
         guard var declaration = declarations.individuals[node] else { return }
-        let stated = self.stated(node)
+        let stated = layer.stated(node)
         let required = protocols(of: node)
         let properties = values(of: node).map(\.property)
         declaration.conformances = closure(required)
