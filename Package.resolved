@@ -1,6 +1,15 @@
 {
-  "originHash" : "43552e6427f32b532adf39688d69f69110b43377fc4fa7d9153d2d60986cc09d",
+  "originHash" : "8d34bd9f455ae9ac8a032da12887920bb6df0f242db76b4265640784544a6159",
   "pins" : [
+    {
+      "identity" : "bitbytedata",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tsolomko/BitByteData",
+      "state" : {
+        "revision" : "e1a5443be67daf0833cbb5f4fa3a06a265ca3105",
+        "version" : "2.1.0"
+      }
+    },
     {
       "identity" : "irikit",
       "kind" : "remoteSourceControl",
@@ -11,12 +20,75 @@
       }
     },
     {
+      "identity" : "semantickitbuildplugins",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SemanticKit/SemanticKitBuildPlugins.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "40d90da0fff8568fc313e9f927ed3dde70d1fcd5"
+      }
+    },
+    {
+      "identity" : "swcompression",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tsolomko/SWCompression.git",
+      "state" : {
+        "revision" : "03a68e67991815a267e28174a0a01fbe0cff937b",
+        "version" : "4.9.1"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version" : "1.8.2"
+      }
+    },
+    {
+      "identity" : "swift-asn1",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-asn1.git",
+      "state" : {
+        "revision" : "3b6410f7dee09eb33cdd26260c5fd47fda19b0e2",
+        "version" : "1.7.3"
+      }
+    },
+    {
+      "identity" : "swift-crypto",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-crypto.git",
+      "state" : {
+        "revision" : "c2cbadd7263439d8015189668f96ff5b5be565ce",
+        "version" : "5.0.3"
+      }
+    },
+    {
+      "identity" : "swift-opa",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/open-policy-agent/swift-opa.git",
+      "state" : {
+        "revision" : "d5621ffa8728a3b9fb7a096ba3f1feeb61a37206",
+        "version" : "0.0.11"
+      }
+    },
+    {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
         "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
         "version" : "604.0.0"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams",
+      "state" : {
+        "revision" : "a27b21e0c81c5bf42049b897a62aaf387e80f279",
+        "version" : "6.2.2"
       }
     }
   ],
