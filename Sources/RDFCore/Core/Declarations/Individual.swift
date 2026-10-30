@@ -14,6 +14,11 @@
 ///     let tweety = Fauna().tweety
 ///     tweety is Fauna.Bird   // true
 ///
+/// A declared individual is one individual, so its Swift class has one
+/// instance, shared by every value of the ontology type: `Fauna().tweety`
+/// is `Fauna().tweety` (`===`), and a value set on it through one is read
+/// through the other.
+///
 /// The W3C vocabularies' own individuals, such as `rdf:nil`, come from
 /// translating their published Turtle with `RDFTranslatorPlugin`, never
 /// from an `Individual` declaration.

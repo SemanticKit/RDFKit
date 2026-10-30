@@ -192,15 +192,15 @@ struct EntityGenerator {
             }.joined(separator: ", ")
         }
         if !declaration.terms("Type").isEmpty {
-            lines.append("try container.encode([\(classes("Type"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))")
+            lines.append("try container.encode([\(classes("Type"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.typeValue.key))")
         }
         for (form, property) in [("SubClassOf", "RDF.subClassOf"), ("Domain", "RDF.domain"), ("Range", "RDF.range")] where !declaration.terms(form).isEmpty {
-            lines.append("try container.encode([\(classes(form))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(property)))")
+            lines.append("try container.encode([\(classes(form))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(property)Value.key))")
         }
         for (form, property) in [("Label", "RDF.label"), ("Comment", "RDF.comment")] {
             let texts = declaration.annotations(form).compactMap(\.text)
             if !texts.isEmpty {
-                lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property)))")
+                lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property)Value.key))")
             }
         }
         // A document `SeeAlso` names is a resource outside the runtime,
@@ -221,10 +221,10 @@ struct EntityGenerator {
                 "    }",
                 "}",
             ]
-            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso))")
+            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlsoValue.key))")
         }
         if !declaration.annotations("Deprecated").isEmpty {
-            lines.append("try container.encode([try RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecated))")
+            lines.append("try container.encode([try RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")
         }
         guard !lines.isEmpty else { return "\(indent)_ = encoder.container(keyedBy: RDFCore.PropertyKey.self)" }
         return (["var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)"] + lines)
@@ -298,13 +298,18 @@ struct EntityGenerator {
             """
             /// The values an individual has for ``\(ontology.typeName)/\(names.className)``.
             \(access)struct \(names.value): RDFCore.PropertyValue {
+                /// The declared key of the property, from which an encoder derives its IRI.
+                \(memberAccess)static var key: RDFCore.TermKey {
+                    \(ontology.typeName).\(name).key
+                }
+
                 \(memberAccess)var value: \(requirement.declaredType) = []
 
                 \(memberAccess)init() {}
 
                 \(memberAccess)func encode(to encoder: any Encoder) throws {
                     var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                    try container.encode(value, for: RDFCore.PropertyKey(\(ontology.typeName).\(name).key))
+                    try container.encode(value, for: RDFCore.PropertyKey(Self.key))
                 }
             }
             """,

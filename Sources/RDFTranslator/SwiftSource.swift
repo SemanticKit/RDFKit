@@ -95,7 +95,7 @@ struct SwiftSource {
         if let resource = declarations.classes[.iri(.rdfsResource)], propertyDeclaration(.iri(.rdfType)) != nil || declarations.individuals[.iri(.rdfType)] != nil {
             source += "\n/// `rdf:type`, the property a member of `rdfs:Resource` writes its classes with.\n"
             source += "extension \(resource.storingReference) {\n"
-            source += "    public static var typeProperty: (any RDFCore::Resource)? { \(reference(.iri(.rdfType))) }\n}\n"
+            source += "    public static var typeProperty: RDFCore::TermKey? { \(propertyDeclaration(.iri(.rdfType)).map { "\($0.valueReference).key" } ?? key(.iri(.rdfType))) }\n}\n"
         }
 
         for (index, node) in declarations.additions.enumerated() {
@@ -209,11 +209,13 @@ struct SwiftSource {
 
     // MARK: - Keys
 
-    /// The namespaces of the IRIs this module declares, each a
-    /// ``RDFCore/Vocabulary`` that the declared keys refer to.
+    /// The namespaces of the IRIs this module declares, and of the
+    /// predicates its documents use that no module declares as a property,
+    /// each a ``RDFCore/Vocabulary`` that the declared keys refer to.
     private var namespaces: [String] {
         var namespaces: [String] = []
-        for node in declarations.order {
+        let undeclared = layer.graph.map { SubjectTerm.iri($0.predicate) }.filter { propertyDeclaration($0) == nil }
+        for node in declarations.order + undeclared {
             guard let iri = node.iri else { continue }
             let namespace = String(iri.rawValue.dropLast(iri.localName.count))
             if !namespaces.contains(namespace) { namespaces.append(namespace) }
@@ -257,11 +259,13 @@ struct SwiftSource {
         let access = self.access(property.isPublic)
         var text = "/// The values an individual has for \(property.isPublic ? "``\(property.name)``" : "the property").\n"
         text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore::PropertyValue {\n"
+        text += "    /// The declared key of the property, from which an encoder derives its IRI.\n"
+        text += "    public static let key = \(key(property.node))\n\n"
         text += "    public var value: \(type(of: property.kind)) = []\n\n"
         text += "    public init() {}\n\n"
         text += "    public func encode(to encoder: any Swift::Encoder) throws {\n"
         text += "        var container = encoder.container(keyedBy: RDFCore::PropertyKey.self)\n"
-        text += "        try container.encode(value, for: RDFCore::PropertyKey(\(reference(property.node))))\n"
+        text += "        try container.encode(value, for: RDFCore::PropertyKey(Self.key))\n"
         text += "    }\n}\n"
         return text
     }
@@ -298,9 +302,18 @@ struct SwiftSource {
         }
         for predicate in predicates {
             let values = objects[predicate]!.map { expression($0, as: .values) }
-            text += "\(indent)try container.encode([\(values.joined(separator: ", "))] as [RDFCore::Value], for: RDFCore::PropertyKey(\(reference(.iri(predicate)))))\n"
+            text += "\(indent)try container.encode([\(values.joined(separator: ", "))] as [RDFCore::Value], for: \(propertyKey(predicate)))\n"
         }
         return text
+    }
+
+    /// The coding key of a predicate's values: the declared key of the
+    /// property, which its value type carries.
+    private func propertyKey(_ predicate: IRI) -> String {
+        if let declaration = propertyDeclaration(.iri(predicate)) {
+            return "RDFCore::PropertyKey(\(declaration.valueReference).key)"
+        }
+        return "RDFCore::PropertyKey(\(key(.iri(predicate))))"
     }
 
     /// What these documents state about a resource a lower module declares.

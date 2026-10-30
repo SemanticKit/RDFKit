@@ -26,16 +26,16 @@ public protocol PropertyValueStoring: Resource {
     /// The individual's property values.
     var storage: IndividualStorage { get }
 
-    /// The property the individual's classes are written with: `rdf:type`,
-    /// which the translated `RDF` module declares and gives every member of
+    /// The declared key of the property the individual's classes are
+    /// written with: `rdf:type`, which the translated `RDF` module declares and gives every member of
     /// `rdfs:Resource` (every individual, RDF 1.2 Semantics rdfs4).
-    static var typeProperty: (any Resource)? { get }
+    static var typeProperty: TermKey? { get }
 }
 
 extension PropertyValueStoring {
     /// No property for the individual's classes; the translated `RDF` module
     /// gives `rdf:type` to every member of `rdfs:Resource`.
-    public static var typeProperty: (any Resource)? { nil }
+    public static var typeProperty: TermKey? { nil }
 
     /// Writes the individual's classes as `rdf:type`, then its property
     /// values.

@@ -39,10 +39,12 @@ struct LayerTests {
 
     /// A class is a protocol and a Swift class, and in object position it is
     /// that Swift type: `rdf:first rdfs:domain rdf:List`.
-    @Test func classesAreTypes() {
+    @Test func classesAreTypes() throws {
         #expect((RDF.nil as AnyObject) is any RDF.List)
         #expect(RDF.first.domain.contains { $0 == RDF.ListIndividual.self })
-        #expect(IRI(of: RDF.ListIndividual.self) == "http://www.w3.org/1999/02/22-rdf-syntax-ns#List")
+        // At the boundary, the class is written as the IRI its declared key gives.
+        let domain = try GraphEncoder().encode(RDF.first).filter { $0.predicate == IRI(RDF.domainValue.key) }
+        #expect(domain.map(\.object) == [.iri(IRI(of: RDF.ListIndividual.self)!)])
     }
 
     /// A value set through a member is read back through it.

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import IRIKit
 import RDFCore
 import RDFFormats
 import RDF
@@ -28,8 +29,8 @@ struct LibraryTests {
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([reprint]))
         #expect(output.count == 3)
         #expect(output.allSatisfy { if case .blankNode = $0.subject { true } else { false } })
-        #expect(output.contains { $0.predicate.rawValue == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && $0.object == .iri("https://library.example/vocabulary#Book") })
-        #expect(output.contains { $0.object == .iri("https://library.example/vocabulary#almanac") })
+        #expect(output.contains { $0.predicate == IRI(RDF.typeValue.key) && $0.object == .iri(IRI(of: BookIndividual.self)!) })
+        #expect(output.contains { $0.object == .iri(IRI(of: almanac)!) })
     }
 
     /// Values that are individuals are the individuals themselves, cycles
@@ -47,7 +48,16 @@ struct LibraryTests {
             try Literal("Almanac", languageTag: "en"),
             try Literal("Almanach", languageTag: "de"),
         ])
-        #expect(almanac.pages == [try Literal("212", datatype: "http://www.w3.org/2001/XMLSchema#nonNegativeInteger")])
+        // The typed literal as the document states it, decoded at the boundary.
+        let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
+        let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
+        let pages: [RDFCore.Literal] = document.compactMap { triple in
+            guard triple.subject == .iri(IRI(of: almanac)!), triple.predicate == IRI(pagesValue.key),
+                  case .literal(let literal) = triple.object else { return nil }
+            return literal
+        }
+        #expect(pages.count == 1)
+        #expect(almanac.pages == pages)
         #expect(gazette.title == ["Gazette"])
     }
 
@@ -67,6 +77,6 @@ struct LibraryTests {
         let subjects = Set(output.map(\.subject))
         // The gazette and the blank node of the note it refers to.
         #expect(subjects.count == 2)
-        #expect(subjects.contains(.iri("https://library.example/vocabulary#gazette")))
+        #expect(subjects.contains(.iri(IRI(of: gazette)!)))
     }
 }

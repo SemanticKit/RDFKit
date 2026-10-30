@@ -1,20 +1,13 @@
 /// The coding key of a property's values, derived from the property's
 /// declared key.
 ///
-/// A generated `encode(to:)` keys each value by its property:
-/// `PropertyKey(FOAF.knows)` for a translated property, which is an
-/// individual of `rdf:Property`, and `PropertyKey(Fauna.hasHabitat.key)`
-/// for a property `@Ontology` declares. Its string value, the property's
-/// IRI, is derived here, where the value leaves the runtime.
+/// A generated `encode(to:)` keys each value by its property's declared key,
+/// which the property's value type carries: `PropertyKey(FOAF.knowsValue.key)`
+/// for a translated property, `PropertyKey(Fauna.hasHabitat.key)` for one
+/// `@Ontology` declares. Its string value, the property's IRI, is derived
+/// here, where the value leaves the runtime.
 public struct PropertyKey: CodingKey, Sendable {
     public let stringValue: String
-
-    /// The key of a property's values. A blank node is not a property (RDF
-    /// 1.2 Concepts §3.1), so its key is not an IRI, and an RDF encoder
-    /// reports it.
-    public init(_ property: any Resource) {
-        stringValue = Swift.type(of: property).key?.stringValue ?? ""
-    }
 
     /// The key of the values of the property declared as `key`.
     public init(_ key: TermKey) {

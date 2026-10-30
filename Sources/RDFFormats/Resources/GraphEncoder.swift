@@ -56,18 +56,18 @@ final class EncodedGraph {
         let subject: SubjectTerm
         if let individual = description as? any Resource {
             guard described.insert(ObjectIdentifier(individual)).inserted else { return }
-            subject = term(type(of: individual).key, ObjectIdentifier(individual))
+            subject = try term(type(of: individual).key, ObjectIdentifier(individual))
         } else if let description = description as? ClassDescription {
             guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
-            subject = term(description.class.classKey, ObjectIdentifier(description.class))
+            subject = try term(description.class.classKey, ObjectIdentifier(description.class))
         } else if let term = description as? any PropertyTerm {
             // A term type `@Ontology` declares, such as a property, describes
             // the term it names.
             subject = try self.term(type(of: term).key)
         } else if let addition = description as? any Addition {
             switch addition.resource {
-            case .individual(let individual): subject = term(type(of: individual).key, ObjectIdentifier(individual))
-            case .class(let type): subject = term(type.classKey, ObjectIdentifier(type))
+            case .individual(let individual): subject = try term(type(of: individual).key, ObjectIdentifier(individual))
+            case .class(let type): subject = try term(type.classKey, ObjectIdentifier(type))
             case .literal(let literal):
                 throw EncodingError.invalidValue(literal, EncodingError.Context(
                     codingPath: [],
@@ -98,8 +98,11 @@ final class EncodedGraph {
 
     /// The IRI of a declared resource, or the blank node of a resource no
     /// declaration names.
-    private func term(_ key: TermKey?, _ identity: ObjectIdentifier) -> SubjectTerm {
-        if let key, let term = try? term(key) { return term }
+    ///
+    /// - Throws: `EncodingError.invalidValue` when the declared key does not
+    ///   give an IRI. A declared resource is never written as a blank node.
+    private func term(_ key: TermKey?, _ identity: ObjectIdentifier) throws -> SubjectTerm {
+        if let key { return try term(key) }
         if let node = blankNodes[identity] { return .blankNode(node) }
         let node = try! BlankNode("b\(blankNodes.count)")  // never empty
         blankNodes[identity] = node
@@ -107,7 +110,10 @@ final class EncodedGraph {
     }
 
     /// A value in object position. A blank node it reaches is described too.
-    func object(_ value: Value) -> ObjectTerm {
+    ///
+    /// - Throws: `EncodingError.invalidValue` when a declared key does not
+    ///   give an IRI.
+    func object(_ value: Value) throws -> ObjectTerm {
         switch value {
         case .literal(let literal):
             return .literal(literal)
@@ -115,11 +121,11 @@ final class EncodedGraph {
             let identity = ObjectIdentifier(individual)
             let key = type(of: individual).key
             if key == nil, !described.contains(identity) { undescribed.append(individual) }
-            return term(key, identity).object
+            return try term(key, identity).object
         case .class(let type):
             let identity = ObjectIdentifier(type)
             if type.classKey == nil, !described.contains(identity) { undescribed.append(ClassDescription(type)) }
-            return term(type.classKey, identity).object
+            return try term(type.classKey, identity).object
         }
     }
 }
@@ -173,9 +179,9 @@ struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
         }
         let object: ObjectTerm
         if let value = value as? Value {
-            object = graph.object(value)
+            object = try graph.object(value)
         } else if let resource = value as? any Resource {
-            object = graph.object(.individual(resource))
+            object = try graph.object(.individual(resource))
         } else if let literal = value as? Literal {
             object = .literal(literal)
         } else {

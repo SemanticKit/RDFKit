@@ -70,16 +70,6 @@ struct RDFKitTests {
     /// each keeps its values in an ``RDFCore/IndividualStorage``, and each
     /// encodes through the same encoder.
     @Test func dslAndTranslatedIndividualsEncodeTheSameWay() throws {
-        let frank = ClubMembers().frank
-        frank.name = ["Frank"]
-        frank.joined = [try Literal("2026", datatype: "http://www.w3.org/2001/XMLSchema#gYear")]
-        let person = ClubMembers().erin
-        person.name = ["Erin"]
-        frank.knows = [person]
-        let stored: [any RDFCore.PropertyValueStoring] = [frank, person]
-        #expect(stored.count == 2)
-
-        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([frank, person]))
         let expected = try TurtleDecoder().decode("""
             @prefix foaf: <http://xmlns.com/foaf/0.1/> .
             @prefix club: <https://club.example.org/#> .
@@ -87,6 +77,21 @@ struct RDFKitTests {
             club:frank a club:Member ; foaf:name "Frank" ; club:joined "2026"^^xsd:gYear ; foaf:knows club:erin .
             club:erin a foaf:Person ; foaf:name "Erin" .
             """)
+        let frank = ClubMembers().frank
+        frank.name = ["Frank"]
+        // The typed literal comes from the document, decoded at the boundary.
+        frank.joined = expected.compactMap { triple in
+            guard triple.predicate == IRI(Club.joined.key), case .literal(let literal) = triple.object else { return nil }
+            return literal
+        }
+        #expect(frank.joined.count == 1)
+        let person = ClubMembers().erin
+        person.name = ["Erin"]
+        frank.knows = [person]
+        let stored: [any RDFCore.PropertyValueStoring] = [frank, person]
+        #expect(stored.count == 2)
+
+        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([frank, person]))
         #expect(output == expected, "\(output)")
     }
 
@@ -105,6 +110,20 @@ struct RDFKitTests {
             club:grace a club:Member ; foaf:knows [ a club:Member ; foaf:name "Someone" ] .
             """)
         #expect(output.isIsomorphic(to: expected), "\(output)")
+    }
+
+    /// A declared individual is one individual: every value of the ontology
+    /// type gives the same instance.
+    @Test func declaredIndividualsAreOneInstance() {
+        #expect(ClubMembers().dave === ClubMembers().dave)
+    }
+
+    /// A declared individual whose key does not give an IRI is an encoding
+    /// error, in subject and in object position, never a blank node.
+    @Test func invalidDeclaredKeysAreEncodingErrors() throws {
+        let misnamed = MisnamedIndividual()
+        #expect(throws: EncodingError.self) { try GraphEncoder().encode(misnamed) }
+        #expect(throws: EncodingError.self) { try GraphEncoder().encode(Referrer(value: misnamed)) }
     }
 
     /// A DSL class writes its own description, as a translated class does.
@@ -156,7 +175,7 @@ struct RDFKitTests {
         prefix.label = ["FOAF"]
         let output = try GraphEncoder().encode(prefix)
         #expect(output.count == 3)
-        #expect(output.contains { $0.predicate == "http://semantickit.io/o/2026/06/rdfkit#id" && $0.object == .literal("foaf") })
+        #expect(output.contains { $0.predicate == IRI(RDFKit.id.key) && $0.object == .literal("foaf") })
     }
 
     /// Every individual, declared in the DSL, typed across vocabularies or
@@ -175,5 +194,21 @@ struct RDFKitTests {
         #expect(nTriples.isIsomorphic(to: graph))
         #expect(turtle.isIsomorphic(to: graph))
         #expect(rdfXML.isIsomorphic(to: graph))
+    }
+}
+
+/// An individual declared with a name that is not an IRI in its namespace.
+private final class MisnamedIndividual: RDFCore.Resource {
+    static var key: TermKey? { TermKey("my bob", in: Club.self) }
+    func encode(to encoder: any Encoder) throws {}
+}
+
+/// An undeclared individual whose one value is `value`.
+private final class Referrer: RDFCore.Resource {
+    let value: any RDFCore.Resource
+    init(value: any RDFCore.Resource) { self.value = value }
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: PropertyKey.self)
+        try container.encode([value], for: PropertyKey(FOAF.knowsValue.key))
     }
 }
