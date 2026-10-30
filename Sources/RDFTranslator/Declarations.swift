@@ -32,6 +32,17 @@ import RDFCore
 /// `foaf:title`. Between two resources both defined, or both not, the first
 /// in document order keeps the name. The other is private, reachable through
 /// the module's `ontology`.
+///
+/// A property's accessor on an individual is named by its local name. An
+/// individual of this module can conform to the storing protocols of every
+/// module below, and a Swift type has one member of a name: SHACL's
+/// `sh:value` cannot be `value` on an `sh:ValidationResult`, which is an
+/// `RDF.Resource` and so already has `rdf:value` as `value`. When a module
+/// below already names an accessor by the property's local name, the
+/// property's accessor is named by its module and its local name in lower
+/// camel case, as the Swift API Design Guidelines spell a compound name
+/// ("Follow case conventions"): `sh:value` is `shaclValue`, and `rdf:value`
+/// stays `value`.
 struct Declarations {
     var module: String
 
@@ -104,6 +115,7 @@ struct Declarations {
             taken.formUnion(derived + [name])
             names[node] = name
         }
+        let lowerMembers = lower.members
         for (index, node) in order.enumerated() {
             let handle = "resource \(index)"
             let name = names[node]
@@ -120,6 +132,9 @@ struct Declarations {
                         member = local
                     }
                     if Self.memberNames.contains(member) { member += "_" }
+                    if lowerMembers.contains(member) {
+                        member = module.lowerCamelCasePrefix + member.capitalizingFirstLetter
+                    }
                     properties[node] = PropertyDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle, member: member)
                 }
             }
@@ -341,6 +356,12 @@ struct Lower {
         return nil
     }
 
+    /// The names of the accessors these modules give individuals: those of
+    /// their public properties.
+    var members: Set<String> {
+        Set(modules.flatMap { $0.properties.values.filter(\.isPublic).map(\.member) })
+    }
+
     func requirements(of node: SubjectTerm) -> [SubjectTerm] {
         for module in modules {
             if let members = module.requirements[node] { return members }
@@ -382,6 +403,26 @@ extension String {
               !unicodeScalars.allSatisfy(\.properties.isWhitespace),
               !allSatisfy({ "/=-+!*%<>&|^~?.".contains($0) }) else { return false }
         return !unicodeScalars.contains { $0 == "`" || $0 == "\\" || $0.value < 0x20 || $0.value == 0x7F }
+    }
+
+    /// A module name as the first word of a lower camel case name: its
+    /// leading capitals lowercased, an initialism all together and the
+    /// capital that starts the next word kept (`SHACL` is `shacl`,
+    /// `RDFTranslatorTests` is `rdfTranslatorTests`), as the Swift API Design
+    /// Guidelines case initialisms.
+    var lowerCamelCasePrefix: String {
+        let capitals = prefix(while: \.isUppercase)
+        guard !capitals.isEmpty else { return self }
+        let rest = self[capitals.endIndex...]
+        let lowered = capitals.count > 1 && rest.first?.isLowercase == true ? capitals.dropLast() : capitals
+        return lowered.lowercased() + self[lowered.endIndex...]
+    }
+
+    /// The name with its first letter capitalized, as a later word of a
+    /// lower camel case name.
+    var capitalizingFirstLetter: String {
+        guard let first else { return self }
+        return first.uppercased() + dropFirst()
     }
 
     /// The name as an identifier, always in backticks, so keywords and names Swift's
