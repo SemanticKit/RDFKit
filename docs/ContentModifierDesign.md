@@ -1,6 +1,6 @@
 # ContentModifier Design
 
-## Pattern (like SwiftUI's ViewModifier)
+## Pattern (unlike SwiftUI's ViewModifier)
 
 In SwiftUI:
 ```swift
@@ -10,32 +10,31 @@ Text("Hello")
     .background(.blue)
 ```
 
-Each modifier is a method on the view that returns a modified view.
+Each modifier is a method on a view instance that returns a modified view. Setting a view's background makes sense: the view is an instance.
 
-For RDFKit, modifiers are methods on the target that return modified targets:
+An ontology declares types, and declared types are not modified. RDFKit has no content modifiers (`add*`, `isDeclaredBy`). Everything a declaration states goes inside its trailing closure, as DSL declaration forms, in the ontology's `var body`:
 ```swift
-Class("Foo")
-    .addLabel("Foo")
-    .addComment("Bar")
-    .deprecated()
-    .isDeclaredBy(namespace: OWL.namespace)
-```
-
-## Protocol
-
-`ContentModifier` — defines how NEW modifiers can be created externally.
-
-```swift
-protocol ContentModifier {
-    associatedtype Target
-    func apply(to target: Target) -> Target
+Class("Foo") {
+    Label("Foo")
+    Comment("Bar")
+    Deprecated("Use Baz.")
 }
 ```
 
+Each concept has three forms: RDF, DSL and Swift.
+
+| RDF | DSL | Swift |
+|---|---|---|
+| `owl:Class` | `Class("Foo")` | `class Foo { }` (a class can be a protocol) |
+| `owl:deprecated` | `Deprecated("reason")` | `@available` |
+| `rdfs:label`, `rdfs:comment` | `Label`, `Comment` | DocC documentation |
+
+The declaring ontology and namespace come from where the declaration is written (its `@Ontology` type and its `Namespace`), not from a modifier.
+
 ## Rules
 
-- Modifiers are methods on the target type (like SwiftUI)
-- `ContentModifier` protocol allows external code to define new modifiers
-- Modifiers return modified targets (not void)
-- Modifiers have zero knowledge of aggregation mechanics
-- Modifiers only decorate things they can apply to
+- A declaration's statements are declaration forms in its trailing closure, never methods chained on the declaration
+- `add*` methods are not used: they indicate type modification
+- `isDeclaredBy` is not used: the declaration's ontology is where it is written
+- `Deprecated("reason")` is a declaration form and generates `@available`
+- Declaration forms only state what applies to the declaration they are written in
