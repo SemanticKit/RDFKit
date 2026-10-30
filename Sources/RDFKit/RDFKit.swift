@@ -4,7 +4,7 @@
 import RDFCore
 
 @Ontology struct RDFKit: Ontology {
-    func content() -> Content {
+    var body: some Content {
         Namespace("http://semantickit.io/o/2026/06/rdfkit#")
 
 //        Prefix.rdf

@@ -1,4 +1,4 @@
-/// An ontology read from the `content()` of an `@Ontology` struct.
+/// An ontology read from the `var body` of an `@Ontology` struct.
 struct ParsedOntology {
     /// The name of the struct the macro is attached to, such as `Fauna`.
     let typeName: String

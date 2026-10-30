@@ -20,9 +20,9 @@ public struct Property: Declaration {
     )
 
     public let localName: String
-    public let content: Content
+    public let content: Entities
 
-    public init(_ localName: String, @ContentBuilder _ content: () -> Content) {
+    public init(_ localName: String, @ContentBuilder _ content: () -> Entities) {
         self.localName = localName
         self.content = content()
     }

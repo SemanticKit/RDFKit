@@ -21,7 +21,7 @@ Property("label") {
 
 `Resource` is an Entity. `label` is an Entity. They are all the same thing. The trailing closure of a declaration contains annotations — not Entities. Annotations describe what the declaration does. Properties declare their domain and range inside themselves.
 
-Entity instances are what you get when you call `ontology.content`. The content block is evaluated at runtime. Each DSL function call (Class, Property, etc.) returns an Entity instance. The content property returns an array of these Entity instances.
+Entity instances are what you get when you read `ontology.body` or `ontology.entities`. The body is evaluated at runtime. Each DSL function call (Class, Property, etc.) returns an Entity instance. The body returns these Entity instances in order.
 
 ## Metadata
 
