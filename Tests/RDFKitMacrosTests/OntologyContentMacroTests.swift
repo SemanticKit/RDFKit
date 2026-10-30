@@ -104,16 +104,10 @@ struct OntologyContentMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/Animal`` that an individual stores.
-                public struct AnimalValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Animal`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal, RDFCore.ClassValuesStoring {
+                /// An individual of ``Zoo/Animal`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol AnimalStoring: Zoo.Animal, RDFCore.PropertyValueStoring {
                 }
             }
             """,

@@ -126,3 +126,43 @@ struct ChainedOntologyTests {
         #expect(bob.nickname == ["Bobby"])
     }
 }
+
+/// A property with two domains: its subject is in both (RDFS, an intersection).
+@Ontology
+struct Teaching: Ontology {
+    var body: some Content {
+        Namespace("https://teaching.example.org/#")
+        Class("Teacher")
+        Class("Researcher")
+        Property("office") {
+            Domain(Teaching.Teacher)
+            Domain(Teaching.Researcher)
+            Range(RDFS.Literal)
+        }
+    }
+}
+
+/// An individual in both domains, declared in another ontology.
+@Ontology
+struct Faculty: Ontology {
+    var body: some Content {
+        Namespace("https://faculty.example.org/#")
+        Individual("carol") {
+            Type(Teaching.Teacher)
+            Type(Teaching.Researcher)
+        }
+    }
+}
+
+@Suite("A property with two domains", .tags(.ontology, .generated))
+struct TwoDomainTests {
+    @Test("is one property of an individual in both domains")
+    func isOnePropertyInBothDomains() {
+        let teacher: any Teaching.Teacher = Faculty.carol
+        let researcher: any Teaching.Researcher = Faculty.carol
+        teacher.office = ["B12"]
+        #expect(researcher.office == ["B12"])
+        researcher.office.append("Lab 3")
+        #expect(teacher.office == ["B12", "Lab 3"])
+    }
+}

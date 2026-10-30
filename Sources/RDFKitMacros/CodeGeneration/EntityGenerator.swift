@@ -50,7 +50,7 @@ struct EntityGenerator {
             case .value:
                 sources = [valueType(declaration)]
             case .propertyTerm:
-                sources = [propertyTerm(declaration)]
+                sources = [propertyTerm(declaration)] + propertyStoring(declaration)
             case .individual:
                 sources = namedIndividual(declaration)
             }
@@ -115,63 +115,94 @@ struct EntityGenerator {
         return [protocolSource, individual] + storingSources
     }
 
-    /// The values struct and storing protocol of a class, by which an
-    /// individual declared in another ontology or module that is typed with
-    /// the class stores the class's property values.
+    /// The storing protocol of a class, by which an individual declared in
+    /// another ontology or module that is typed with the class stores the
+    /// class's property values.
     ///
-    /// `Fauna.AnimalValues` holds the values of the class's own properties,
-    /// those whose domain is the class. `Fauna.AnimalStoring` refines the
-    /// class protocol and the storing protocols of its superclasses, whichever
-    /// ontology declares them, and restates the class's own requirements.
-    /// `@IndividualStoring` gives those requirements their accessors through
-    /// ``RDFCore/ClassValuesStoring/withClassValues(_:)``. Each property is
-    /// supplied by the storing protocol of its own class only, so an
-    /// individual in two classes that share a superclass stores the
-    /// superclass's properties once.
+    /// `Fauna.AnimalStoring` refines the class protocol, the storing
+    /// protocols of the properties in its domain, and the storing protocols
+    /// of its superclasses, whichever ontology declares them. Each property's
+    /// accessors come from that property's own storing protocol, so a
+    /// property is supplied once however many of its domains, or of their
+    /// subclasses, an individual is in.
     private func storing(_ declaration: ParsedEntity) -> [String] {
         let base = SwiftIdentifier.sanitized(declaration.name)
         let names = StoringNames(className: base)
-        for taken in [names.values, names.storing] where ontology.declaration(named: taken) != nil {
+        if ontology.declaration(named: names.storing) != nil {
+            context.diagnose(Diagnostic(
+                node: declaration.syntax,
+                message: OntologyDiagnostic.individualTypeCollides(name: names.storing, className: declaration.name)
+            ))
+            return []
+        }
+        var refinements = ["\(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name))"]
+        for requirement in model.ownRequirements(of: declaration.name) {
+            let storing = "\(ontology.typeName).\(StoringNames(className: SwiftIdentifier.sanitized(requirement.declaration.name)).storing)"
+            if !refinements.contains(storing) { refinements.append(storing) }
+        }
+        for spelling in model.refinements(of: declaration.name) {
+            let storing = BootstrapTerm.isResource(ontology.canonical(spelling))
+                ? "RDFCore.PropertyValueStoring"
+                : StoringNames(qualifiedClass: spelling).qualifiedStoring
+            if !refinements.contains(storing) { refinements.append(storing) }
+        }
+        return ["""
+        /// An individual of ``\(ontology.typeName)/\(base)`` that stores its property values in
+        /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+        /// individual of another ontology typed with the class conforms to it.
+        public protocol \(names.storing): \(refinements.joined(separator: ", ")) {}
+        """]
+    }
+
+    /// The value struct and storing protocol of a property that is a
+    /// requirement of a class: `Fauna.hasHabitatValue` holds its values, and
+    /// `Fauna.hasHabitatStoring` restates the requirement, to which
+    /// `@IndividualStoring` gives accessors through
+    /// ``RDFCore/PropertyValueStoring/withPropertyValue(_:)``. The storing
+    /// protocol of every domain of the property refines it, so the property
+    /// is one property, supplied once.
+    private func propertyStoring(_ declaration: ParsedEntity) -> [String] {
+        let hasDomainClass = declaration.terms("Domain").contains { spelling in
+            guard let name = ontology.resolve(spelling).localName else { return false }
+            return model.shape(of: name) == .classProtocol
+        }
+        guard hasDomainClass else { return [] }
+        let names = StoringNames(className: SwiftIdentifier.sanitized(declaration.name))
+        for taken in [names.value, names.storing] where ontology.declaration(named: taken) != nil {
             context.diagnose(Diagnostic(
                 node: declaration.syntax,
                 message: OntologyDiagnostic.individualTypeCollides(name: taken, className: declaration.name)
             ))
             return []
         }
-        let qualified = "\(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name))"
-        let requirements = model.ownRequirements(of: declaration.name)
-        let fields = requirements.map { "    public var \($0.name): \($0.declaredType) = \($0.emptyValue)" }.joined(separator: "\n")
-        let values = """
-        /// The values of the properties of ``\(ontology.typeName)/\(base)`` that an individual stores.
-        public struct \(names.values): RDFCore.ClassValues {
-        \(fields.isEmpty ? "" : fields + "\n\n")    public init() {}
-        }
-        """
-        var refinements = [qualified]
-        for spelling in model.refinements(of: declaration.name) {
-            let storing = BootstrapTerm.isResource(ontology.canonical(spelling))
-                ? "RDFCore.ClassValuesStoring"
-                : StoringNames(qualifiedClass: spelling).qualifiedStoring
-            if !refinements.contains(storing) { refinements.append(storing) }
-        }
-        let restated = requirements.map { "    var \($0.name): \($0.declaredType) { get set }" }.joined(separator: "\n")
-        let storingSource = """
-        /// An individual of ``\(ontology.typeName)/\(base)`` that stores the values of its
-        /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-        /// An individual of another ontology typed with the class conforms to it.
-        @IndividualStoring
-        public protocol \(names.storing): \(refinements.joined(separator: ", ")) {\(restated.isEmpty ? "" : "\n" + restated + "\n")}
-        """
-        return [values, storingSource]
+        let requirement = model.requirement(for: declaration)
+        return [
+            """
+            /// The values of ``\(ontology.typeName)/\(names.className)`` that an individual stores.
+            public struct \(names.value): RDFCore.PropertyValue {
+                public var value: \(requirement.declaredType) = \(requirement.emptyValue)
+
+                public init() {}
+            }
+            """,
+            """
+            /// An individual that stores its value of ``\(ontology.typeName)/\(names.className)`` in an
+            /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
+            @IndividualStoring
+            public protocol \(names.storing): RDFCore.PropertyValueStoring {
+                var \(requirement.name): \(requirement.declaredType) { get set }
+            }
+            """,
+        ]
     }
 
     /// A named individual: a static constant, the one instance of a private
     /// final class that conforms to the storing protocol of each of its
     /// classes, whichever ontology declares them (`rdf:type` relates a
-    /// resource to any class, RDF 1.2 Semantics). The class keeps the values
-    /// of all its classes and their superclasses in one
-    /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``, so a
-    /// property it has through two of its classes is one property.
+    /// resource to any class, RDF 1.2 Semantics). The class keeps the value
+    /// of every property it has in one ``RDFCore/IndividualStorage`` of
+    /// ``RDFCore/IndividualValues``, so a property it has through several of
+    /// its classes is one property.
     private func namedIndividual(_ declaration: ParsedEntity) -> [String] {
         var classes: [String] = []
         var conformances: [String] = []
@@ -182,12 +213,12 @@ struct EntityGenerator {
             guard !classes.contains(qualified) else { continue }
             classes.append(qualified)
             conformances.append(BootstrapTerm.isResource(ontology.canonical(spelling))
-                ? "RDFCore.ClassValuesStoring"
+                ? "RDFCore.PropertyValueStoring"
                 : StoringNames(qualifiedClass: qualified).qualifiedStoring)
         }
         if classes.isEmpty {
             classes = ["RDFCore.Resource"]
-            conformances = ["RDFCore.ClassValuesStoring"]
+            conformances = ["RDFCore.PropertyValueStoring"]
         }
 
         let name = SwiftIdentifier.escaped(declaration.name)
@@ -203,9 +234,9 @@ struct EntityGenerator {
 
             fileprivate init() {}
 
-            /// Reads or changes this individual's values of one class under its lock.
-            fileprivate func withClassValues<Values: RDFCore.ClassValues, Result: Sendable>(_ body: (inout Values) -> Result) -> Result {
-                values.withLock { $0.withValues(body) }
+            /// Reads or changes this individual's value of one property under its lock.
+            fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
+                values.withLock { $0.withValue(body) }
             }
         }
         """
@@ -297,8 +328,9 @@ struct EntityGenerator {
     }
 }
 
-/// The names `@Ontology` gives a class's values struct and storing protocol:
-/// `AnimalValues`, `AnimalStoring`.
+/// The names `@Ontology` gives a class's storing protocol, `AnimalStoring`,
+/// and a property's value struct and storing protocol, `hasHabitatValue`,
+/// `hasHabitatStoring`.
 struct StoringNames {
     /// The qualified class, `Fauna.Animal`, when it is named from another ontology.
     let qualifier: String?
@@ -316,9 +348,8 @@ struct StoringNames {
         className = SwiftIdentifier.sanitized(components.last.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "`")) } ?? qualifiedClass)
     }
 
-    var values: String { className + "Values" }
+    var value: String { className + "Value" }
     var storing: String { className + "Storing" }
-    var qualifiedValues: String { qualified(values) }
     var qualifiedStoring: String { qualified(storing) }
 
     private func qualified(_ name: String) -> String {

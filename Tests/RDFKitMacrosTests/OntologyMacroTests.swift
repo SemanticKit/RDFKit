@@ -100,22 +100,10 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/Animal`` that an individual stores.
-                public struct AnimalValues: RDFCore.ClassValues {
-                    public var name: String? = nil
-
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Animal`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal, RDFCore.ClassValuesStoring {
-                    var name: String? {
-                        get
-                        set
-                    }
+                /// An individual of ``Zoo/Animal`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol AnimalStoring: Zoo.Animal, Zoo.nameStoring, RDFCore.PropertyValueStoring {
                 }
 
                 public protocol Keeper: Zoo.Animal {
@@ -168,22 +156,10 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/Keeper`` that an individual stores.
-                public struct KeeperValues: RDFCore.ClassValues {
-                    public var feeds: [any Zoo.Animal] = []
-
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Keeper`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol KeeperStoring: Zoo.Keeper, Zoo.AnimalStoring {
-                    var feeds: [any Zoo.Animal] {
-                        get
-                        set
-                    }
+                /// An individual of ``Zoo/Keeper`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol KeeperStoring: Zoo.Keeper, Zoo.feedsStoring, Zoo.AnimalStoring {
                 }
 
                 public static let rex: any Zoo.Keeper = _rexIndividual()
@@ -196,10 +172,10 @@ struct OntologyMacroTests {
                     fileprivate init() {
                     }
 
-                    /// Reads or changes this individual's values of one class under its lock.
-                    fileprivate func withClassValues<Values: RDFCore.ClassValues, Result: Sendable>(_ body: (inout Values) -> Result) -> Result {
+                    /// Reads or changes this individual's value of one property under its lock.
+                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
                         values.withLock {
-                            $0.withValues(body)
+                            $0.withValue(body)
                         }
                     }
                 }
@@ -214,6 +190,23 @@ struct OntologyMacroTests {
                     public typealias Range = any Zoo.Animal
                 }
 
+                /// The values of ``Zoo/feeds`` that an individual stores.
+                public struct feedsValue: RDFCore.PropertyValue {
+                    public var value: [any Zoo.Animal] = []
+
+                    public init() {
+                    }
+                }
+
+                /// An individual that stores its value of ``Zoo/feeds`` in an
+                /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
+                public protocol feedsStoring: RDFCore.PropertyValueStoring {
+                    var feeds: [any Zoo.Animal] {
+                        get
+                        set
+                    }
+                }
+
                 public struct name: RDFCore.Entity {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#name", name: "name")
 
@@ -223,33 +216,50 @@ struct OntologyMacroTests {
                     /// The type of this property's values.
                     public typealias Range = String
                 }
+
+                /// The values of ``Zoo/name`` that an individual stores.
+                public struct nameValue: RDFCore.PropertyValue {
+                    public var value: String? = nil
+
+                    public init() {
+                    }
+                }
+
+                /// An individual that stores its value of ``Zoo/name`` in an
+                /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
+                public protocol nameStoring: RDFCore.PropertyValueStoring {
+                    var name: String? {
+                        get
+                        set
+                    }
+                }
             }
 
-            extension AnimalStoring {
-                public var name: String? {
+            extension feedsStoring {
+                public var feeds: [any Zoo.Animal] {
                     get {
-                        withClassValues { (values: inout AnimalValues) in
-                            values.name
+                        withPropertyValue { (stored: inout feedsValue) in
+                            stored.value
                         }
                     }
                     set {
-                        withClassValues { (values: inout AnimalValues) in
-                            values.name = newValue
+                        withPropertyValue { (stored: inout feedsValue) in
+                            stored.value = newValue
                         }
                     }
                 }
             }
 
-            extension KeeperStoring {
-                public var feeds: [any Zoo.Animal] {
+            extension nameStoring {
+                public var name: String? {
                     get {
-                        withClassValues { (values: inout KeeperValues) in
-                            values.feeds
+                        withPropertyValue { (stored: inout nameValue) in
+                            stored.value
                         }
                     }
                     set {
-                        withClassValues { (values: inout KeeperValues) in
-                            values.feeds = newValue
+                        withPropertyValue { (stored: inout nameValue) in
+                            stored.value = newValue
                         }
                     }
                 }
@@ -319,16 +329,10 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/Keeper`` that an individual stores.
-                public struct KeeperValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Keeper`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol KeeperStoring: Zoo.Keeper, RDFCore.ClassValuesStoring {
+                /// An individual of ``Zoo/Keeper`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol KeeperStoring: Zoo.Keeper, RDFCore.PropertyValueStoring {
                 }
 
                 public protocol Vet: RDFCore.Resource {
@@ -349,16 +353,10 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/Vet`` that an individual stores.
-                public struct VetValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Vet`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol VetStoring: Zoo.Vet, RDFCore.ClassValuesStoring {
+                /// An individual of ``Zoo/Vet`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol VetStoring: Zoo.Vet, RDFCore.PropertyValueStoring {
                 }
 
                 public protocol KeeperVet: Zoo.Keeper, Zoo.Vet {
@@ -379,15 +377,9 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/KeeperVet`` that an individual stores.
-                public struct KeeperVetValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/KeeperVet`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
+                /// An individual of ``Zoo/KeeperVet`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
                 public protocol KeeperVetStoring: Zoo.KeeperVet, Zoo.KeeperStoring, Zoo.VetStoring {
                 }
 
@@ -401,10 +393,10 @@ struct OntologyMacroTests {
                     fileprivate init() {
                     }
 
-                    /// Reads or changes this individual's values of one class under its lock.
-                    fileprivate func withClassValues<Values: RDFCore.ClassValues, Result: Sendable>(_ body: (inout Values) -> Result) -> Result {
+                    /// Reads or changes this individual's value of one property under its lock.
+                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
                         values.withLock {
-                            $0.withValues(body)
+                            $0.withValue(body)
                         }
                     }
                 }
@@ -471,22 +463,10 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Units/Animal`` that an individual stores.
-                public struct AnimalValues: RDFCore.ClassValues {
-                    public var weight: Units.Kilograms? = nil
-
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Units/Animal`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Units.Animal, OWL.ThingStoring {
-                    var weight: Units.Kilograms? {
-                        get
-                        set
-                    }
+                /// An individual of ``Units/Animal`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol AnimalStoring: Units.Animal, Units.weightStoring, OWL.ThingStoring {
                 }
 
                 public struct weight: RDFCore.Entity {
@@ -498,18 +478,35 @@ struct OntologyMacroTests {
                     /// The type of this property's values.
                     public typealias Range = Units.Kilograms
                 }
+
+                /// The values of ``Units/weight`` that an individual stores.
+                public struct weightValue: RDFCore.PropertyValue {
+                    public var value: Units.Kilograms? = nil
+
+                    public init() {
+                    }
+                }
+
+                /// An individual that stores its value of ``Units/weight`` in an
+                /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
+                public protocol weightStoring: RDFCore.PropertyValueStoring {
+                    var weight: Units.Kilograms? {
+                        get
+                        set
+                    }
+                }
             }
 
-            extension AnimalStoring {
+            extension weightStoring {
                 public var weight: Units.Kilograms? {
                     get {
-                        withClassValues { (values: inout AnimalValues) in
-                            values.weight
+                        withPropertyValue { (stored: inout weightValue) in
+                            stored.value
                         }
                     }
                     set {
-                        withClassValues { (values: inout AnimalValues) in
-                            values.weight = newValue
+                        withPropertyValue { (stored: inout weightValue) in
+                            stored.value = newValue
                         }
                     }
                 }
@@ -565,30 +562,18 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``OWL/Thing`` that an individual stores.
-                public struct ThingValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``OWL/Thing`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol ThingStoring: OWL.Thing, RDFCore.ClassValuesStoring {
+                /// An individual of ``OWL/Thing`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol ThingStoring: OWL.Thing, RDFCore.PropertyValueStoring {
                 }
 
                 public protocol Nothing: OWL.Thing {
                 }
 
-                /// The values of the properties of ``OWL/Nothing`` that an individual stores.
-                public struct NothingValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``OWL/Nothing`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
+                /// An individual of ``OWL/Nothing`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
                 public protocol NothingStoring: OWL.Nothing, OWL.ThingStoring {
                 }
             }
@@ -652,31 +637,19 @@ struct OntologyMacroTests {
                 public protocol Animal: RDFCore.Resource {
                 }
 
-                /// The values of the properties of ``Zoo/Animal`` that an individual stores.
-                public struct AnimalValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Animal`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal, RDFCore.ClassValuesStoring {
+                /// An individual of ``Zoo/Animal`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol AnimalStoring: Zoo.Animal, RDFCore.PropertyValueStoring {
                 }
 
                 public protocol Keeper: RDFCore.Resource {
                 }
 
-                /// The values of the properties of ``Zoo/Keeper`` that an individual stores.
-                public struct KeeperValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/Keeper`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol KeeperStoring: Zoo.Keeper, RDFCore.ClassValuesStoring {
+                /// An individual of ``Zoo/Keeper`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol KeeperStoring: Zoo.Keeper, RDFCore.PropertyValueStoring {
                 }
 
                 public protocol AnimalIndividual: RDFCore.Resource {
@@ -697,16 +670,10 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// The values of the properties of ``Zoo/AnimalIndividual`` that an individual stores.
-                public struct AnimalIndividualValues: RDFCore.ClassValues {
-                    public init() {
-                    }
-                }
-
-                /// An individual of ``Zoo/AnimalIndividual`` that stores the values of its
-                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                /// An individual of another ontology typed with the class conforms to it.
-                public protocol AnimalIndividualStoring: Zoo.AnimalIndividual, RDFCore.ClassValuesStoring {
+                /// An individual of ``Zoo/AnimalIndividual`` that stores its property values in
+                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
+                /// individual of another ontology typed with the class conforms to it.
+                public protocol AnimalIndividualStoring: Zoo.AnimalIndividual, RDFCore.PropertyValueStoring {
                 }
 
                 public static let rex: any OWL.Thing = _rexIndividual()
@@ -719,10 +686,10 @@ struct OntologyMacroTests {
                     fileprivate init() {
                     }
 
-                    /// Reads or changes this individual's values of one class under its lock.
-                    fileprivate func withClassValues<Values: RDFCore.ClassValues, Result: Sendable>(_ body: (inout Values) -> Result) -> Result {
+                    /// Reads or changes this individual's value of one property under its lock.
+                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
                         values.withLock {
-                            $0.withValues(body)
+                            $0.withValue(body)
                         }
                     }
                 }
@@ -794,10 +761,10 @@ struct OntologyMacroTests {
                     fileprivate init() {
                     }
 
-                    /// Reads or changes this individual's values of one class under its lock.
-                    fileprivate func withClassValues<Values: RDFCore.ClassValues, Result: Sendable>(_ body: (inout Values) -> Result) -> Result {
+                    /// Reads or changes this individual's value of one property under its lock.
+                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
                         values.withLock {
-                            $0.withValues(body)
+                            $0.withValue(body)
                         }
                     }
                 }
