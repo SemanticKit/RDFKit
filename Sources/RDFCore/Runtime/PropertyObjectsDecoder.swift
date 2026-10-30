@@ -71,6 +71,22 @@ extension KeyedDecodingContainer where Key == PropertyKey {
     }
 }
 
+extension KeyedDecodingContainer where Key == PropertyKey {
+    /// Reads the values of a property whose range is a datatype with a
+    /// Swift value type, typed `Member`: the values of the literals that
+    /// type holds. The other literals are kept as they are
+    /// (``PropertyLiterals``). `datatype` is the class that stands for the
+    /// datatype, whose members are values, never individuals a decoder
+    /// makes.
+    ///
+    /// - Throws: `DecodingError.typeMismatch` for an object that is not a
+    ///   literal, and when the decoder is not an RDF decoder.
+    public func decode<Member: DatatypeValue>(_ type: [Member].Type, for property: PropertyKey, as datatype: (any ResourceClass.Type)?) throws -> [Member] {
+        let noClass: (any DecodableResource.Type)? = nil
+        return try decode(type, for: property, as: noClass)
+    }
+}
+
 extension Value {
     /// The value as a `Member`: the value itself, or what its case holds.
     fileprivate func member<Member>(_ type: Member.Type) -> Member? {
