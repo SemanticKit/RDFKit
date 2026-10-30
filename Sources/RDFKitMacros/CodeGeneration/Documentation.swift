@@ -1,6 +1,6 @@
 import Foundation
 
-/// DocC comments, `@available` attributes and metadata literals generated
+/// DocC comments, `@available` attributes and string literals generated
 /// from `Label`, `Comment` and `Deprecated`.
 enum Documentation {
     /// `/// ...` lines for a declaration's `Label` and `Comment`, one
@@ -22,17 +22,6 @@ enum Documentation {
             }
         }
         return result
-    }
-
-    /// The `RDFMetadata(...)` expression for a local term.
-    static func metadata(for declaration: ParsedEntity, in ontology: ParsedOntology) -> String {
-        var arguments = [
-            "id: \(literal(ontology.iri(of: declaration.name)))",
-            "name: \(literal(declaration.name))",
-        ]
-        if let label = declaration.text("Label") { arguments.append("label: \(literal(label))") }
-        if let comment = declaration.text("Comment") { arguments.append("comment: \(literal(comment))") }
-        return "RDFCore.RDFMetadata(\(arguments.joined(separator: ", ")))"
     }
 
     /// A single-line Swift string literal whose value is `value`.

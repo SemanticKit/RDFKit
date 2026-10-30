@@ -21,11 +21,11 @@ struct ServiceDescription: Ontology {
     }
 }
 
-/// An individual typed with that class, declared in another module's Swift:
-/// an instance of a class that conforms to the class's storing protocol.
+/// An individual typed with that class, made in another module's Swift: an
+/// instance of a class that conforms to the class's storing protocol. No
+/// declaration names it, so it is a blank node at the boundary.
 final class EntailmentRegime: ServiceDescription.EntailmentRegimeStoring {
     static let classes: [any ResourceClass.Type] = [ServiceDescription.EntailmentRegimeIndividual.self]
-    let iri: IRI? = "http://www.w3.org/ns/entailment/RDFS"
     let storage = IndividualStorage()
 }
 
@@ -88,11 +88,19 @@ struct Staff: Ontology {
 /// to the storing protocol of each.
 final class PersonAndEmployee: People.PersonStoring, Staff.EmployeeStoring {
     static let classes: [any ResourceClass.Type] = [People.PersonIndividual.self, Staff.EmployeeIndividual.self]
-    let iri: IRI?
     let storage = IndividualStorage()
+}
 
-    init(iri: IRI? = nil) {
-        self.iri = iri
+/// A named individual typed with both subclasses, declared in the DSL: its
+/// class conforms to the storing protocol of each.
+@Ontology
+struct Staffing: Ontology {
+    var body: some Content {
+        Namespace("https://people.example.org/#")
+        Individual("bob") {
+            Type(People.Person)
+            Type(Staff.Employee)
+        }
     }
 }
 
@@ -126,7 +134,7 @@ struct ChainedOntologyTests {
 
     @Test("An individual typed across vocabularies encodes each of its classes")
     func encodesEveryClass() throws {
-        let bob = PersonAndEmployee(iri: "https://people.example.org/#bob")
+        let bob = Staffing().bob
         bob.name = ["Bob"]
         bob.nickname = ["Bobby"]
         bob.badge = ["42"]
@@ -162,7 +170,6 @@ struct Teaching: Ontology {
 /// An individual in both domains.
 final class TeacherAndResearcher: Teaching.TeacherStoring, Teaching.ResearcherStoring {
     static let classes: [any ResourceClass.Type] = [Teaching.TeacherIndividual.self, Teaching.ResearcherIndividual.self]
-    let iri: IRI? = nil
     let storage = IndividualStorage()
 }
 

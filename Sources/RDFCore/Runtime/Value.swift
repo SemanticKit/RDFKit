@@ -1,5 +1,3 @@
-import IRIKit
-
 /// The value of a property whose range admits any resource
 /// (`rdfs:Resource`, or no range): an individual, a class or a literal
 /// (RDF 1.2 Concepts §3.1: an object is an IRI, a blank node, a literal or a
@@ -12,7 +10,7 @@ public enum Value: Sendable, Encodable {
     /// A literal.
     case literal(Literal)
 
-    /// Writes the value as the IRI that denotes it, or as its literal. An
+    /// Writes the value as the IRI its declared key gives, or as its literal. An
     /// encoder that writes RDF reads the case instead, and writes an
     /// individual or class without an IRI as a blank node.
     ///
@@ -20,18 +18,18 @@ public enum Value: Sendable, Encodable {
     ///   that is a blank node, which has no IRI to write.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
-        let iri: IRI?
+        let key: TermKey?
         switch self {
-        case .individual(let individual): iri = individual.iri
-        case .class(let type): iri = type.iri
+        case .individual(let individual): key = type(of: individual).key
+        case .class(let type): key = type.classKey
         case .literal(let literal): return try container.encode(literal)
         }
-        guard let iri else {
+        guard let key else {
             throw EncodingError.invalidValue(self, EncodingError.Context(
                 codingPath: encoder.codingPath,
                 debugDescription: "A blank node has no IRI; an RDF encoder writes it as a blank node."
             ))
         }
-        try container.encode(iri.rawValue)
+        try container.encode(key.stringValue)
     }
 }

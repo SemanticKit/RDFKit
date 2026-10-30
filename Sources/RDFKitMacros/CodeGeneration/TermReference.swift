@@ -40,12 +40,6 @@ extension ParsedOntology {
         case .external(let spelling): spelling
         }
     }
-
-    /// The boundary IRI of a local term: the namespace followed by the local
-    /// name, computed once here at expansion time and emitted as a literal.
-    func iri(of name: String) -> String {
-        namespace + name
-    }
 }
 
 enum SwiftIdentifier {

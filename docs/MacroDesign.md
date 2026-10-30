@@ -65,21 +65,24 @@ public protocol Animal: RDF.Resource {
 public protocol AnimalStoring: Fauna.Animal, Fauna.hasHabitatStoring, Fauna.nameStoring, RDF.ResourceStoring {}
 
 public final class AnimalIndividual: Fauna.AnimalStoring, RDFCore.ResourceClass {
-    public static let iri: IRIKit.IRI? = "https://fauna.example.org/ontology#Animal"
+    public static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Animal", in: Fauna.self)
     public typealias Member = any Fauna.Animal
-    public let iri: IRIKit.IRI?
     public let storage = RDFCore.IndividualStorage()
-    public init(iri: IRIKit.IRI? = nil) { self.iri = iri }
+    public init() {}
     public func encode(to encoder: any Encoder) throws { /* rdf:type, then the stored values */ }
     public static func encodeDescription(to encoder: any Encoder) throws { /* rdf:type rdfs:Class, rdfs:comment */ }
 }
 ```
 
+No generated type stores or declares an IRI. Each class, property and named individual carries its declared key, a `TermKey` of its declared name and its ontology, as type-level coding information, the way a `Codable` type carries its `CodingKeys`. The ontology gets `static let namespace` from its `Namespace` declaration, and an encoder derives each IRI from the key and that namespace when the value leaves the runtime. An individual made in Swift that no declaration names is a blank node at the boundary.
+
+An `Individual("lion") { Type(Fauna.Predator) }` in `var body` declares a named individual (`owl:NamedIndividual`, OWL 2 Structural Specification §5.6): the macro generates a final class that conforms to the storing protocol of each of its classes and carries its key, and an ontology member `lion` whose value is the one instance of that class.
+
 Code that uses the model reads as ordinary Swift:
 
 ```swift
 let savanna = Fauna.HabitatIndividual()
-let lion = Fauna.PredatorIndividual(iri: "https://fauna.example.org/lion")
+let lion = Fauna().lion            // Individual("lion") { Type(Fauna.Predator) }
 let zebra = Fauna.AnimalIndividual()
 lion.hasHabitat = [savanna]
 lion.preysOn = [zebra]

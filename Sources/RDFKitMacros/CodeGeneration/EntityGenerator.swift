@@ -23,10 +23,15 @@ import SwiftSyntaxMacros
 ///   values in an individual's ``RDFCore/IndividualStorage``.
 /// - The ontology type gets `ontology`, the descriptions of its terms, the
 ///   way back to RDF, as a translated module has.
+/// - An `Individual` (`owl:NamedIndividual`) becomes a final class that
+///   conforms to the storing protocol of each class its `Type` gives and
+///   carries the individual's declared key, and an ontology member whose
+///   value is the one instance of that class.
 ///
-/// Each generated type's IRI is computed here from the namespace and emitted
-/// as a literal, for the boundary only. Generated code never builds an
-/// identity at runtime.
+/// No generated type holds an IRI. Each carries its declared key, its
+/// declared name in the ontology (the ``RDFCore/Vocabulary`` whose
+/// `namespace` the `Namespace` declaration gives), and an encoder derives the
+/// IRI from it at the boundary.
 struct EntityGenerator {
     let model: OntologyModel
     let context: any MacroExpansionContext
@@ -57,10 +62,18 @@ struct EntityGenerator {
             case .property:
                 sources = propertyDeclarations(declaration)
                 descriptions.append("\(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name))()")
+            case .individual:
+                sources = individualDeclarations(declaration)
+                if !sources.isEmpty { descriptions.append(SwiftIdentifier.escaped(declaration.name)) }
             }
             return sources.map { DeclSyntax(stringLiteral: $0) }
         }
-        return members + [DeclSyntax(stringLiteral: ontologyDescriptions(descriptions))]
+        let namespace = DeclSyntax(stringLiteral: """
+            /// The namespace this ontology's terms are declared in, from which an
+            /// encoder derives each term's IRI.
+            \(access)static let namespace = \(Documentation.literal(ontology.namespace))
+            """)
+        return members + [DeclSyntax(stringLiteral: ontologyDescriptions(descriptions)), namespace]
     }
 
     /// `ontology`: the description of every term the ontology declares, the
@@ -139,21 +152,17 @@ struct EntityGenerator {
         let qualifiedIndividual = "\(ontology.typeName).\(names.individual)"
         let individualSource = """
         \(Documentation.docComment(for: declaration))\(access)final class \(names.individual): \(ontology.typeName).\(names.storing), RDFCore.ResourceClass {
-            \(memberAccess)static let iri: IRIKit.IRI? = \(Documentation.literal(ontology.iri(of: declaration.name)))
+            \(memberAccess)static let classKey: RDFCore.TermKey? = \(key(of: declaration))
 
             \(memberAccess)static let classes: [any RDFCore.ResourceClass.Type] = [\(qualifiedIndividual).self]
 
             /// A member of the class as a property value.
             \(memberAccess)typealias Member = \(model.memberType(ofClass: declaration.name))
 
-            \(memberAccess)let iri: IRIKit.IRI?
-
             \(memberAccess)let storage = RDFCore.IndividualStorage()
 
-            /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
-            \(memberAccess)init(iri: IRIKit.IRI? = nil) {
-                self.iri = iri
-            }
+            /// A member of the class that no declaration names: a blank node at the boundary.
+            \(memberAccess)init() {}
 
             \(memberAccess)static func encodeDescription(to encoder: any Encoder) throws {
         \(description(of: declaration, indent: "        "))
@@ -161,6 +170,11 @@ struct EntityGenerator {
         }
         """
         return [protocolSource, storingSource, individualSource]
+    }
+
+    /// The declared key of a term this ontology declares.
+    private func key(of declaration: ParsedEntity) -> String {
+        "RDFCore.TermKey(\(Documentation.literal(declaration.name)), in: \(ontology.typeName).self)"
     }
 
     /// `public ` for members of a public or package ontology's types, which
@@ -189,9 +203,25 @@ struct EntityGenerator {
                 lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property)))")
             }
         }
-        let documents = declaration.annotations("SeeAlso").compactMap(\.text)
-        if !documents.isEmpty {
-            lines.append("try container.encode([\(documents.map { "RDF.ResourceIndividual(iri: \(Documentation.literal($0)))" }.joined(separator: ", "))] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso))")
+        // A document `SeeAlso` names is a resource outside the runtime,
+        // dereferenced by its IRI: its declared key is the document's IRI as
+        // a namespace with no local name.
+        for (index, document) in declaration.annotations("SeeAlso").compactMap(\.text).enumerated() {
+            lines += [
+                "struct SeeAlsoNamespace\(index): RDFCore.Vocabulary {",
+                "    static var namespace: String {",
+                "        \(Documentation.literal(document))",
+                "    }",
+                "}",
+                "final class SeeAlsoDocument\(index): RDFCore.Resource {",
+                "    static var key: RDFCore.TermKey? {",
+                "        RDFCore.TermKey(\"\", in: SeeAlsoNamespace\(index).self)",
+                "    }",
+                "    func encode(to encoder: any Encoder) throws {",
+                "    }",
+                "}",
+            ]
+            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso))")
         }
         if !declaration.annotations("Deprecated").isEmpty {
             lines.append("try container.encode([try RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecated))")
@@ -199,6 +229,42 @@ struct EntityGenerator {
         guard !lines.isEmpty else { return "\(indent)_ = encoder.container(keyedBy: RDFCore.PropertyKey.self)" }
         return (["var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)"] + lines)
             .map { indent + $0 }.joined(separator: "\n")
+    }
+
+    // MARK: - Individuals
+
+    /// The class of a named individual, which conforms to the storing
+    /// protocol of each of its classes (ClassAssertion, OWL 2 Structural
+    /// Specification §9.6.1) and carries its declared key, and the ontology
+    /// member whose value is the individual.
+    private func individualDeclarations(_ declaration: ParsedEntity) -> [String] {
+        let name = SwiftIdentifier.escaped(declaration.name)
+        let className = ClassNames(className: SwiftIdentifier.sanitized(declaration.name)).individual
+        guard !collides([className], with: declaration) else { return [] }
+        let classes = declaration.terms("Type").map { ClassNames(qualifiedClass: ontology.spelling(of: ontology.resolve($0))) }
+        let conformances = classes.map(\.qualifiedStoring) + ["RDFCore.PropertyValueStoring"]
+        return [
+            """
+            \(Documentation.docComment(for: declaration))\(access)var \(name): \(ontology.typeName).\(className) {
+                \(ontology.typeName).\(className).individual
+            }
+            """,
+            """
+            /// The class of the named individual ``\(ontology.typeName)/\(declaration.name)``.
+            \(access)final class \(className): \(conformances.joined(separator: ", ")) {
+                \(memberAccess)static let key: RDFCore.TermKey? = \(key(of: declaration))
+
+                \(memberAccess)static let classes: [any RDFCore.ResourceClass.Type] = [\(classes.map { $0.qualifiedIndividual + ".self" }.joined(separator: ", "))]
+
+                \(memberAccess)let storage = RDFCore.IndividualStorage()
+
+                /// The individual, the one instance of its class.
+                static let individual = \(ontology.typeName).\(className)()
+
+                private init() {}
+            }
+            """,
+        ]
     }
 
     // MARK: - Properties
@@ -213,7 +279,7 @@ struct EntityGenerator {
         let name = SwiftIdentifier.escaped(declaration.name)
         let term = """
         \(Documentation.docComment(for: declaration))\(access)struct \(name): RDFCore.PropertyTerm {
-            \(memberAccess)static let metadata: any RDFCore.ContentMetadata = \(Documentation.metadata(for: declaration, in: ontology))
+            \(memberAccess)static let key = \(key(of: declaration))
 
             /// The property's description, which ``\(ontology.typeName)/ontology`` lists.
             \(memberAccess)init() {}
@@ -238,7 +304,7 @@ struct EntityGenerator {
 
                 \(memberAccess)func encode(to encoder: any Encoder) throws {
                     var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                    try container.encode(value, for: RDFCore.PropertyKey(\(ontology.typeName).\(name).metadata))
+                    try container.encode(value, for: RDFCore.PropertyKey(\(ontology.typeName).\(name).key))
                 }
             }
             """,

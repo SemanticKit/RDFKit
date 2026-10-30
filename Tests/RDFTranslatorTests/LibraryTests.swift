@@ -16,16 +16,20 @@ struct LibraryTests {
         #expect(!((gazette as AnyObject) is any Book))
     }
 
-    /// `:almanac a :Annual`: the individual is an instance of the Swift
-    /// class of its class, and an individual made in Swift is one too.
+    /// `:almanac a :Annual`: the named individual is a member of its class,
+    /// and an individual made in Swift is an instance of the class's Swift
+    /// class. No declaration names the one made in Swift, so it is a blank
+    /// node at the boundary.
     @Test func individualsAreInstancesOfTheirClass() throws {
-        #expect(type(of: almanac) == AnnualIndividual.self)
-        let reprint = BookIndividual(iri: "https://library.example/vocabulary#reprint")
+        #expect((almanac as AnyObject) is any Annual)
+        let reprint = BookIndividual()
         reprint.cites = [almanac]
         reprint.title = ["Almanac, reprint"]
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([reprint]))
         #expect(output.count == 3)
+        #expect(output.allSatisfy { if case .blankNode = $0.subject { true } else { false } })
         #expect(output.contains { $0.predicate.rawValue == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && $0.object == .iri("https://library.example/vocabulary#Book") })
+        #expect(output.contains { $0.object == .iri("https://library.example/vocabulary#almanac") })
     }
 
     /// Values that are individuals are the individuals themselves, cycles

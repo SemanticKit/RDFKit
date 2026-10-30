@@ -1,5 +1,3 @@
-import IRIKit
-
 /// A resource: an individual, the Swift object that is the thing an RDF
 /// description or a DSL declaration describes.
 ///
@@ -19,10 +17,18 @@ import IRIKit
 /// conformance writes them, keyed by their properties, and an encoder turns
 /// them into triples at the boundary.
 public protocol Resource: AnyObject, Description {
-    /// The IRI that denotes the individual, or `nil` for a blank node.
+    /// The declared key of the named individual this Swift class is the class
+    /// of, or `nil` for an individual no declaration names, which an encoder
+    /// writes as a blank node.
     ///
-    /// It is read only where the individual leaves the runtime, when an
-    /// encoder writes it as a document; inside the runtime the object is
-    /// the individual.
-    var iri: IRI? { get }
+    /// A named individual (`Individual("tweety")` in the DSL, `:alice` in
+    /// translated RDF) gets a Swift class of its own that carries its key as
+    /// type-level coding information, as a `Codable` type carries its
+    /// `CodingKeys`. The instance holds no IRI.
+    static var key: TermKey? { get }
+}
+
+extension Resource {
+    /// No declaration names an individual made in Swift: it is a blank node.
+    public static var key: TermKey? { nil }
 }

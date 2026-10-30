@@ -33,14 +33,29 @@ struct Club: Ontology {
     }
 }
 
+/// The club's members: named individuals (`owl:NamedIndividual`) of the
+/// club's and FOAF's classes, declared in the DSL.
+@Ontology
+struct ClubMembers: Ontology {
+    var body: some Content {
+        Namespace("https://club.example.org/#")
+        Individual("carol") { Type(Club.Member) }
+        Individual("dave") { Type(Club.Member) }
+        Individual("frank") { Type(Club.Member) }
+        Individual("erin") { Type(FOAF.Person) }
+        Individual("grace") { Type(Club.Member) }
+        Individual("heidi") { Type(Club.Member) }
+    }
+}
+
 @Suite("One runtime for the DSL and the translator", .tags(.ontology, .generated))
 struct RDFKitTests {
     /// `Club.Member rdfs:subClassOf foaf:Person`: a member of the DSL class is
     /// a member of the translated class, with its properties, and its
     /// values are the individuals themselves.
     @Test func dslClassesRefineTranslatedClasses() {
-        let carol = Club.MemberIndividual(iri: "https://club.example.org/#carol")
-        let dave = Club.MemberIndividual(iri: "https://club.example.org/#dave")
+        let carol = ClubMembers().carol
+        let dave = ClubMembers().dave
         carol.name = ["Carol"]
         carol.knows = [dave]
         carol.sponsor = [dave]
@@ -55,38 +70,39 @@ struct RDFKitTests {
     /// each keeps its values in an ``RDFCore/IndividualStorage``, and each
     /// encodes through the same encoder.
     @Test func dslAndTranslatedIndividualsEncodeTheSameWay() throws {
-        let carol = Club.MemberIndividual(iri: "https://club.example.org/#carol")
-        carol.name = ["Carol"]
-        carol.joined = [try Literal("2026", datatype: "http://www.w3.org/2001/XMLSchema#gYear")]
-        let person = FOAF.PersonIndividual(iri: "https://club.example.org/#erin")
+        let frank = ClubMembers().frank
+        frank.name = ["Frank"]
+        frank.joined = [try Literal("2026", datatype: "http://www.w3.org/2001/XMLSchema#gYear")]
+        let person = ClubMembers().erin
         person.name = ["Erin"]
-        carol.knows = [person]
-        let stored: [any RDFCore.PropertyValueStoring] = [carol, person]
+        frank.knows = [person]
+        let stored: [any RDFCore.PropertyValueStoring] = [frank, person]
         #expect(stored.count == 2)
 
-        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([carol, person]))
+        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([frank, person]))
         let expected = try TurtleDecoder().decode("""
             @prefix foaf: <http://xmlns.com/foaf/0.1/> .
             @prefix club: <https://club.example.org/#> .
             @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-            club:carol a club:Member ; foaf:name "Carol" ; club:joined "2026"^^xsd:gYear ; foaf:knows club:erin .
+            club:frank a club:Member ; foaf:name "Frank" ; club:joined "2026"^^xsd:gYear ; foaf:knows club:erin .
             club:erin a foaf:Person ; foaf:name "Erin" .
             """)
         #expect(output == expected, "\(output)")
     }
 
-    /// An individual with no IRI is a blank node at the boundary: the encoder
-    /// gives it one, and describes it where it is reached.
-    @Test func individualsWithoutIRIAreBlankNodes() throws {
-        let carol = Club.MemberIndividual(iri: "https://club.example.org/#carol")
+    /// An individual made in Swift that no declaration names is a blank node
+    /// at the boundary: the encoder gives it one, and describes it where it
+    /// is reached.
+    @Test func undeclaredIndividualsAreBlankNodes() throws {
+        let grace = ClubMembers().grace
         let anonymous = Club.MemberIndividual()
         anonymous.name = ["Someone"]
-        carol.knows = [anonymous]
-        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([carol]))
+        grace.knows = [anonymous]
+        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([grace]))
         let expected = try TurtleDecoder().decode("""
             @prefix foaf: <http://xmlns.com/foaf/0.1/> .
             @prefix club: <https://club.example.org/#> .
-            club:carol a club:Member ; foaf:knows [ a club:Member ; foaf:name "Someone" ] .
+            club:grace a club:Member ; foaf:knows [ a club:Member ; foaf:name "Someone" ] .
             """)
         #expect(output.isIsomorphic(to: expected), "\(output)")
     }
@@ -147,10 +163,10 @@ struct RDFKitTests {
     /// translated from RDF, encodes through each format's encoder, and the
     /// documents decode to the same graph.
     @Test func everyIndividualEncodesThroughEveryFormat() throws {
-        let carol = Club.MemberIndividual(iri: "https://club.example.org/#carol")
-        carol.name = ["Carol"]
-        carol.knows = [FOAF.PersonIndividual()]
-        let individuals: [any RDFCore.Description] = [carol, alice, bob]
+        let heidi = ClubMembers().heidi
+        heidi.name = ["Heidi"]
+        heidi.knows = [FOAF.PersonIndividual()]
+        let individuals: [any RDFCore.Description] = [heidi, alice, bob]
         let graph = try GraphEncoder().encode(individuals)
         let nTriples = try NTriplesDecoder().decode(try NTriplesEncoder().encode(individuals))
         let turtle = try TurtleDecoder().decode(try TurtleEncoder().encode(individuals))

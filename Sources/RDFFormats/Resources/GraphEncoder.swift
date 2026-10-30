@@ -8,8 +8,9 @@ import RDFCore
 /// (a ``RDFCore/Resource``, declared in the DSL or translated from RDF), a
 /// class, or the resource an ``RDFCore/Addition`` refers to. Its values are
 /// typed Swift values; this is where they become RDF terms. A resource in
-/// object position is written as its IRI; one without an IRI is a blank
-/// node, which is described too, once, since nothing outside the graph can
+/// object position is written as the IRI its declared key gives (its
+/// declared name in its vocabulary's namespace); one no declaration names is
+/// a blank node, which is described too, once, since nothing outside the graph can
 /// name it (RDF 1.2 Concepts §3.5: "Blank nodes are disjoint from IRIs and
 /// literals").
 ///
@@ -55,18 +56,18 @@ final class EncodedGraph {
         let subject: SubjectTerm
         if let individual = description as? any Resource {
             guard described.insert(ObjectIdentifier(individual)).inserted else { return }
-            subject = term(individual.iri, ObjectIdentifier(individual))
+            subject = term(type(of: individual).key, ObjectIdentifier(individual))
         } else if let description = description as? ClassDescription {
             guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
-            subject = term(description.class.iri, ObjectIdentifier(description.class))
+            subject = term(description.class.classKey, ObjectIdentifier(description.class))
         } else if let term = description as? any PropertyTerm {
             // A term type `@Ontology` declares, such as a property, describes
             // the term it names.
-            subject = .iri(type(of: term).metadata.id)
+            subject = try self.term(type(of: term).key)
         } else if let addition = description as? any Addition {
             switch addition.resource {
-            case .individual(let individual): subject = term(individual.iri, ObjectIdentifier(individual))
-            case .class(let type): subject = term(type.iri, ObjectIdentifier(type))
+            case .individual(let individual): subject = term(type(of: individual).key, ObjectIdentifier(individual))
+            case .class(let type): subject = term(type.classKey, ObjectIdentifier(type))
             case .literal(let literal):
                 throw EncodingError.invalidValue(literal, EncodingError.Context(
                     codingPath: [],
@@ -82,9 +83,23 @@ final class EncodedGraph {
         try description.encode(to: ResourceEncoder(graph: self, subject: subject))
     }
 
-    /// The IRI, or the blank node of a resource that has none.
-    private func term(_ iri: IRI?, _ identity: ObjectIdentifier) -> SubjectTerm {
-        if let iri { return .iri(iri) }
+    /// The IRI a declared key gives, derived here, at the boundary.
+    private func term(_ key: TermKey) throws -> SubjectTerm {
+        do {
+            return .iri(try IRI(validating: key.stringValue))
+        } catch {
+            throw EncodingError.invalidValue(key, EncodingError.Context(
+                codingPath: [],
+                debugDescription: "A declared name in its vocabulary's namespace is an IRI (RDF 1.2 Concepts §3.2).",
+                underlyingError: error
+            ))
+        }
+    }
+
+    /// The IRI of a declared resource, or the blank node of a resource no
+    /// declaration names.
+    private func term(_ key: TermKey?, _ identity: ObjectIdentifier) -> SubjectTerm {
+        if let key, let term = try? term(key) { return term }
         if let node = blankNodes[identity] { return .blankNode(node) }
         let node = try! BlankNode("b\(blankNodes.count)")  // never empty
         blankNodes[identity] = node
@@ -98,12 +113,13 @@ final class EncodedGraph {
             return .literal(literal)
         case .individual(let individual):
             let identity = ObjectIdentifier(individual)
-            if individual.iri == nil, !described.contains(identity) { undescribed.append(individual) }
-            return term(individual.iri, identity).object
+            let key = type(of: individual).key
+            if key == nil, !described.contains(identity) { undescribed.append(individual) }
+            return term(key, identity).object
         case .class(let type):
             let identity = ObjectIdentifier(type)
-            if type.iri == nil, !described.contains(identity) { undescribed.append(ClassDescription(type)) }
-            return term(type.iri, identity).object
+            if type.classKey == nil, !described.contains(identity) { undescribed.append(ClassDescription(type)) }
+            return term(type.classKey, identity).object
         }
     }
 }

@@ -1,12 +1,11 @@
-import IRIKit
-
-/// The coding key of a property's values: the IRI of the property.
+/// The coding key of a property's values, derived from the property's
+/// declared key.
 ///
 /// A generated `encode(to:)` keys each value by its property:
 /// `PropertyKey(FOAF.knows)` for a translated property, which is an
-/// individual of `rdf:Property`, and `PropertyKey(Fauna.hasHabitat.metadata)`
-/// for a property `@Ontology` declares. The IRI is read only here, where the
-/// value leaves the runtime.
+/// individual of `rdf:Property`, and `PropertyKey(Fauna.hasHabitat.key)`
+/// for a property `@Ontology` declares. Its string value, the property's
+/// IRI, is derived here, where the value leaves the runtime.
 public struct PropertyKey: CodingKey, Sendable {
     public let stringValue: String
 
@@ -14,13 +13,12 @@ public struct PropertyKey: CodingKey, Sendable {
     /// 1.2 Concepts §3.1), so its key is not an IRI, and an RDF encoder
     /// reports it.
     public init(_ property: any Resource) {
-        stringValue = property.iri?.rawValue ?? ""
+        stringValue = Swift.type(of: property).key?.stringValue ?? ""
     }
 
-    /// The key of the values of a property `@Ontology` declares, by the
-    /// boundary projection of its term type.
-    public init(_ metadata: any ContentMetadata) {
-        stringValue = metadata.id.rawValue
+    /// The key of the values of the property declared as `key`.
+    public init(_ key: TermKey) {
+        stringValue = key.stringValue
     }
 
     /// The key of an individual's classes, `rdf:type`, which

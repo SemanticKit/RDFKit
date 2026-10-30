@@ -15,8 +15,7 @@
 ///
 ///     final class PersonAndEmployee: People.PersonStoring, Staff.EmployeeStoring {
 ///         static let classes: [any ResourceClass.Type] = [People.PersonIndividual.self, Staff.EmployeeIndividual.self]
-///         let iri: IRI? = nil
-///         let storage = IndividualStorage()
+/// ///         let storage = IndividualStorage()
 ///     }
 public protocol PropertyValueStoring: Resource {
     /// The classes an instance of this Swift class is a member of, which its

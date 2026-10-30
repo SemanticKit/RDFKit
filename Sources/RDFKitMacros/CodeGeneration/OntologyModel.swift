@@ -14,6 +14,9 @@
 /// - A `Property` becomes a term type, and, when its `Domain` is a class of
 ///   this ontology, a value type that holds its values on an individual and
 ///   a storing protocol that gives the individual its accessor.
+/// - An `Individual` becomes a Swift class that conforms to the storing
+///   protocol of each class its `Type` gives, and an ontology member whose
+///   value is the individual.
 struct OntologyModel {
     enum Shape: Equatable {
         /// A class: its members are individuals.
@@ -22,6 +25,8 @@ struct OntologyModel {
         case datatype
         /// A property term type.
         case property
+        /// A named individual (`owl:NamedIndividual`).
+        case individual
     }
 
     /// A property as a requirement of a class protocol.
@@ -48,6 +53,7 @@ struct OntologyModel {
             case .class: .class
             case .datatype: .datatype
             case .property: .property
+            case .individual: .individual
             }
         }
     }
