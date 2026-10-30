@@ -46,6 +46,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
+        .package(url: "https://github.com/SemanticKit/EBNFKit.git", branch: "main"),
         .package(url: "https://github.com/swiftlang/swift-syntax", from: "604.0.0"),
         // The SemanticKit invariants as build rules: RegoPolicyEvaluate runs
         // the SemanticKitDesignGuidelines policies over every Swift file of
@@ -79,11 +80,18 @@ let package = Package(
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
             ]
         ),
+        // The formats, read with the grammars their specifications publish
+        // (Sources/RDFFormats/Grammars), which EBNFTranslatorPlugin
+        // translates to Swift on every build.
         .target(
             name: "RDFFormats",
             dependencies: [
                 "IRIKit",
                 "RDFCore"
+            ],
+            exclude: ["Grammars/README.md"],
+            plugins: [
+                .plugin(name: "EBNFTranslatorPlugin", package: "EBNFKit")
             ]
         ),
 
