@@ -8,14 +8,14 @@ import Foundation
 /// The specification is an HTML document. Its tables are read as the
 /// markup gives them: the element with the table's `id`, up to its
 /// `</table>`, and in it the `<td>` and `<code>` contents.
-struct CompatibleDatatypes {
+public struct CompatibleDatatypes: Sendable {
     /// The namespace IRI of the XSD datatypes, ending in `#`.
-    let namespace: String
+    public let namespace: String
 
     /// The local names of the datatypes, in the order of the table.
-    let names: [String]
+    public let names: [String]
 
-    init(concepts html: String) throws {
+    public init(concepts html: String) throws {
         let prefixes = try Self.table("tab-vocab-ns", in: html)
         let rows = prefixes.components(separatedBy: "<tr").dropFirst()
         var namespace: String?
@@ -26,7 +26,7 @@ struct CompatibleDatatypes {
             }
         }
         guard let namespace else {
-            throw TranslationError(description: "RDF 1.2 Concepts gives no namespace for the prefix xsd in tab-vocab-ns")
+            throw DefinitionError(description: "RDF 1.2 Concepts gives no namespace for the prefix xsd in tab-vocab-ns")
         }
         let datatypes = try Self.table("tab-xsd-datatypes", in: html)
         let names = Self.contents(of: "code", in: datatypes).compactMap { code -> String? in
@@ -34,7 +34,7 @@ struct CompatibleDatatypes {
             return text.hasPrefix("xsd:") ? String(text.dropFirst(4)) : nil
         }
         guard !names.isEmpty else {
-            throw TranslationError(description: "RDF 1.2 Concepts lists no datatypes in tab-xsd-datatypes")
+            throw DefinitionError(description: "RDF 1.2 Concepts lists no datatypes in tab-xsd-datatypes")
         }
         self.namespace = namespace
         self.names = names
@@ -43,7 +43,7 @@ struct CompatibleDatatypes {
     /// The markup of the table with the `id`.
     private static func table(_ id: String, in html: String) throws -> Substring {
         guard let start = html.range(of: "id=\"\(id)\""), let end = html.range(of: "</table>", range: start.upperBound..<html.endIndex) else {
-            throw TranslationError(description: "RDF 1.2 Concepts has no table \(id)")
+            throw DefinitionError(description: "RDF 1.2 Concepts has no table \(id)")
         }
         return html[start.upperBound..<end.lowerBound]
     }

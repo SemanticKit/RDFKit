@@ -82,9 +82,9 @@ struct RDFKitTests {
         frank.name = ["Frank"]
         // `Range(XSD.gYear)`: the values are `xsd:gYear` values, decoded
         // from the document's literal at the boundary.
-        let joined: [XSD.gYear] = try expected.compactMap { triple in
+        let joined: [XSD.gYear] = expected.compactMap { triple in
             guard triple.predicate == IRI(Club.joined.key), case .literal(let literal) = triple.object else { return nil }
-            return try XSD.gYear(literal)
+            return XSD.gYear(literal)
         }
         frank.joined = joined
         #expect(frank.joined.count == 1)

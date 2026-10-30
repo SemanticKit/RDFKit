@@ -104,7 +104,7 @@ struct Vocabulary {
     func isLiteralClass(_ node: SubjectTerm) -> Bool {
         if superclassClosure(of: node).contains(.iri(.rdfsLiteral)) { return true }
         if classes(of: node).contains(.iri(.rdfsDatatype)) { return true }
-        return datatypes.datatype(node) != nil
+        return datatypes.isDatatype(node)
     }
 
     /// Whether the members of `node` are classes: `rdfs:Class` or a subclass
@@ -132,7 +132,7 @@ struct Vocabulary {
     /// is the `xsd:boolean` true, `"true"` or `"1"`.
     func isDeprecated(_ node: SubjectTerm) -> Bool {
         literals(.owlDeprecated, of: node).contains { literal in
-            (try? XSD.boolean(literal))?.value == true
+            XSD.boolean(literal)?.value == true
         }
     }
 

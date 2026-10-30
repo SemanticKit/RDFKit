@@ -83,8 +83,29 @@ let package = Package(
             exclude: ["W3C/README.md"],
             plugins: ["XSDTranslatorPlugin"]
         ),
+        // The W3C documents that define the datatypes, read as their
+        // structure gives them: the one translation both translators learn
+        // the datatypes from.
+        .target(
+            name: "XSDDefinitions"
+        ),
+        // The swift-syntax nodes the translators build the Swift they
+        // generate from.
+        .target(
+            name: "TranslatorSyntax",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
+        ),
         .executableTarget(
-            name: "XSDTranslator"
+            name: "XSDTranslator",
+            dependencies: [
+                "XSDDefinitions",
+                "TranslatorSyntax",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
         ),
         .plugin(
             name: "XSDTranslatorPlugin",
@@ -97,7 +118,16 @@ let package = Package(
         // RDFCore, as the Swift @Ontology writes does.
         .executableTarget(
             name: "RDFTranslator",
-            dependencies: ["IRIKit", "RDFCore", "RDFFormats", "XSD"]
+            dependencies: [
+                "IRIKit",
+                "RDFCore",
+                "RDFFormats",
+                "XSD",
+                "XSDDefinitions",
+                "TranslatorSyntax",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
         ),
         .plugin(
             name: "RDFTranslatorPlugin",
@@ -243,6 +273,7 @@ let package = Package(
                 "OWL",
                 "Samples",
                 "XSD",
+                "XSDDefinitions",
                 .product(name: "IRIKit", package: "IRIKit")
             ],
             exclude: ["Fixtures"],

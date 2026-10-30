@@ -17,8 +17,3 @@ public protocol PrimitiveDatatype: SimpleType where Primitive == Self {
     /// representation (the canonical mapping) first.
     static func representations(of value: Value) -> [String]
 }
-
-extension PrimitiveDatatype {
-    /// A primitive's base is `xsd:anyAtomicType`, which has no Swift type.
-    public static var base: (any SimpleType.Type)? { nil }
-}

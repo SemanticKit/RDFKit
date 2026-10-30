@@ -8,11 +8,11 @@ import RDFCore
 ///
 /// - `rdfs:label` and `rdfs:comment` are the declarations' documentation,
 ///   and `owl:deprecated true` is `@available(*, deprecated)`.
-/// - A literal value of a property whose range is an XSD datatype is a
-///   value of the datatype's Swift type, `XSD::nonNegativeInteger`, built
-///   from its lexical form; the translator has checked that the lexical form
-///   is in the datatype's lexical space and canonical. A literal that is not
-///   is kept as the literal (``RDFCore/PropertyLiterals``).
+/// - The literal values of a property whose range is an XSD datatype are
+///   stated as the literals they are (``RDFCore/IndividualStorage/state(_:for:)``):
+///   each that denotes a value of the datatype's Swift type,
+///   `XSD::nonNegativeInteger`, is that value, and writes back the literal;
+///   one that denotes none is kept as the literal (``RDFCore/PropertyLiterals``).
 /// - Each individual's values are set once, the first time any individual
 ///   of the module is read, since individuals refer to each other, cycles
 ///   included (`:alice foaf:knows :bob . :bob foaf:knows :alice .`).
@@ -63,6 +63,9 @@ struct SwiftSource {
             if let property = declarations.properties[node] {
                 source += "\n" + propertyTerm(property)
                 source += "\n" + propertyValue(property)
+                if case .datatype = property.kind {
+                    source += "\n" + datatypeConformance(of: property) + "\n"
+                }
                 source += "\n" + propertyStoring(property)
             }
         }
@@ -87,15 +90,11 @@ struct SwiftSource {
         for node in declarations.order where declarations.individuals[node] != nil {
             for (property, objects) in values(of: node) {
                 let declaration = propertyDeclaration(property)!
-                // The literals an XSD datatype's value type does not hold
-                // stay literals.
-                let kept = objects.filter { keepsLiteral(declaration.kind, $0) }
-                let typed = objects.filter { !keepsLiteral(declaration.kind, $0) }
-                if !kept.isEmpty {
-                    source += "    \(handle(node)).storage[RDFCore::PropertyLiterals<\(declaration.valueReference)>.self].value = [\(kept.map { expression($0, as: .literals) }.joined(separator: ", "))]\n"
+                if case .datatype = declaration.kind {
+                    source += "    \(statement(stating: objects, of: node, for: declaration))\n"
+                    continue
                 }
-                guard !typed.isEmpty else { continue }
-                source += "    \(handle(node)).\(declaration.member.swiftIdentifier) = [\(typed.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
+                source += "    \(handle(node)).\(declaration.member.swiftIdentifier) = [\(objects.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
             }
         }
         source += "}()\n"
@@ -311,10 +310,6 @@ struct SwiftSource {
         return text
     }
 
-    private func keepsLiteral(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
-        kind.keepsLiteral(value, vocabulary.datatypes)
-    }
-
     /// The class a decoder makes a value of a property of `kind` a member
     /// of, when the document states no class for it: the class of the one
     /// class the property's range gives, else `rdfs:Resource`'s.
@@ -414,7 +409,7 @@ struct SwiftSource {
     }
 
     /// The private constant holding an individual this module declares.
-    private func handle(_ node: SubjectTerm) -> String {
+    func handle(_ node: SubjectTerm) -> String {
         ("resource \(declarations.order.firstIndex(of: node)!)").swiftIdentifier
     }
 
@@ -428,9 +423,6 @@ struct SwiftSource {
     private func expression(_ value: ObjectTerm, as kind: ValueKind) -> String {
         switch value {
         case .literal(let literal):
-            if case .datatype(let datatype) = kind {
-                return "try! \(classDeclaration(datatype)!.datatypeReference)(lexicalForm: \(literal.lexicalForm.swiftStringLiteral))"
-            }
             let text = Self.expression(literal)
             return kind == .values ? ".literal(\(text))" : text
         case .iri, .blankNode, .tripleTerm:
@@ -451,7 +443,7 @@ struct SwiftSource {
 
     private func memberType(of kind: ValueKind) -> String {
         switch kind {
-        case .datatype(let datatype): classDeclaration(datatype)!.datatypeReference
+        case .datatype(let datatype): classDeclaration(datatype)!.datatypeType.description
         case .literals: "RDFCore::Literal"
         case .classes: "any RDFCore::ResourceClass.Type"
         case .properties: "any RDFCore::PropertyTerm.Type"

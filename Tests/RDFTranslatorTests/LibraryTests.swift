@@ -64,36 +64,56 @@ struct LibraryTests {
         let titles: [XSD.string] = gazette.title
         #expect(titles == ["Gazette"])
         #expect(almanac.title.isEmpty)
-        let kept = almanac.storage[PropertyLiterals<titleValue>.self].value
+        let kept = almanac.storage.keptLiterals(of: titleValue.self)
         #expect(Set(kept) == Set(try literals(of: almanac, title.key)))
         #expect(kept.allSatisfy { $0.languageTag != nil })
     }
 
     /// A property whose range is an XSD datatype holds values of the
-    /// datatype's Swift value type, built from the document's literals at
-    /// the boundary.
+    /// datatype's Swift value type: the values the document's literals
+    /// denote in its value space, whatever form and related datatype they
+    /// are written in. `212` is an `xsd:integer` literal whose value is the
+    /// `xsd:nonNegativeInteger` 212, and `"02"^^xsd:positiveInteger` is 2.
     @Test func datatypeValuesAreTheDatatypesValueTypes() throws {
         let pageCounts: [XSD.nonNegativeInteger] = almanac.pages
-        #expect(pageCounts == (try literals(of: almanac, pages.key).map { try XSD.nonNegativeInteger($0) }))
-        #expect(pageCounts.first?.value.int == 212)
+        #expect(pageCounts.map(\.value.int) == [212])
+        #expect(pageCounts.map(\.literalForm.lexicalForm) == (try literals(of: almanac, pages.key).map(\.lexicalForm)))
+        #expect(pageCounts.map(\.literalForm.datatype.name) == ["integer"])
         let years: [XSD.gYear] = almanac.published
-        #expect(years == (try literals(of: almanac, published.key).map { try XSD.gYear($0) }))
+        #expect(years.map(\.value.year?.int) == [1923])
+        let editions: [XSD.positiveInteger] = `second-edition`.edition
+        #expect(editions.map(\.lexicalForm) == ["2"])
+        #expect(editions.map(\.literalForm.lexicalForm) == ["02"])
+        #expect(`second-edition`.storage.keptLiterals(of: editionValue.self).isEmpty)
     }
 
-    /// Literals a datatype's value type cannot write back as they are, one
-    /// not canonical (`"02"`) and one ill-typed (`"third"`), stay literals
-    /// beside the property's values, as does a literal of a datatype with no
-    /// Swift type, and the data translates back to the same graph
-    /// (``translatesBackToTheSameGraph()``).
+    /// A literal that denotes no value of the range, one ill-typed
+    /// (`"third"`), stays a literal beside the property's values, as does a
+    /// literal of a datatype with no Swift type, and the data translates back
+    /// to the same graph (``translatesBackToTheSameGraph()``).
     @Test func otherLiteralsStayLiterals() throws {
-        let editions: [XSD.positiveInteger] = `second-edition`.edition + `third-edition`.edition
-        #expect(editions.isEmpty)
-        let kept = `second-edition`.storage[PropertyLiterals<editionValue>.self].value
-            + `third-edition`.storage[PropertyLiterals<editionValue>.self].value
-        #expect(kept == (try literals(of: `second-edition`, edition.key) + literals(of: `third-edition`, edition.key)))
-        #expect(throws: DatatypeError.illTyped) { try XSD.positiveInteger(try #require(kept.last)) }
+        #expect(`third-edition`.edition.isEmpty)
+        let kept = `third-edition`.storage.keptLiterals(of: editionValue.self)
+        #expect(kept == (try literals(of: `third-edition`, edition.key)))
+        #expect(XSD.positiveInteger(try #require(kept.first)) == nil)
         let catalogueNumbers: [RDFCore.Literal] = almanac.catalogueNumber
         #expect(catalogueNumbers == (try literals(of: almanac, catalogueNumber.key)))
+    }
+
+    /// Setting a decoded individual's property states its values anew: the
+    /// literal kept for it is no longer written, only the values Swift gave.
+    @Test func settingAPropertyReplacesItsKeptLiterals() throws {
+        let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
+        let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
+        let context = DocumentContext()
+        let decoded = try GraphDecoder(classes: [BookIndividual.self, AnnualIndividual.self, PeriodicalIndividual.self])
+            .decode(BookIndividual.self, for: [try #require(IRI(of: `third-edition`))], from: document, context: context)
+        let book = try #require(decoded.first)
+        #expect(book.edition.isEmpty)
+        #expect(book.storage.keptLiterals(of: editionValue.self).map(\.lexicalForm) == ["third"])
+        book.edition = [try XSD.positiveInteger(lexicalForm: "3")]
+        let written = try GraphEncoder(context: context).encode([book]).filter { $0.predicate == IRI(edition.key) }
+        #expect(written.compactMap { if case .literal(let literal) = $0.object { literal.lexicalForm } else { nil } } == ["3"])
     }
 
     /// The data translates back to the same graph, blank nodes and the

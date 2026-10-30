@@ -8,8 +8,8 @@ import XSD
 
 /// A property whose range is an XSD datatype holds values of the
 /// datatype's Swift value type (``RDFCore/DatatypeValue``), and the format
-/// encoders write each as the literal of its canonical form and its
-/// datatype IRI. `Samples` (samples.ttl) gives a property for each datatype;
+/// encoders write each as a literal: the one it was decoded from, or its
+/// canonical form with its datatype IRI. `Samples` (samples.ttl) gives a property for each datatype;
 /// `typical` and `unusual` in `mappings.ttl` give them values.
 @Suite("Literal-ranged properties hold the XSD value types", .tags(.datatype, .generated, .boundary))
 struct DatatypeValueTests {
@@ -46,20 +46,44 @@ struct DatatypeValueTests {
         #expect(output.count == 40)  // rdf:type and one value of each datatype
     }
 
-    /// Literals the value types do not hold, ill-typed, not canonical, of
-    /// another datatype or of a datatype with no Swift type, stay literals
-    /// at the boundary: the properties hold only the values, and the
-    /// individual writes every literal back as the document states it.
+    /// A literal of a datatype derived from the range's primitive, well-typed
+    /// in its own datatype, whose value is in the range's value space, is a
+    /// value of the range, and writes back as the literal it was: one not in
+    /// canonical form, one of a datatype the range is derived from, one of a
+    /// datatype derived from the range, and one of another datatype derived
+    /// from the same primitive (RDF 1.2 Concepts §5: the literal value is the
+    /// lexical-to-value mapping of its lexical form).
+    @Test func literalsOfRelatedDatatypesAreValuesOfTheRange() throws {
+        let counts: [XSD.nonNegativeInteger] = unusual.nonNegativeInteger
+        #expect(Set(counts.map(\.lexicalForm)) == ["5", "7", "3", "4"])
+        #expect(Set(counts.map(\.literalForm.lexicalForm)) == ["5", "07", "3", "4"])
+        #expect(Set(counts.map(\.literalForm.datatype.name)) == ["nonNegativeInteger", "integer", "unsignedByte"])
+        #expect(counts.contains(try XSD.nonNegativeInteger(lexicalForm: "7")))  // "07" is 7
+        #expect(unusual.boolean.map(\.value) == [true])
+        #expect(unusual.boolean.map(\.literalForm.lexicalForm) == ["1"])
+        #expect(unusual.byte.map(\.lexicalForm) == ["5"])
+        #expect(unusual.byte.map(\.literalForm.datatype.name) == ["unsignedByte"])
+    }
+
+    /// Literals that denote no value of the range stay literals at the
+    /// boundary: ill-typed, outside the range's value space, of another
+    /// primitive, language-tagged, or of a datatype with no Swift type. The
+    /// properties hold only the values, and the individual writes every
+    /// literal back as the document states it.
     @Test func otherLiteralsSurviveAndRoundTrip() throws {
-        #expect(unusual.nonNegativeInteger.map(\.lexicalForm) == ["5"])
-        #expect(unusual.boolean.isEmpty)
+        let kept = try EncodedValues(of: unusual)
+        #expect(Set(kept.literals(of: Samples.nonNegativeInteger.key).map(\.lexicalForm)) == ["-1", "-2"])
+        #expect(kept.literals(of: Samples.boolean.key).map(\.lexicalForm) == ["yes"])
+        #expect(unusual.decimal.isEmpty)
+        #expect(kept.literals(of: Samples.decimal.key).map(\.lexicalForm) == ["1.5"])
         #expect(unusual.string.isEmpty)
+        #expect(Set(kept.literals(of: Samples.string.key).map(\.lexicalForm)) == ["x", "y"])
         let output = try GraphEncoder().encode(unusual)
         #expect(output == (try Self.description(of: unusual)), "\(output)")
     }
 
     /// A decoder reads a document's literals into the XSD value types, and
-    /// keeps the literals they do not hold as literals: the decoded
+    /// keeps the literals that denote none as literals: the decoded
     /// individuals encode back to the document's triples (rule 20, Literal
     /// is the boundary node).
     @Test func decodedLiteralsAreValuesOrStayLiterals() throws {
@@ -67,16 +91,30 @@ struct DatatypeValueTests {
         let context = DocumentContext()
         let samples = try GraphDecoder(classes: [Samples.SampleIndividual.self])
             .decode((any Samples.SampleStoring).self, from: document, context: context)
-        #expect(samples.count == 2)
         let decodedTypical = try #require(samples.first { context.iri(of: $0) == IRI(of: typical) })
         let decodedUnusual = try #require(samples.first { context.iri(of: $0) == IRI(of: unusual) })
         #expect(decodedTypical.dateTime == typical.dateTime)
         #expect(decodedTypical.base64Binary == typical.base64Binary)
-        #expect(decodedUnusual.nonNegativeInteger.map(\.lexicalForm) == ["5"])
-        #expect(decodedUnusual.boolean.isEmpty)
-        #expect(decodedUnusual.storage[PropertyLiterals<Samples.booleanValue>.self].value.map(\.lexicalForm) == ["yes"])
+        #expect(Set(decodedUnusual.nonNegativeInteger.map(\.lexicalForm)) == ["5", "7", "3", "4"])
+        #expect(decodedUnusual.boolean.map(\.value) == [true])
+        #expect(decodedUnusual.storage.keptLiterals(of: Samples.booleanValue.self).map(\.lexicalForm) == ["yes"])
         let expected = try Self.description(of: typical).union(try Self.description(of: unusual))
-        #expect(try GraphEncoder(context: context).encode(samples) == expected)
+        #expect(try GraphEncoder(context: context).encode([decodedTypical, decodedUnusual]) == expected)
+    }
+
+    /// Setting a property states its values anew: the literals kept for it,
+    /// which Swift cannot see through the accessor, are no longer written.
+    @Test func settingAPropertyReplacesItsKeptLiterals() throws {
+        let context = DocumentContext()
+        let decoded = try GraphDecoder(classes: [Samples.SampleIndividual.self])
+            .decode(Samples.SampleIndividual.self, for: [try #require(IRI(of: unusual))], from: try Self.document(), context: context)
+        let sample = try #require(decoded.first)
+        sample.boolean = [false]
+        #expect(sample.storage.keptLiterals(of: Samples.booleanValue.self).isEmpty)
+        let written = try GraphEncoder(context: context).encode([sample]).filter { $0.predicate == IRI(Samples.boolean.key) }
+        #expect(written.compactMap { if case .literal(let literal) = $0.object { literal.lexicalForm } else { nil } } == ["false"])
+        sample.nonNegativeInteger.append(try XSD.nonNegativeInteger(lexicalForm: "1"))
+        #expect(sample.storage.keptLiterals(of: Samples.nonNegativeIntegerValue.self).isEmpty)
     }
 
     /// The whole document translates back to the same graph (RDF 1.2

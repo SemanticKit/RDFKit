@@ -56,7 +56,9 @@
 
 :almanac a :Annual ;
     :title "Almanac"@en, "Almanach"@de ;
-    :pages "212"^^xsd:nonNegativeInteger ;
+    # An xsd:integer literal, as Turtle writes an integer, whose value is in
+    # the range of :pages, xsd:nonNegativeInteger.
+    :pages 212 ;
     :published "1923"^^xsd:gYear ;
     :catalogueNumber "A-1923"^^:CatalogueNumber ;
     :cites :gazette ;
@@ -69,7 +71,8 @@
 
 :second-edition a :Book ;
     :title "Almanac, second edition" ;
-    # Not the canonical form of 2, which is "2".
+    # Not the canonical form of 2, which is "2": the value 2, written back
+    # as "02".
     :edition "02"^^xsd:positiveInteger ;
     :cites :almanac, :second-edition .
 

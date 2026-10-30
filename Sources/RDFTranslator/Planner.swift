@@ -12,11 +12,11 @@ import RDFCore
 ///   ``RDFCore/Value`` for a range that admits any resource. When the
 ///   documents give the property a value that type cannot hold, such as a
 ///   blank node as the value of `rdfs:comment`, its values are typed
-///   `[RDFCore::Value]`. A literal the documents give an XSD-typed property
-///   that its datatype's value type does not write back as it is
-///   (ill-typed, of another datatype, or not canonical) leaves the type as
-///   it is: the individual keeps the literal as a literal
-///   (``RDFCore/PropertyLiterals``).
+///   `[RDFCore::Value]`. Every literal the documents give an XSD-typed
+///   property leaves the type as it is: the individual holds the value it
+///   denotes in the range, or, for one that denotes none (ill-typed, of a
+///   datatype with no Swift type, or outside the range), keeps the literal
+///   as a literal (``RDFCore/PropertyLiterals``).
 /// - A class's storing protocol refines the storing protocols of the classes
 ///   it conforms to and of every property this module declares that a
 ///   member of it can have: one whose domain is the class or a superclass,
@@ -120,7 +120,7 @@ struct Planner {
 
     /// The Swift type of a property's values, by its range.
     func kind(ofRanges ranges: [SubjectTerm]) -> ValueKind {
-        if ranges.count == 1, vocabulary.datatypes.datatype(ranges[0]) != nil { return .datatype(ranges[0]) }
+        if ranges.count == 1, vocabulary.datatypes.isDatatype(ranges[0]) { return .datatype(ranges[0]) }
         if ranges.contains(where: vocabulary.isLiteralClass) { return .literals }
         if ranges.contains(where: vocabulary.isMetaclass) { return .classes }
         if ranges.contains(where: vocabulary.isPropertyClass) { return .properties }
@@ -129,15 +129,11 @@ struct Planner {
         return .individuals(minimal(protocols))
     }
 
-    func keepsLiteral(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
-        kind.keepsLiteral(value, vocabulary.datatypes)
-    }
-
     /// Whether `kind` holds `value`.
     func holds(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
         switch (kind, value) {
         case (.values, _): return true
-        case (.datatype(let datatype), .literal(let literal)): return vocabulary.datatypes.holds(literal, as: datatype)
+        case (.datatype, .literal): return true
         case (.datatype, _): return false
         case (.literals, .literal): return true
         case (_, .literal), (_, .tripleTerm): return false
@@ -158,8 +154,7 @@ struct Planner {
         for node in declarations.order {
             guard var property = declarations.properties[node], let iri = node.iri else { continue }
             property.kind = kind(ofRanges: vocabulary.ranges(of: node))
-            let objects = vocabulary.graph.filter { $0.predicate == iri }.map(\.object)
-            if !objects.allSatisfy({ holds(property.kind, $0) || keepsLiteral(property.kind, $0) }) {
+            if !vocabulary.graph.allSatisfy({ $0.predicate != iri || holds(property.kind, $0.object) }) {
                 property.kind = .values
             }
             declarations.properties[node] = property
@@ -168,7 +163,7 @@ struct Planner {
         for triple in layer.graph {
             guard declarations.properties[.iri(triple.predicate)] == nil,
                   let property = lower.property(.iri(triple.predicate)),
-                  !holds(property.kind, triple.object), !keepsLiteral(property.kind, triple.object) else { continue }
+                  !holds(property.kind, triple.object) else { continue }
             throw TranslationError(description: "\(layer.module): a value of '\(triple.predicate)' on \(triple.subject) is not of the type \(property.module) gives the property's values")
         }
     }

@@ -1,8 +1,10 @@
 # The W3C documents the XSD datatypes are translated from
 
 `XSDTranslatorPlugin` translates these documents into the Swift value types of
-the `XSD` module on every build. Each is stored byte for byte as the W3C serves
-it, unedited.
+the `XSD` module on every build, and `RDFTranslatorPlugin` hands the same
+documents to `RDFTranslator`, which reads them with the same code
+(`XSDDefinitions`) to type the properties that range over the datatypes. Each
+is stored byte for byte as the W3C serves it, unedited.
 
 | File | What it is | Source | Retrieved | sha256 |
 |---|---|---|---|---|

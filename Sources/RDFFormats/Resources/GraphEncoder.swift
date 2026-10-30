@@ -8,8 +8,9 @@ import RDFCore
 /// (a ``RDFCore/Resource``, declared in the DSL or translated from RDF), a
 /// class, or the resource an ``RDFCore/Addition`` refers to. Its values are
 /// typed Swift values; this is where they become RDF terms: a datatype's
-/// value (``RDFCore/DatatypeValue``) becomes a literal of its canonical
-/// lexical form and its datatype IRI. A resource in
+/// value (``RDFCore/DatatypeValue``) becomes a literal of the lexical form
+/// and datatype IRI of its literal form, the literal it was decoded from or
+/// its canonical form. A resource in
 /// object position is written as the IRI its declared key gives (its
 /// declared name in its vocabulary's namespace); one no declaration names is
 /// a blank node, which is described too, once, since nothing outside the graph can
@@ -133,17 +134,17 @@ final class EncodedGraph {
         return .blankNode(node)
     }
 
-    /// The literal of a datatype's value: its canonical lexical form, and
-    /// the datatype IRI its declared key gives, derived here, at the
-    /// boundary (RDF 1.2 Concepts §3.4: "a literal ... consists of ... a
-    /// lexical form ... a datatype IRI").
+    /// The literal of a datatype's value: the lexical form of its literal
+    /// form, and the datatype IRI the form's declared key gives, derived
+    /// here, at the boundary (RDF 1.2 Concepts §3.4: "a literal ... consists
+    /// of ... a lexical form ... a datatype IRI").
     ///
     /// - Throws: `EncodingError.invalidValue` when the declared key does not
     ///   give an IRI.
     func literal(_ value: any DatatypeValue, codingPath: [any CodingKey]) throws -> Literal {
-        let key = type(of: value).datatype
+        let form = value.literalForm
         do {
-            return try Literal(value.lexicalForm, datatype: try IRI(validating: key.stringValue))
+            return try Literal(form.lexicalForm, datatype: try IRI(validating: form.datatype.stringValue))
         } catch {
             throw EncodingError.invalidValue(value, EncodingError.Context(
                 codingPath: codingPath,

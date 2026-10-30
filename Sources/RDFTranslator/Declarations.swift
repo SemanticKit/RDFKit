@@ -236,10 +236,6 @@ struct ClassDeclaration {
     /// type, not a protocol.
     var isDatatype = false
 
-    /// The value type of an XSD datatype, as Swift refers to it from any
-    /// module.
-    var datatypeReference: String { "\(module)::\(name.swiftIdentifier)" }
-
     var protocolName: String { name }
     var className: String { isPublic ? name + "Individual" : name + " Individual" }
     var storingName: String { isPublic ? name + "Storing" : name + " Storing" }
@@ -354,16 +350,6 @@ enum ValueKind: Hashable {
     case properties
     /// `[RDFCore::Value]`: the range admits any resource.
     case values
-}
-
-extension ValueKind {
-    /// Whether a property of this kind keeps `value` as a literal: a literal
-    /// its XSD datatype's value type does not hold, ill-typed, of another
-    /// datatype or not canonical (``RDFCore/PropertyLiterals``).
-    func keepsLiteral(_ value: ObjectTerm, _ datatypes: DatatypeLayer) -> Bool {
-        guard case .datatype(let datatype) = self, case .literal(let literal) = value else { return false }
-        return !datatypes.holds(literal, as: datatype)
-    }
 }
 
 /// The public declarations of the modules below one module.

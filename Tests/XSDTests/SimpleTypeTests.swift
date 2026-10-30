@@ -2,40 +2,46 @@ import Testing
 import Foundation
 import RDFCore
 import RDFFormats
+import Samples
 import XSD
 
 /// Each XSD datatype is a Swift value type built from a lexical form, with
 /// the value space, lexical-to-value mapping and canonical mapping of XML
 /// Schema 1.1 Part 2. The literals come from `mappings.ttl`, which
-/// `RDFTranslatorPlugin` translates into this test module: each `Mapping`
-/// pairs a literal with the literal of its value's canonical form, each
-/// `Equal` gives two lexical forms of one value, and each `IllTyped` a
-/// literal outside its datatype's lexical space.
+/// `RDFTranslatorPlugin` translates into this test module: each is the value
+/// of the samples property that ranges over its datatype, so it is a value
+/// of the datatype's Swift type. Each `Mapping` pairs a literal with the
+/// canonical form of its value, each `Equal` gives two lexical forms of one
+/// value, and each `IllTyped` a literal outside its datatype's lexical
+/// space.
 @Suite("XSD datatypes as Swift value types", .tags(.datatype))
 struct SimpleTypeTests {
     static var mappings: [any Mapping] { ontology.compactMap { $0 as? any Mapping } }
     static var equalities: [any Equal] { ontology.compactMap { $0 as? any Equal } }
     static var illTyped: [any IllTyped] { ontology.compactMap { $0 as? any IllTyped } }
 
-    /// The lexical mapping gives each literal its value, and the canonical
-    /// mapping writes the value as its canonical representation, which maps
-    /// to the same canonical representation again.
+    /// The lexical mapping gives each literal its value, which writes back
+    /// the literal as it was written, and the canonical mapping writes the
+    /// value as its canonical representation, which maps to the same value
+    /// again.
     @Test func lexicalFormsMapToTheCanonicalFormsOfTheirValues() throws {
         #expect(Self.mappings.count == 59)
         for mapping in Self.mappings {
-            let lexical = try #require(mapping.lexical.first?.literalValue)
-            let canonical = try #require(mapping.canonical.first?.literalValue)
-            let datatype = try #require(xsdDatatype(of: lexical), "\(lexical)")
-            #expect(try canonicalForm(datatype, lexical) == canonical.lexicalForm, "\(lexical)")
-            #expect(try canonicalForm(datatype, canonical) == canonical.lexicalForm, "\(canonical)")
+            let canonical = try #require(mapping.canonical.first?.literalValue?.lexicalForm)
+            let encoded = try EncodedValues(of: mapping)
+            #expect(encoded.literals(besides: XSDTests::canonical.key).isEmpty, "\(canonical)")
+            let value = try #require(encoded.datatypeValues.first, "\(canonical)")
+            #expect(encoded.datatypeValues.count == 1)
+            #expect(value.lexicalForm == canonical)
+            #expect(try type(of: value).value(of: canonical).lexicalForm == canonical)
         }
     }
 
     /// Every datatype RDF 1.2 Concepts §5.1 lists has a mapping in the
-    /// fixture.
+    /// fixture, as a value of its Swift type.
     @Test func everyDatatypeIsExercised() throws {
-        let exercised = Set(Self.mappings.compactMap { $0.lexical.first?.literalValue.flatMap(xsdDatatype(of:))?.datatype.name })
-        #expect(exercised == Set(XSD.datatypes.map { $0.datatype.name }))
+        let exercised = try Self.mappings.flatMap { try EncodedValues(of: $0).datatypeValues.map { type(of: $0).datatype.name } }
+        #expect(Set(exercised) == Set(try DatatypeTranslationTests.translation().datatypes.map(\.name)))
     }
 
     /// Two lexical forms of one value give equal values: a value is the
@@ -44,51 +50,40 @@ struct SimpleTypeTests {
     @Test func lexicalFormsOfOneValueGiveEqualValues() throws {
         #expect(Self.equalities.count == 6)
         for equality in Self.equalities {
-            let left = try #require(equality.left.first?.literalValue)
-            let right = try #require(equality.right.first?.literalValue)
-            let datatype = try #require(xsdDatatype(of: left))
-            #expect(try denoteEqualValues(datatype, left, right), "\(left) and \(right)")
+            let values = try EncodedValues(of: equality).datatypeValues
+            #expect(values.count == 2)
+            #expect(values[0].isEqual(to: values[1]), "\(values[0]) and \(values[1])")
         }
     }
 
     /// An ill-typed literal has no value: its lexical form is not in the
     /// lexical space, by the primitive's lexical representation or by a
-    /// facet of the datatype's definition (RDF 1.2 Concepts §3.4).
+    /// facet of the datatype's definition (RDF 1.2 Concepts §3.4). It stays
+    /// the literal.
     @Test func illTypedLiteralsHaveNoValue() throws {
         #expect(Self.illTyped.count == 43)
         for illTyped in Self.illTyped {
-            let literal = try #require(illTyped.literal.first?.literalValue)
-            let datatype = try #require(xsdDatatype(of: literal))
-            #expect(throws: DatatypeError.illTyped, "\(literal)") { try value(datatype, literal) }
+            let encoded = try EncodedValues(of: illTyped)
+            #expect(encoded.datatypeValues.isEmpty, "\(encoded.datatypeValues)")
+            #expect(encoded.literals.count == 1)
         }
-    }
-
-    /// A literal of another datatype is not a value of this one, even when
-    /// its value would be: `"127"^^xsd:byte` is not an `xsd:integer`
-    /// literal.
-    @Test func literalsOfAnotherDatatypeAreNotValues() throws {
-        let byte = try #require(`byte-largest`.lexical.first?.literalValue)
-        #expect(throws: DatatypeError.otherDatatype) { try XSD.integer(byte) }
-        // The value is an integer: a byte's value converts to its base.
-        let value = try XSD.byte(byte)
-        #expect(try XSD.integer(value.value).lexicalForm == "127")
     }
 
     /// The values are the value spaces of XML Schema 1.1 Part 2: numbers,
     /// the seven-property model, months and seconds, octets.
     @Test func valuesAreInTheirValueSpaces() throws {
-        let endOfDay = try XSD.dateTime(try #require(`dateTime-end-of-day`.lexical.first?.literalValue))
+        let endOfDay = try #require(`dateTime-end-of-day`.dateTime.first)
         #expect(endOfDay.value.day == 31)
         #expect(endOfDay.value.hour == 0)
         #expect(endOfDay.value.timezoneOffset == -300)
-        let duration = try XSD.duration(try #require(`duration-hours`.lexical.first?.literalValue))
+        let duration = try #require(`duration-hours`.duration.first)
         #expect(duration.value.months.isZero)
         #expect(duration.value.seconds == DecimalNumber(129_600))
-        let largest = try XSD.unsignedLong(try #require(`unsignedLong-largest`.lexical.first?.literalValue))
+        let largest = try #require(`unsignedLong-largest`.unsignedLong.first)
         #expect(largest.value.int == nil)  // beyond Int: integers are unbounded
-        let octets = try XSD.hexBinary(try #require(`hexBinary-lower-case`.lexical.first?.literalValue))
+        let octets = try #require(`hexBinary-lower-case`.hexBinary.first)
         #expect(octets.value == [0x0F, 0xB7])
-        let notANumber = try XSD.double(try #require(`double-not-a-number`.lexical.first?.literalValue))
+        let notANumber = try #require(`double-not-a-number`.double.first)
         #expect(notANumber.value.isNaN)
         #expect(notANumber != notANumber)  // NaN is not equal to itself
     }

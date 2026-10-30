@@ -6,26 +6,26 @@ import FoundationXML
 /// An element of a schema document, as a namespace-aware XML parse gives
 /// it: its expanded name, its attributes, the prefixes in scope (for the
 /// QName values of `base`), its child elements and its text.
-struct SchemaElement {
-    let namespace: String?
-    let localName: String
-    let attributes: [String: String]
-    let prefixes: [String: String]
-    var children: [SchemaElement] = []
-    var text = ""
+public struct SchemaElement: Sendable {
+    public let namespace: String?
+    public let localName: String
+    public let attributes: [String: String]
+    public let prefixes: [String: String]
+    public internal(set) var children: [SchemaElement] = []
+    public internal(set) var text = ""
 
     /// The child elements named `localName` in `namespace`.
-    func children(_ localName: String, in namespace: String) -> [SchemaElement] {
+    public func children(_ localName: String, in namespace: String) -> [SchemaElement] {
         children.filter { $0.localName == localName && $0.namespace == namespace }
     }
 
     /// The namespace name and local name a QName attribute value denotes,
     /// resolved with the prefixes in scope (Namespaces in XML §4).
-    func resolve(qualifiedName: String) throws -> (namespace: String?, localName: String) {
+    public func resolve(qualifiedName: String) throws -> (namespace: String?, localName: String) {
         guard let colon = qualifiedName.firstIndex(of: ":") else { return (prefixes[""], qualifiedName) }
         let prefix = String(qualifiedName[..<colon])
         guard let namespace = prefixes[prefix] else {
-            throw TranslationError(description: "the prefix '\(prefix)' of '\(qualifiedName)' is not declared")
+            throw DefinitionError(description: "the prefix '\(prefix)' of '\(qualifiedName)' is not declared")
         }
         return (namespace, String(qualifiedName[qualifiedName.index(after: colon)...]))
     }
@@ -40,7 +40,7 @@ struct SchemaElement {
     /// XML parser of Foundation on Linux stops on the internal subsets, so
     /// the parser is given the document with its declaration blanked out,
     /// lines kept.
-    init(document path: String) throws {
+    public init(document path: String) throws {
         let text = try String(contentsOf: URL(filePath: path), encoding: .utf8)
         let builder = Builder()
         let parser = XMLParser(data: Data(Self.withoutDocumentTypeDeclaration(text).utf8))
@@ -49,7 +49,7 @@ struct SchemaElement {
         parser.shouldResolveExternalEntities = false
         parser.delegate = builder
         guard parser.parse(), let root = builder.root else {
-            throw TranslationError(description: "\(path):\(parser.lineNumber): not well-formed XML")
+            throw DefinitionError(description: "\(path):\(parser.lineNumber): not well-formed XML")
         }
         self = root
     }

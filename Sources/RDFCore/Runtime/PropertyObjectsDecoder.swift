@@ -45,13 +45,13 @@ extension KeyedDecodingContainer where Key == PropertyKey {
             ))
         }
         // A literal of a property typed by a datatype's value type is the
-        // value it denotes, or, when it is not one, kept as it is.
+        // value it denotes, or, when it denotes none, kept as it is.
         let datatype = Member.self as? any DatatypeValue.Type
         var members: [Member] = []
         var kept: [Literal] = []
         for value in try decoder.values(`class`) {
             if let datatype, case .literal(let literal) = value {
-                if let member = datatype.init(holding: literal) as? Member {
+                if let member = datatype.init(literal) as? Member {
                     members.append(member)
                 } else {
                     kept.append(literal)
@@ -73,8 +73,8 @@ extension KeyedDecodingContainer where Key == PropertyKey {
 
 extension KeyedDecodingContainer where Key == PropertyKey {
     /// Reads the values of a property whose range is a datatype with a
-    /// Swift value type, typed `Member`: the values of the literals that
-    /// type holds. The other literals are kept as they are
+    /// Swift value type, typed `Member`: the values the literals denote in
+    /// the range's value space. The other literals are kept as they are
     /// (``PropertyLiterals``). `datatype` is the class that stands for the
     /// datatype, whose members are values, never individuals a decoder
     /// makes.
