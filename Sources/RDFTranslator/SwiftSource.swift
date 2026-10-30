@@ -486,6 +486,8 @@ struct SwiftSource {
         if let language = literal.languageTag { arguments.append("languageTag: \(language.swiftStringLiteral)") }
         if let direction = literal.baseDirection { arguments.append("baseDirection: .\(direction.rawValue)") }
         if let datatype = literal.datatype { arguments.append("datatype: \(datatype.rawValue.swiftStringLiteral)") }
-        return "try! RDFCore::Literal(\(arguments.joined(separator: ", ")))"
+        // Only a language tag can be refused; a typed literal cannot.
+        let attempt = literal.languageTag == nil ? "" : "try! "
+        return "\(attempt)RDFCore::Literal(\(arguments.joined(separator: ", ")))"
     }
 }

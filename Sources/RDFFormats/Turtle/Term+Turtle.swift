@@ -17,9 +17,7 @@ extension Literal {
         case .word("false"): (datatype, text) = (.xsdBoolean, "false")
         default: return nil
         }
-        // Only rdf:langString is refused as a datatype, and none of these is.
-        guard let literal = try? Literal(text, datatype: datatype) else { return nil }
-        self = literal
+        self.init(text, datatype: datatype)
     }
 
     /// The lexical form itself, when Turtle reads it back as this literal

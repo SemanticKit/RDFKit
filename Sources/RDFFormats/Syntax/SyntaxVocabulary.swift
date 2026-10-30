@@ -20,4 +20,9 @@ extension IRI {
     static let xsdDecimal: IRI = "http://www.w3.org/2001/XMLSchema#decimal"
     static let xsdDouble: IRI = "http://www.w3.org/2001/XMLSchema#double"
     static let xsdBoolean: IRI = "http://www.w3.org/2001/XMLSchema#boolean"
+    // The datatype IRIs RDF 1.2 Concepts §3.4 ties to a literal's form: a
+    // simple literal's, a language-tagged string's and a directional one's.
+    static let xsdString: IRI = "http://www.w3.org/2001/XMLSchema#string"
+    static let rdfLangString: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
+    static let rdfDirLangString: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"
 }

@@ -524,7 +524,7 @@ struct RDFXMLParser {
 
     /// A typed literal (Typed Literal Event).
     func makeLiteral(_ value: String, datatype: IRI, at element: XMLInfoset.Element) throws -> Literal {
-        guard let literal = try? Literal(value, datatype: datatype) else {
+        guard let literal = try? Literal(value, datatypeIRI: datatype) else {
             throw error("<\(datatype)> cannot be the datatype of \"\(value)\"", at: element)
         }
         return literal

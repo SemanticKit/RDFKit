@@ -236,7 +236,7 @@ struct EntityGenerator {
             lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso.key))")
         }
         if !declaration.annotations("Deprecated").isEmpty {
-            lines.append("try container.encode([try RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")
+            lines.append("try container.encode([RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")
         }
         guard !lines.isEmpty else { return "\(indent)_ = encoder.container(keyedBy: RDFCore.PropertyKey.self)" }
         return (["var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)"] + lines)

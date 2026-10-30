@@ -401,7 +401,7 @@ struct TurtleParser {
             try advance()
             guard let datatype = try parseIRIIfPresent() else { throw error("expected a datatype IRI") }
             do {
-                return try Literal(lexicalForm, datatype: datatype)
+                return try Literal(lexicalForm, datatypeIRI: datatype)
             } catch {
                 throw lexer.scanner.error("a language-tagged string cannot be written with '^^'", at: start)
             }
