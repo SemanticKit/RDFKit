@@ -1,6 +1,5 @@
 import IRIKit
 import RDFCore
-import RDFRuntime
 
 /// Encodes a graph as canonical RDF 1.2 N-Triples (§4).
 ///
@@ -101,15 +100,20 @@ public struct NTriplesEncoder: Sendable {
 
 extension NTriplesEncoder {
     /// Encodes descriptions as a canonical N-Triples document: the triples
-    /// each one states, through its `Encodable` conformance.
+    /// each one states through its `Encodable` conformance (see
+    /// ``GraphEncoder``).
     ///
     ///     let document = try NTriplesEncoder().encode([alice, bob])
-    ///     let vocabulary = try NTriplesEncoder().encode(FOAF.ontology)
     ///
     /// - Throws: `EncodingError` when a description writes something other
-    ///   than resources and literals keyed by property IRIs.
-    public func encode(_ descriptions: [any RDFRuntime.Description]) throws -> String {
-        encode(try TripleEncoder().encode(descriptions))
+    ///   than resources, classes and literals keyed by property IRIs.
+    public func encode(_ descriptions: [any Description]) throws -> String {
+        encode(try GraphEncoder().encode(descriptions))
+    }
+
+    /// Encodes one description as a canonical N-Triples document.
+    public func encode(_ description: some Description) throws -> String {
+        encode(try GraphEncoder().encode(description))
     }
 }
 

@@ -30,7 +30,7 @@ do {
     var vocabulary = Vocabulary([])
     var documents = 0
     for group in groups {
-        let layer = try Layer.read(module: group.module, paths: group.paths, firstDocument: documents)
+        let layer = try Layer(module: group.module, paths: group.paths, firstDocument: documents)
         documents += group.paths.count
         layers.append(layer)
         vocabulary = Vocabulary(layers)

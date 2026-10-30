@@ -2,7 +2,6 @@ import Testing
 import Foundation
 import RDFCore
 import RDFFormats
-import RDFRuntime
 import RDF
 
 /// `library.ttl`, translated into this test module by `RDFTranslatorPlugin`.

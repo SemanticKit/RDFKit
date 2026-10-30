@@ -1,6 +1,5 @@
 import IRIKit
 import RDFCore
-import RDFKit
 
 /// A recursive-descent parser for the RDF 1.2 Turtle grammar (§7.3), with
 /// the triple-producing actions of §7.4.
@@ -174,7 +173,7 @@ struct TurtleParser {
     mutating func parseVerb() throws -> IRI {
         if current.token == .word("a") {
             try advance()
-            return RDF.type.metadata.id
+            return IRI.rdfType
         }
         guard let iri = try parseIRIIfPresent() else { throw error("expected a predicate") }
         return iri
@@ -229,11 +228,11 @@ struct TurtleParser {
             items.append(try parseObject())
         }
         try advance()
-        var list = SubjectTerm.iri(type(of: RDF.nil).metadata.id)
+        var list = SubjectTerm.iri(IRI.rdfNil)
         for item in items.reversed() {
             let cell = SubjectTerm.blankNode(try blankNodes.fresh())
-            emit(cell, RDF.first.metadata.id, item)
-            emit(cell, RDF.rest.metadata.id, list.object)
+            emit(cell, IRI.rdfFirst, item)
+            emit(cell, IRI.rdfRest, list.object)
             list = cell
         }
         return list
@@ -252,7 +251,7 @@ struct TurtleParser {
             if isPunctuation("~") {
                 try advance()
                 let reifier = try parseReifierIdentifier() ?? .blankNode(blankNodes.fresh())
-                emit(reifier, RDF.reifies.metadata.id, .tripleTerm(triple))
+                emit(reifier, IRI.rdfReifies, .tripleTerm(triple))
                 pending = reifier
             } else if isPunctuation("{|") {
                 try advance()
@@ -261,7 +260,7 @@ struct TurtleParser {
                     reifier = waiting
                 } else {
                     reifier = .blankNode(try blankNodes.fresh())
-                    emit(reifier, RDF.reifies.metadata.id, .tripleTerm(triple))
+                    emit(reifier, IRI.rdfReifies, .tripleTerm(triple))
                 }
                 pending = nil
                 try parsePredicateObjectList(subject: reifier)
@@ -309,7 +308,7 @@ struct TurtleParser {
         }
         try expect(">>", "to close a reified triple")
         let node = try reifier ?? .blankNode(blankNodes.fresh())
-        emit(node, RDF.reifies.metadata.id, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
+        emit(node, IRI.rdfReifies, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
         return node
     }
 
@@ -407,14 +406,14 @@ struct TurtleParser {
             }
             return Literal(lexicalForm)
         case .integer(let text):
-            literal = try Literal(text, datatype: XSD.integer.metadata.id)
+            literal = try Literal(text, datatype: IRI.xsdInteger)
         case .decimal(let text):
-            literal = try Literal(text, datatype: XSD.decimal.metadata.id)
+            literal = try Literal(text, datatype: IRI.xsdDecimal)
         case .double(let text):
-            literal = try Literal(text, datatype: XSD.double.metadata.id)
+            literal = try Literal(text, datatype: IRI.xsdDouble)
         case .word("true"), .word("false"):
             guard case .word(let text) = current.token else { return nil }
-            literal = try Literal(text, datatype: XSD.boolean.metadata.id)
+            literal = try Literal(text, datatype: IRI.xsdBoolean)
         default:
             return nil
         }

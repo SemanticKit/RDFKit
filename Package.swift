@@ -23,8 +23,12 @@ let package = Package(
             targets: ["RDFFormats"]
         ),
         .library(
-            name: "RDFRuntime",
-            targets: ["RDFRuntime"]
+            name: "RDF",
+            targets: ["RDF"]
+        ),
+        .library(
+            name: "OWL",
+            targets: ["OWL"]
         ),
         .plugin(
             name: "RDFTranslatorPlugin",
@@ -44,6 +48,8 @@ let package = Package(
             name: "RDFKit",
             dependencies: [
                 "RDFCore",
+                "RDF",
+                "OWL",
                 "RDFKitMacros"
             ],
             exclude: [
@@ -65,18 +71,13 @@ let package = Package(
             name: "RDFFormats",
             dependencies: [
                 "IRIKit",
-                "RDFCore",
-                "RDFKit",
-                "RDFRuntime"
+                "RDFCore"
             ]
         ),
 
-        // RDF in, Swift out: the translator, the build tool plugin that runs
-        // it over a target's RDF documents, and what the Swift it writes uses.
-        .target(
-            name: "RDFRuntime",
-            dependencies: ["IRIKit", "RDFCore"]
-        ),
+        // RDF in, Swift out: the translator and the build tool plugin that
+        // runs it over a target's RDF documents. The Swift it writes uses
+        // RDFCore, as the Swift @Ontology writes does.
         .executableTarget(
             name: "RDFTranslator",
             dependencies: ["IRIKit", "RDFCore", "RDFFormats"]
@@ -91,7 +92,7 @@ let package = Package(
         // to each other), then OWL 2 (owl.ttl).
         .target(
             name: "RDF",
-            dependencies: ["RDFRuntime"],
+            dependencies: ["RDFCore"],
             path: "Tests/ParallelTests/Fixtures/W3C",
             plugins: ["RDFTranslatorPlugin"]
         ),
@@ -159,7 +160,6 @@ let package = Package(
             dependencies: [
                 "RDFCore",
                 "RDFFormats",
-                "RDFRuntime",
                 "RDF",
                 "OWL"
             ],

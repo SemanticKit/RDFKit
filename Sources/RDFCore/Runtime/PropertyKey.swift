@@ -1,10 +1,11 @@
 import IRIKit
-import RDFCore
 
 /// The coding key of a property's values: the IRI of the property.
 ///
-/// A generated `encode(to:)` keys each member by its property's declaration,
-/// `PropertyKey(FOAF.knows)`, so the IRI is read only here, at the boundary.
+/// A generated `encode(to:)` keys each value by its property, the
+/// property's own declaration: `PropertyKey(FOAF.knows)` for a translated
+/// property, which is an individual of `rdf:Property`. The IRI is read only
+/// here, where the value leaves the runtime.
 public struct PropertyKey: CodingKey, Sendable {
     public let stringValue: String
 
@@ -13,6 +14,12 @@ public struct PropertyKey: CodingKey, Sendable {
     /// reports it.
     public init(_ property: any Resource) {
         stringValue = property.iri?.rawValue ?? ""
+    }
+
+    /// The key of the values of a property `@Ontology` declares, by the
+    /// boundary projection of its term type: `PropertyKey(Fauna.hasHabitat.metadata)`.
+    public init(_ metadata: any ContentMetadata) {
+        stringValue = metadata.id.rawValue
     }
 
     public init?(stringValue: String) {
@@ -38,7 +45,7 @@ extension KeyedEncodingContainer where Key == PropertyKey {
     }
 
     /// Writes classes that are values of a property.
-    public mutating func encode(_ values: [any Class.Type], for property: any Resource) throws {
+    public mutating func encode(_ values: [any ResourceClass.Type], for property: any Resource) throws {
         for value in values { try encode(Value.class(value), forKey: PropertyKey(property)) }
     }
 

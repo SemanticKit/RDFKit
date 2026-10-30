@@ -1,17 +1,23 @@
+import IRIKit
+import RDFCore
+
 /// The Swift one module declares for the resources its documents name.
 ///
-/// - A class (an instance of `rdfs:Class`, stated or entailed) is two Swift
-///   declarations: a protocol, for membership, which refines the protocols
-///   of its superclasses, and a final class whose instances are its members
-///   and whose stored properties are the properties they have. FOAF's
-///   `foaf:Person` is the protocol `Person` and the class `PersonIndividual`.
+/// - A class (an instance of `rdfs:Class`, stated or entailed) is a
+///   protocol, for membership, which refines the protocols of its
+///   superclasses; a storing protocol, which gives a member of the class
+///   every property it can have; and a final class whose instances are its
+///   members. FOAF's `foaf:Person` is the protocol `Person`, the storing
+///   protocol `PersonStoring` and the class `PersonIndividual`.
+/// - A property is an individual of `rdf:Property`, and is also a
+///   ``RDFCore/PropertyValue`` type that holds its values on an individual
+///   (`knowsValue`) and a storing protocol that gives it its accessor
+///   (`knowsStoring`), typed by its range.
 /// - Any other resource is an individual: one instance of the class of the
 ///   class its documents state it is a member of. An individual that is a
-///   member of several classes, or of none, is an instance of a class
-///   generated for that combination, which conforms to the protocol of each.
-/// - Each property is a stored property of the classes of the things that
-///   have it, typed by its range, and a requirement of the protocol of its
-///   domain when this module declares both.
+///   member of several classes, or of none, or that has a property its
+///   class's members cannot have, is an instance of a class generated for
+///   that combination, which conforms to the storing protocol of each.
 ///
 /// Every IRI has one declaration, in the lowest module whose documents
 /// describe it (name it as a subject); higher modules refer to it. A
@@ -30,19 +36,22 @@ struct Declarations {
     var module: String
 
     /// The classes this module declares.
-    var classes: [NodeID: ClassDeclaration] = [:]
+    var classes: [SubjectTerm: ClassDeclaration] = [:]
 
     /// The individuals this module declares.
-    var individuals: [NodeID: IndividualDeclaration] = [:]
+    var individuals: [SubjectTerm: IndividualDeclaration] = [:]
+
+    /// The properties this module declares: individuals that are properties.
+    var properties: [SubjectTerm: PropertyDeclaration] = [:]
 
     /// Every node this module declares, in document order.
-    var order: [NodeID] = []
+    var order: [SubjectTerm] = []
 
     /// The protocols each declared class's protocol refines.
-    var refinements: [NodeID: [NodeID]] = [:]
+    var refinements: [SubjectTerm: [SubjectTerm]] = [:]
 
     /// The requirements of each declared class's protocol.
-    var requirements: [NodeID: [Member]] = [:]
+    var requirements: [SubjectTerm: [SubjectTerm]] = [:]
 
     /// The classes generated for individuals that are members of several
     /// classes, or of none.
@@ -50,17 +59,13 @@ struct Declarations {
 
     /// The resources a lower module declares that this module's documents
     /// describe.
-    var additions: [NodeID] = []
-
-    /// The properties declared here or below that a member of this module
-    /// can have, nearest module first.
-    var properties: [NodeID] = []
+    var additions: [SubjectTerm] = []
 
     /// Names that generated code declares in every module.
     static let reserved: Set<String> = ["ontology", "described"]
 
     /// Names a generated class declares itself.
-    static let memberNames: Set<String> = ["iri", "storage", "encode", "encodeDescription", "init", "Values"]
+    static let memberNames: Set<String> = ["iri", "storage", "encode", "encodeDescription", "init", "Member", "withPropertyValue"]
 
     init(_ layer: Layer, _ vocabulary: Vocabulary, below: [Declarations]) throws {
         module = layer.module
@@ -68,10 +73,10 @@ struct Declarations {
 
         // The nodes this module declares: every node its documents name that
         // no lower module declares publicly.
-        let subjects = Set(layer.statements.map(\.subject))
-        var seen: Set<NodeID> = []
-        for statement in layer.statements {
-            let nodes = [statement.subject, .iri(statement.predicate)] + [statement.object.node].compactMap(\.self)
+        let subjects = Set(layer.graph.map(\.subject))
+        var seen: Set<SubjectTerm> = []
+        for triple in layer.graph {
+            let nodes = [triple.subject, .iri(triple.predicate)] + [triple.object.node].compactMap(\.self)
             for node in nodes where seen.insert(node).inserted {
                 if !lower.declares(node) {
                     order.append(node)
@@ -82,44 +87,45 @@ struct Declarations {
         }
 
         // Names. Resources the documents say a vocabulary defines take their
-        // names before resources the documents only describe.
-        let defined = Set(layer.statements.filter { $0.predicate == Term.isDefinedBy }.map(\.subject))
+        // names before resources the documents only describe. A class also
+        // takes the names of its storing protocol and its Swift class, and a
+        // property the names of its value type and storing protocol.
+        let defined = Set(layer.graph.filter { $0.predicate == .rdfsIsDefinedBy }.map(\.subject))
         let described = order.filter { subjects.contains($0) && $0.iri != nil }
         let byPrecedence = described.filter(defined.contains) + described.filter { !defined.contains($0) }
         var taken = Self.reserved
-        var names: [NodeID: String] = [:]
+        var names: [SubjectTerm: String] = [:]
         for node in byPrecedence {
             let name = SwiftName.localName(of: node.iri!)
             guard SwiftName.isUsable(name), !taken.contains(name) else { continue }
-            if vocabulary.isClass(node) {
-                let className = name + "Individual"
-                guard !taken.contains(className) else { continue }
-                taken.insert(className)
-            }
-            taken.insert(name)
+            let derived = vocabulary.isClass(node) ? [name + "Individual", name + "Storing"]
+                : vocabulary.isProperty(node) ? [name + "Value", name + "Storing"] : []
+            guard derived.allSatisfy({ !taken.contains($0) }) else { continue }
+            taken.formUnion(derived + [name])
             names[node] = name
         }
         for (index, node) in order.enumerated() {
             let handle = "resource \(index)"
+            let name = names[node]
             if vocabulary.isClass(node) {
-                let name = names[node]
-                classes[node] = ClassDeclaration(
-                    node: node, module: module, isPublic: name != nil,
-                    protocolName: name ?? handle, className: name.map { $0 + "Individual" } ?? handle + " Individual"
-                )
+                classes[node] = ClassDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle)
             } else {
-                individuals[node] = IndividualDeclaration(node: node, module: module, isPublic: names[node] != nil, name: names[node] ?? handle)
+                individuals[node] = IndividualDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle)
+                if vocabulary.isProperty(node) {
+                    // A private property's member is named by its local name
+                    // where Swift can spell it; only the private classes
+                    // that store it have it.
+                    var member = name ?? handle
+                    if name == nil, let iri = node.iri, case let local = SwiftName.localName(of: iri), SwiftName.isUsable(local) {
+                        member = local
+                    }
+                    if Self.memberNames.contains(member) { member += "_" }
+                    properties[node] = PropertyDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle, member: member)
+                }
             }
         }
 
         refine(vocabulary, lower: lower)
-
-        // The properties a member of this module can have: those this module
-        // declares, then the public ones of the modules below.
-        properties = order.filter { individuals[$0] != nil && vocabulary.isProperty($0) && $0 != .iri(Term.type) }
-        for declarations in below.reversed() {
-            properties += declarations.properties.filter { declarations.individuals[$0]?.isPublic == true && !properties.contains($0) }
-        }
 
         var planner = Planner(declarations: self, lower: lower, vocabulary: vocabulary, layer: layer)
         try planner.plan()
@@ -152,48 +158,87 @@ struct Declarations {
                     return vocabulary.superclassClosure(of: other).contains(superclass)
                         && !vocabulary.superclassClosure(of: superclass).contains(other)
                 }
-            }.sorted { ($0.iri ?? "") < ($1.iri ?? "") }
+            }.sorted(by: SubjectTerm.inIRIOrder)
         }
-    }
-
-    // MARK: - Lookups across modules
-
-    /// The class declaration of `node`, in this module or, when public, in
-    /// one below.
-    func `class`(_ node: NodeID, below: [Declarations]) -> ClassDeclaration? {
-        classes[node] ?? Lower(below).class(node)
     }
 }
 
-/// The class of an RDF class: its protocol and the Swift class of its
-/// members.
+/// The Swift of an RDF class: its protocol, storing protocol and the Swift
+/// class of its members.
 struct ClassDeclaration {
-    let node: NodeID
+    let node: SubjectTerm
     var module: String
     let isPublic: Bool
-    let protocolName: String
-    let className: String
-
-    /// The members of the class's instances.
-    var members: [Member] = []
+    let name: String
 
     /// The protocols the class conforms to, without those another implies.
-    var conformances: [NodeID] = []
+    var conformances: [SubjectTerm] = []
+
+    /// The storing protocols the class's storing protocol refines: those of
+    /// the classes it conforms to and of the properties its members can
+    /// have that this module declares.
+    var storing: [Storing] = []
+
+    /// The properties a member of the class has an accessor for.
+    var stored: Set<SubjectTerm> = []
+
+    /// The Swift type of a member of the class as a property value.
+    var member: ValueKind = .values
+
+    var protocolName: String { name }
+    var className: String { isPublic ? name + "Individual" : name + " Individual" }
+    var storingName: String { isPublic ? name + "Storing" : name + " Storing" }
 
     /// The protocol, as Swift refers to it from any module.
-    var protocolReference: String {
-        isPublic ? "\(module).\(SwiftName.identifier(protocolName))" : SwiftName.identifier(protocolName)
-    }
+    var protocolReference: String { reference(protocolName) }
 
     /// The class, as Swift refers to it from any module.
-    var classReference: String {
-        isPublic ? "\(module).\(SwiftName.identifier(className))" : SwiftName.identifier(className)
+    var classReference: String { reference(className) }
+
+    /// The storing protocol, as Swift refers to it from any module.
+    var storingReference: String { reference(storingName) }
+
+    private func reference(_ name: String) -> String {
+        isPublic ? "\(module).\(SwiftName.identifier(name))" : SwiftName.identifier(name)
     }
+}
+
+/// A property: its value type and storing protocol, and the Swift type of
+/// its values.
+struct PropertyDeclaration {
+    let node: SubjectTerm
+    var module: String
+    let isPublic: Bool
+    let name: String
+
+    /// The name of the property's accessor on an individual.
+    let member: String
+
+    /// The Swift type of the property's values.
+    var kind: ValueKind = .values
+
+    var valueName: String { isPublic ? name + "Value" : name + " Value" }
+    var storingName: String { isPublic ? name + "Storing" : name + " Storing" }
+
+    var valueReference: String { reference(valueName) }
+    var storingReference: String { reference(storingName) }
+
+    private func reference(_ name: String) -> String {
+        isPublic ? "\(module).\(SwiftName.identifier(name))" : SwiftName.identifier(name)
+    }
+}
+
+/// A storing protocol a class or a combination conforms to.
+enum Storing: Hashable {
+    /// The storing protocol of a class.
+    case `class`(SubjectTerm)
+    /// The storing protocol of a property.
+    case property(SubjectTerm)
 }
 
 /// An individual: its name and the class it is an instance of.
 struct IndividualDeclaration {
-    let node: NodeID
+    let node: SubjectTerm
     var module: String
     let isPublic: Bool
     let name: String
@@ -202,10 +247,10 @@ struct IndividualDeclaration {
     var instanceOf: InstanceClass = .combination(0)
 
     /// The protocols the individual conforms to, with those they refine.
-    var conformances: Set<NodeID> = []
+    var conformances: Set<SubjectTerm> = []
 
     /// The Swift type of the public constant.
-    var publicType = "any RDFRuntime.Resource"
+    var publicType = "any RDFCore.Resource"
 
     /// The individual, as Swift refers to it from any module.
     var reference: String {
@@ -216,43 +261,33 @@ struct IndividualDeclaration {
 /// The Swift class an individual is an instance of.
 enum InstanceClass: Hashable {
     /// The class of an RDF class, in this module or one below.
-    case `class`(NodeID)
+    case `class`(SubjectTerm)
     /// A class generated in this module for a combination of classes.
     case combination(Int)
 }
 
 /// A class generated for the individuals that are members of a combination
 /// of classes: those the documents state (written back as `rdf:type`) and
-/// those entailed.
+/// those entailed, with the properties they have.
 struct Combination {
     let name: String
     /// The classes the documents state, in IRI order.
-    let stated: [NodeID]
+    let stated: [SubjectTerm]
     /// The protocols the class conforms to, without those another implies.
-    let conformances: [NodeID]
-    var members: [Member]
-}
-
-/// A stored property of a generated class: the property and the Swift type
-/// of its values.
-struct Member {
-    let property: NodeID
-    var name: String
-    var kind: ValueKind
-    /// Whether the member is a protocol requirement, whose name and type are
-    /// fixed.
-    var isRequirement = false
+    let conformances: [SubjectTerm]
+    /// The storing protocols it conforms to.
+    var storing: [Storing]
 }
 
 /// The Swift type of a property's values.
 enum ValueKind: Hashable {
     /// `[RDFCore.Literal]`: the range is a literal class or datatype.
     case literals
-    /// `[any RDFRuntime.Class.Type]`: the range is a class of classes.
+    /// `[any RDFCore.ResourceClass.Type]`: the range is a class of classes.
     case classes
     /// `[any A & B]`: the range is classes of individuals.
-    case individuals([NodeID])
-    /// `[RDFRuntime.Value]`: the range admits any resource.
+    case individuals([SubjectTerm])
+    /// `[RDFCore.Value]`: the range admits any resource.
     case values
 }
 
@@ -264,25 +299,32 @@ struct Lower {
         self.modules = modules
     }
 
-    func declares(_ node: NodeID) -> Bool {
+    func declares(_ node: SubjectTerm) -> Bool {
         `class`(node) != nil || individual(node) != nil
     }
 
-    func `class`(_ node: NodeID) -> ClassDeclaration? {
+    func `class`(_ node: SubjectTerm) -> ClassDeclaration? {
         for module in modules {
             if let declaration = module.classes[node], declaration.isPublic { return declaration }
         }
         return nil
     }
 
-    func individual(_ node: NodeID) -> IndividualDeclaration? {
+    func individual(_ node: SubjectTerm) -> IndividualDeclaration? {
         for module in modules {
             if let declaration = module.individuals[node], declaration.isPublic { return declaration }
         }
         return nil
     }
 
-    func requirements(of node: NodeID) -> [Member] {
+    func property(_ node: SubjectTerm) -> PropertyDeclaration? {
+        for module in modules {
+            if let declaration = module.properties[node], declaration.isPublic { return declaration }
+        }
+        return nil
+    }
+
+    func requirements(of node: SubjectTerm) -> [SubjectTerm] {
         for module in modules {
             if let members = module.requirements[node] { return members }
         }
@@ -291,8 +333,8 @@ struct Lower {
 
     /// Every protocol the protocol of `node` refines, through the refinements
     /// of these modules.
-    func refinementClosure(of node: NodeID, local: [NodeID: [NodeID]] = [:]) -> Set<NodeID> {
-        var closure: Set<NodeID> = []
+    func refinementClosure(of node: SubjectTerm, local: [SubjectTerm: [SubjectTerm]] = [:]) -> Set<SubjectTerm> {
+        var closure: Set<SubjectTerm> = []
         var pending = [node]
         while let next = pending.popLast() {
             for refined in modules.flatMap({ $0.refinements[next] ?? [] }) + (local[next] ?? []) where closure.insert(refined).inserted {
@@ -307,7 +349,8 @@ struct Lower {
 enum SwiftName {
     /// The local name of an IRI: what follows its last `#`, or else its
     /// last `/`.
-    static func localName(of iri: String) -> String {
+    static func localName(of iri: IRI) -> String {
+        let iri = iri.rawValue
         if let hash = iri.lastIndex(of: "#") { return String(iri[iri.index(after: hash)...]) }
         if let slash = iri.lastIndex(of: "/") { return String(iri[iri.index(after: slash)...]) }
         return ""

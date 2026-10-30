@@ -1,6 +1,5 @@
 import IRIKit
 import RDFCore
-import RDFKit
 
 /// The RDF 1.2 XML Syntax grammar productions over the events of one document's
 /// XML Information Set (Syntax Data Model), with each production's triple-emitting actions.
@@ -281,8 +280,8 @@ struct RDFXMLParser {
         let cells = try members.map { _ in SubjectTerm.blankNode(try blankNodes.fresh()) }
         try emitStatement(subject, predicate, cells.first?.object ?? .iri(Self.nilIRI), attributes, scope, at: element)
         for (index, cell) in cells.enumerated() {
-            emit(cell, RDF.first.metadata.id, members[index].object)
-            emit(cell, RDF.rest.metadata.id, index + 1 < cells.count ? cells[index + 1].object : .iri(Self.nilIRI))
+            emit(cell, IRI.rdfFirst, members[index].object)
+            emit(cell, IRI.rdfRest, index + 1 < cells.count ? cells[index + 1].object : .iri(Self.nilIRI))
         }
     }
 
@@ -441,9 +440,9 @@ struct RDFXMLParser {
 
     // MARK: - Terms
 
-    static let typeIRI = RDF.type.metadata.id
-    static let nilIRI = type(of: RDF.nil).metadata.id
-    static let xmlLiteralIRI = RDF.XMLLiteral.metadata.id
+    static let typeIRI = IRI.rdfType
+    static let nilIRI = IRI.rdfNil
+    static let xmlLiteralIRI = IRI.rdfXMLLiteral
 
     /// The element event's IRI (Element Event): namespace name and local name.
     func iri(of element: XMLInfoset.Element) throws -> String {
@@ -573,10 +572,10 @@ struct RDFXMLParser {
         emit(subject, predicate, object)
         if let id = attributes.id {
             let reifier = SubjectTerm.iri(try identifier(id, scope, at: element))
-            emit(reifier, RDF.subject.metadata.id, subject.object)
-            emit(reifier, RDF.predicate.metadata.id, .iri(predicate))
-            emit(reifier, RDF.object.metadata.id, object)
-            emit(reifier, Self.typeIRI, .iri(RDF.StatementIndividual.metadata.id))
+            emit(reifier, IRI.rdfSubject, subject.object)
+            emit(reifier, IRI.rdfPredicate, .iri(predicate))
+            emit(reifier, IRI.rdfObject, object)
+            emit(reifier, Self.typeIRI, .iri(IRI.rdfStatement))
         }
         let reifier: SubjectTerm?
         if let annotation = attributes.annotation {
@@ -587,7 +586,7 @@ struct RDFXMLParser {
             reifier = nil
         }
         if let reifier {
-            emit(reifier, RDF.reifies.metadata.id, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
+            emit(reifier, IRI.rdfReifies, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
         }
     }
 

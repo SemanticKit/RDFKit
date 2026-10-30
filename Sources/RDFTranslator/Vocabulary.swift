@@ -1,27 +1,30 @@
+import IRIKit
 import RDFCore
 
-/// The IRIs whose meaning the translation follows.
-enum Term {
-    static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-    static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
-    static let owl = "http://www.w3.org/2002/07/owl#"
-    static let xsd = "http://www.w3.org/2001/XMLSchema#"
-
-    static let type = rdf + "type"
-    static let property = rdf + "Property"
-    static let subClassOf = rdfs + "subClassOf"
-    static let domain = rdfs + "domain"
-    static let range = rdfs + "range"
-    static let label = rdfs + "label"
-    static let comment = rdfs + "comment"
-    static let isDefinedBy = rdfs + "isDefinedBy"
-    static let resource = rdfs + "Resource"
-    static let `class` = rdfs + "Class"
-    static let literal = rdfs + "Literal"
-    static let datatype = rdfs + "Datatype"
-    static let thing = owl + "Thing"
-    static let deprecated = owl + "deprecated"
-    static let boolean = xsd + "boolean"
+extension IRI {
+    // The terms whose meaning RDF 1.2 Semantics and OWL 2 fix, and that the
+    // translation follows: membership (`rdf:type`, rdfD2), the RDFS
+    // entailment rules (rdfs2, rdfs3, rdfs9, rdfs13), the classes every
+    // resource is a member of (rdfs4; OWL 2 RDF-Based Semantics Table 5.2),
+    // and the annotations that become documentation. These are the
+    // translator's boundary: it reads a document's IRIs and writes Swift
+    // types, and inside the Swift it writes no IRI names a term.
+    static let rdfType: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+    static let rdfProperty: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"
+    static let rdfsSubClassOf: IRI = "http://www.w3.org/2000/01/rdf-schema#subClassOf"
+    static let rdfsDomain: IRI = "http://www.w3.org/2000/01/rdf-schema#domain"
+    static let rdfsRange: IRI = "http://www.w3.org/2000/01/rdf-schema#range"
+    static let rdfsLabel: IRI = "http://www.w3.org/2000/01/rdf-schema#label"
+    static let rdfsComment: IRI = "http://www.w3.org/2000/01/rdf-schema#comment"
+    static let rdfsIsDefinedBy: IRI = "http://www.w3.org/2000/01/rdf-schema#isDefinedBy"
+    static let rdfsResource: IRI = "http://www.w3.org/2000/01/rdf-schema#Resource"
+    static let rdfsClass: IRI = "http://www.w3.org/2000/01/rdf-schema#Class"
+    static let rdfsLiteral: IRI = "http://www.w3.org/2000/01/rdf-schema#Literal"
+    static let rdfsDatatype: IRI = "http://www.w3.org/2000/01/rdf-schema#Datatype"
+    static let owlThing: IRI = "http://www.w3.org/2002/07/owl#Thing"
+    static let owlDeprecated: IRI = "http://www.w3.org/2002/07/owl#deprecated"
+    static let xsdBoolean: IRI = "http://www.w3.org/2001/XMLSchema#boolean"
+    static let xsdNamespace = "http://www.w3.org/2001/XMLSchema#"
 }
 
 /// What the merged graph of a module and the layers below it states and
@@ -37,20 +40,22 @@ enum Term {
 /// classes: `rdf:type rdfs:range rdfs:Class` in rdf.ttl makes every object of
 /// `rdf:type` a class.
 struct Vocabulary {
-    let statements: [Statement]
-    private(set) var types: [NodeID: Set<NodeID>] = [:]
-    private var superclasses: [NodeID: Set<NodeID>] = [:]
-    private var domains: [String: [NodeID]] = [:]
-    private var ranges: [String: [NodeID]] = [:]
+    let graph: Graph
+    private(set) var types: [SubjectTerm: Set<SubjectTerm>] = [:]
+    private var superclasses: [SubjectTerm: Set<SubjectTerm>] = [:]
+    private var domains: [IRI: [SubjectTerm]] = [:]
+    private var ranges: [IRI: [SubjectTerm]] = [:]
 
     init(_ layers: some Sequence<Layer>) {
-        statements = layers.flatMap(\.statements)
-        for statement in statements {
-            guard let object = statement.object.node else { continue }
-            switch statement.predicate {
-            case Term.subClassOf: superclasses[statement.subject, default: []].insert(object)
-            case Term.domain: if let p = statement.subject.iri { domains[p, default: []].append(object) }
-            case Term.range: if let p = statement.subject.iri { ranges[p, default: []].append(object) }
+        var graph = Graph()
+        for layer in layers { graph.formUnion(layer.graph) }
+        self.graph = graph
+        for triple in graph {
+            guard let object = triple.object.node else { continue }
+            switch triple.predicate {
+            case .rdfsSubClassOf: superclasses[triple.subject, default: []].insert(object)
+            case .rdfsDomain: if let p = triple.subject.iri { domains[p, default: []].append(object) }
+            case .rdfsRange: if let p = triple.subject.iri { ranges[p, default: []].append(object) }
             default: break
             }
         }
@@ -58,23 +63,23 @@ struct Vocabulary {
     }
 
     /// The classes of `node`, stated and entailed.
-    func classes(of node: NodeID) -> Set<NodeID> {
+    func classes(of node: SubjectTerm) -> Set<SubjectTerm> {
         types[node] ?? []
     }
 
     /// Whether `node` is a class: an instance of `rdfs:Class`.
-    func isClass(_ node: NodeID) -> Bool {
-        classes(of: node).contains(.iri(Term.class))
+    func isClass(_ node: SubjectTerm) -> Bool {
+        classes(of: node).contains(.iri(.rdfsClass))
     }
 
     /// Whether `node` is a property: an instance of `rdf:Property`.
-    func isProperty(_ node: NodeID) -> Bool {
-        classes(of: node).contains(.iri(Term.property))
+    func isProperty(_ node: SubjectTerm) -> Bool {
+        classes(of: node).contains(.iri(.rdfProperty))
     }
 
     /// `node` and every class it is a subclass of (rdfs11).
-    func superclassClosure(of node: NodeID) -> Set<NodeID> {
-        var closure: Set<NodeID> = [node]
+    func superclassClosure(of node: SubjectTerm) -> Set<SubjectTerm> {
+        var closure: Set<SubjectTerm> = [node]
         var pending = [node]
         while let next = pending.popLast() {
             for superclass in superclasses[next] ?? [] where closure.insert(superclass).inserted {
@@ -84,65 +89,65 @@ struct Vocabulary {
         return closure
     }
 
-    func domains(of property: NodeID) -> [NodeID] {
+    func domains(of property: SubjectTerm) -> [SubjectTerm] {
         property.iri.flatMap { domains[$0] } ?? []
     }
 
-    func ranges(of property: NodeID) -> [NodeID] {
+    func ranges(of property: SubjectTerm) -> [SubjectTerm] {
         property.iri.flatMap { ranges[$0] } ?? []
     }
 
     /// Whether the members of `node` are literals: `rdfs:Literal`, a
     /// subclass of it, a datatype (rdfs13) or an XML Schema datatype.
-    func isLiteralClass(_ node: NodeID) -> Bool {
-        if superclassClosure(of: node).contains(.iri(Term.literal)) { return true }
-        if classes(of: node).contains(.iri(Term.datatype)) { return true }
-        return node.iri?.hasPrefix(Term.xsd) ?? false
+    func isLiteralClass(_ node: SubjectTerm) -> Bool {
+        if superclassClosure(of: node).contains(.iri(.rdfsLiteral)) { return true }
+        if classes(of: node).contains(.iri(.rdfsDatatype)) { return true }
+        return node.iri?.rawValue.hasPrefix(IRI.xsdNamespace) ?? false
     }
 
     /// Whether the members of `node` are classes: `rdfs:Class` or a subclass
     /// of it, such as `owl:Class` or `rdfs:Datatype`.
-    func isMetaclass(_ node: NodeID) -> Bool {
-        superclassClosure(of: node).contains(.iri(Term.class))
+    func isMetaclass(_ node: SubjectTerm) -> Bool {
+        superclassClosure(of: node).contains(.iri(.rdfsClass))
     }
 
     /// The literal values of `predicate` on `node`.
-    func literals(_ predicate: String, of node: NodeID) -> [Literal] {
-        statements.compactMap { statement in
-            guard statement.subject == node, statement.predicate == predicate,
-                  case .literal(let literal) = statement.object else { return nil }
+    func literals(_ predicate: IRI, of node: SubjectTerm) -> [Literal] {
+        graph.compactMap { triple in
+            guard triple.subject == node, triple.predicate == predicate,
+                  case .literal(let literal) = triple.object else { return nil }
             return literal
         }
     }
 
     /// Whether `node` is `owl:deprecated true`.
-    func isDeprecated(_ node: NodeID) -> Bool {
-        literals(Term.deprecated, of: node).contains { literal in
-            literal.datatype?.rawValue == Term.boolean && (literal.lexicalForm == "true" || literal.lexicalForm == "1")
+    func isDeprecated(_ node: SubjectTerm) -> Bool {
+        literals(.owlDeprecated, of: node).contains { literal in
+            literal.datatype == .xsdBoolean && (literal.lexicalForm == "true" || literal.lexicalForm == "1")
         }
     }
 
     private mutating func entail() {
-        for statement in statements {
-            types[.iri(statement.predicate), default: []].insert(.iri(Term.property))
-            if statement.predicate == Term.type, let object = statement.object.node {
-                types[statement.subject, default: []].insert(object)
+        for triple in graph {
+            types[.iri(triple.predicate), default: []].insert(.iri(.rdfProperty))
+            if triple.predicate == .rdfType, let object = triple.object.node {
+                types[triple.subject, default: []].insert(object)
             }
         }
-        let typeDomains = domains[Term.type] ?? []
-        let typeRanges = ranges[Term.type] ?? []
+        let typeDomains = domains[.rdfType] ?? []
+        let typeRanges = ranges[.rdfType] ?? []
         var changed = true
         while changed {
             changed = false
-            func add(_ node: NodeID, _ classes: some Sequence<NodeID>) {
+            func add(_ node: SubjectTerm, _ classes: some Sequence<SubjectTerm>) {
                 for type in classes where types[node, default: []].insert(type).inserted {
                     changed = true
                 }
             }
-            for statement in statements {
-                add(statement.subject, domains[statement.predicate] ?? [])
-                if let object = statement.object.node {
-                    add(object, ranges[statement.predicate] ?? [])
+            for triple in graph {
+                add(triple.subject, domains[triple.predicate] ?? [])
+                if let object = triple.object.node {
+                    add(object, ranges[triple.predicate] ?? [])
                 }
             }
             for (node, classes) in types {

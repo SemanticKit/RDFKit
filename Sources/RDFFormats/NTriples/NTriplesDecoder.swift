@@ -1,6 +1,5 @@
 import IRIKit
 import RDFCore
-import RDFKit
 
 /// Decodes RDF 1.2 N-Triples documents into a ``Graph``.
 ///
