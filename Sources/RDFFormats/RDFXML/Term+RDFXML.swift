@@ -41,7 +41,7 @@ extension IRI {
     /// resolved against the in-scope base, and unique in the document
     /// (constraint-id), which `parser` keeps track of.
     init(rdfXMLID id: String, parser: inout RDFXMLParser, scope: RDFXMLParser.Scope, at element: XMLInfoset.Element) throws {
-        guard RDFXMLParser.isNCName(id) else {
+        guard XMLNamesGrammar.NCName.matches(id) else {
             throw SyntaxError("rdf:ID \"\(id)\" is not an XML NCName", at: element)
         }
         try self.init(rdfXMLReference: "#" + id, scope: scope, at: element)
@@ -55,7 +55,7 @@ extension BlankNode {
     /// The blank node of an `rdf:nodeID` or `rdf:annotationNodeID` value,
     /// the same node for the same value throughout `parser`'s document.
     init(rdfXMLNodeID id: String, parser: inout RDFXMLParser, at element: XMLInfoset.Element) throws {
-        guard RDFXMLParser.isNCName(id) else {
+        guard XMLNamesGrammar.NCName.matches(id) else {
             throw SyntaxError("the blank node identifier \"\(id)\" is not an XML NCName", at: element)
         }
         self = try parser.blankNodes.node(labelled: id)

@@ -308,14 +308,9 @@ private struct TurtleDocument {
 }
 
 private extension Prefix {
-    /// Whether the label can be written in a `PNAME_NS`: empty, or
-    /// `PN_PREFIX ::= PN_CHARS_BASE ((PN_CHARS | '.')* PN_CHARS)?`.
+    /// Whether the label can be written in a `PNAME_NS`: empty, or a
+    /// `PN_PREFIX` (RDF 1.2 Turtle §6.5).
     var isTurtleLabel: Bool {
-        let scalars = Array(prefix.unicodeScalars)
-        guard let first = scalars.first, let last = scalars.last else { return true }
-        guard Scanner.isPNCharsBase(first) else { return false }
-        guard scalars.count > 1 else { return true }
-        return Scanner.isPNChars(last)
-            && scalars.dropFirst().dropLast().allSatisfy { Scanner.isPNChars($0) || $0 == "." }
+        prefix.isEmpty || TurtleGrammar.PN_PREFIX.matches(prefix)
     }
 }

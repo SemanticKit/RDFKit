@@ -184,36 +184,16 @@ private struct RDFXMLDocument {
 
     // MARK: - XML
 
-    /// `NCName`: an XML `Name` without `:` (Namespaces in XML 1.0, §3).
+    /// `NCName`: an XML `Name` without `:` (Namespaces in XML 1.0 [4], as
+    /// published in Grammars/xml-names.html).
     static func isNCName(_ text: String) -> Bool {
-        guard let first = text.unicodeScalars.first, isNameStartCharacter(first) else { return false }
-        return text.unicodeScalars.allSatisfy(isNameCharacter)
+        XMLNamesGrammar.NCName.matches(text)
     }
 
-    /// `NameStartChar` without `:` (XML 1.0, §2.3).
-    static func isNameStartCharacter(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x41...0x5A, 0x61...0x7A, 0x5F, 0xC0...0xD6, 0xD8...0xF6, 0xF8...0x2FF, 0x370...0x37D,
-             0x37F...0x1FFF, 0x200C...0x200D, 0x2070...0x218F, 0x2C00...0x2FEF, 0x3001...0xD7FF,
-             0xF900...0xFDCF, 0xFDF0...0xFFFD, 0x10000...0xEFFFF: true
-        default: false
-        }
-    }
-
-    /// `NameChar` without `:` (XML 1.0, §2.3).
-    static func isNameCharacter(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x2D, 0x2E, 0x30...0x39, 0xB7, 0x300...0x36F, 0x203F...0x2040: true
-        default: isNameStartCharacter(scalar)
-        }
-    }
-
-    /// `Char` (XML 1.0, §2.2): the characters an XML document can hold.
+    /// `Char` (XML 1.0 [2], as published in Grammars/xml.html): the
+    /// characters an XML document can hold.
     static func isCharacter(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x9, 0xA, 0xD, 0x20...0xD7FF, 0xE000...0xFFFD, 0x10000...0x10FFFF: true
-        default: false
-        }
+        XMLNamesGrammar.Char.matches(String(scalar))
     }
 
     /// Character data, with `&`, `<` and `>` escaped, and the carriage
@@ -271,10 +251,10 @@ extension IRI {
     /// IRI would be the local name.
     var xmlNameParts: (namespace: String, local: String)? {
         let scalars = Array(rawValue.unicodeScalars)
-        var start = scalars.endIndex
-        while start > scalars.startIndex, RDFXMLDocument.isNameCharacter(scalars[start - 1]) { start -= 1 }
-        while start < scalars.endIndex, !RDFXMLDocument.isNameStartCharacter(scalars[start]) { start += 1 }
-        guard start < scalars.endIndex, start > scalars.startIndex else { return nil }
+        // The longest suffix: the first start whose suffix is an NCName.
+        guard let start = scalars.indices.dropFirst().first(where: {
+            RDFXMLDocument.isNCName(String(String.UnicodeScalarView(scalars[$0...])))
+        }) else { return nil }
         return (String(String.UnicodeScalarView(scalars[..<start])), String(String.UnicodeScalarView(scalars[start...])))
     }
 }
