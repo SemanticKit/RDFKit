@@ -49,11 +49,12 @@ struct EntityGenerator {
     /// properties.
     func members() -> [DeclSyntax] {
         diagnoseUndeclaredTerms()
-        var generated: Set<String> = []
+        diagnoseRedeclarations()
         var descriptions: [String] = []
+        // Every declaration of a term is merged into one by the parser, so
+        // each term gets one set of types.
         let members = ontology.declarations.flatMap { declaration -> [DeclSyntax] in
-            // A term declared twice gets one type.
-            guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
+            guard let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
             case .class, .datatype:
@@ -106,6 +107,22 @@ struct EntityGenerator {
                     message: OntologyDiagnostic.undeclaredTerm(spelling, ontology: ontology.typeName)
                 ))
             }
+        }
+    }
+
+    /// Reports, at the later declaration, a term declared again with
+    /// another form: `Property("name")` after `Class("name")`.
+    private func diagnoseRedeclarations() {
+        for redeclaration in ontology.redeclarations {
+            let declaration = redeclaration.declaration
+            context.diagnose(Diagnostic(
+                node: declaration.syntax,
+                message: OntologyDiagnostic.declaredWithAnotherForm(
+                    declaration.name,
+                    form: declaration.kind.rawValue,
+                    firstForm: redeclaration.firstKind.rawValue
+                )
+            ))
         }
     }
 
