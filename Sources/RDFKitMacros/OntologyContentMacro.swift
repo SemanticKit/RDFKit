@@ -1,4 +1,5 @@
 import SwiftDiagnostics
+import SwiftSpelling
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
@@ -52,22 +53,23 @@ public struct OntologyContentMacro: BodyMacro {
     /// authored on.
     private static func sourceLocation(of statement: CodeBlockItemSyntax, in context: some MacroExpansionContext) -> CodeBlockItemSyntax? {
         guard let location = context.location(of: statement, at: .afterLeadingTrivia, filePathMode: .filePath),
-              let file = location.file.as(StringLiteralExprSyntax.self),
+              let file = location.file.as(StringLiteralExprSyntax.self)?.representedLiteralValue,
               let line = location.line.as(IntegerLiteralExprSyntax.self) else { return nil }
         return .sourceLocation(file: file, line: line.literal)
     }
 }
 
 extension CodeBlockItemSyntax {
-    /// `#sourceLocation(file: file, line: line)`.
-    static func sourceLocation(file: StringLiteralExprSyntax, line: TokenSyntax) -> CodeBlockItemSyntax {
-        CodeBlockItemSyntax(item: .decl(DeclSyntax(PoundSourceLocationSyntax(arguments: PoundSourceLocationArgumentsSyntax(
+    /// `#sourceLocation(file: file, line: line)`, or nil for a file whose
+    /// name the directive cannot spell, one with `\` or `"`
+    /// (`SimpleStringLiteralExprSyntax(verbatim:)`). The statements are then
+    /// reported where the compiler places the expansion, never at a file of
+    /// another name.
+    static func sourceLocation(file: String, line: TokenSyntax) -> CodeBlockItemSyntax? {
+        guard let fileName = SimpleStringLiteralExprSyntax(verbatim: file) else { return nil }
+        return CodeBlockItemSyntax(item: .decl(DeclSyntax(PoundSourceLocationSyntax(arguments: PoundSourceLocationArgumentsSyntax(
             fileColon: .colonToken(trailingTrivia: .space),
-            fileName: SimpleStringLiteralExprSyntax(
-                openingQuote: .stringQuoteToken(),
-                segments: SimpleStringLiteralSegmentListSyntax(file.segments.compactMap { $0.as(StringSegmentSyntax.self)?.trimmed }),
-                closingQuote: .stringQuoteToken()
-            ),
+            fileName: fileName,
             comma: .commaToken(trailingTrivia: .space),
             lineColon: .colonToken(trailingTrivia: .space),
             lineNumber: line.trimmed
@@ -80,16 +82,16 @@ extension CodeBlockItemSyntax {
 /// computed property is given is built outside the authored file, so the
 /// line of each statement is counted from the brace.
 private struct BraceAnchor {
-    let file: StringLiteralExprSyntax
+    let file: String
     let line: Int
     let brace: TokenSyntax
 
     init?(_ attribute: AttributeSyntax, body: CodeBlockSyntax) {
         guard case .argumentList(let arguments) = attribute.arguments,
-              let file = arguments.first(where: { $0.label?.text == "file" })?.expression.as(StringLiteralExprSyntax.self),
+              let file = arguments.first(where: { $0.label?.text == "file" })?.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue,
               let line = arguments.first(where: { $0.label?.text == "line" })?.expression.as(IntegerLiteralExprSyntax.self),
               let value = Int(line.literal.text) else { return nil }
-        self.file = file.trimmed
+        self.file = file
         self.line = value
         self.brace = body.leftBrace
     }

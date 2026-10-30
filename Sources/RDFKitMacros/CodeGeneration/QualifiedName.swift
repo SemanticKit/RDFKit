@@ -1,3 +1,4 @@
+import SwiftSpelling
 import SwiftSyntax
 
 /// A Swift name qualified by the types that contain it, `Fauna.Animal`, kept
@@ -60,9 +61,10 @@ struct QualifiedName: Equatable {
 }
 
 extension TokenSyntax {
-    /// The identifier of a declared name, sanitized and in backticks when it
-    /// is a keyword: `` `class` ``, `version_1_0`.
+    /// The identifier of a declared name, sanitized and in backticks where
+    /// Swift requires them (``TokenSyntax/swiftIdentifier(_:)``):
+    /// `` `class` ``, `version_1_0`.
     static func declared(_ name: String) -> TokenSyntax {
-        .identifier(SwiftIdentifier.escaped(name))
+        .swiftIdentifier(SwiftIdentifier.sanitized(name))
     }
 }

@@ -17,6 +17,7 @@ func assertExpansion(
     diagnostics: [DiagnosticSpec] = [],
     applyFixIts: [String]? = nil,
     fixedSource: String? = nil,
+    testFileName: String = "test.swift",
     sourceLocation: SourceLocation = #_sourceLocation
 ) {
     assertMacroExpansion(
@@ -26,6 +27,7 @@ func assertExpansion(
         macroSpecs: macroSpecs,
         applyFixIts: applyFixIts,
         fixedSource: fixedSource,
+        testFileName: testFileName,
         failureHandler: { failure in
             Issue.record(Comment(rawValue: failure.message), sourceLocation: sourceLocation)
         }

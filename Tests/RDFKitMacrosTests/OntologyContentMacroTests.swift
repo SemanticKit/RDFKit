@@ -212,4 +212,62 @@ struct OntologyContentMacroTests {
             "#sourceLocation()",
         ])
     }
+
+    @Test("Statements are anchored to the authored file when #sourceLocation can spell its name")
+    func sourceLocationNamesTheAuthoredFile() {
+        let source = """
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                }
+            }
+            """
+        assertExpansion(source, expandedSource: """
+            struct Zoo: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "/tmp/Zoo Park/Zoö.swift", line: 4)
+                    RDFCore.Namespace("https://zoo.example.org/#")
+                    #sourceLocation()
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    []
+                }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
+            }
+            """, testFileName: "/tmp/Zoo Park/Zoö.swift")
+        // `#sourceLocation(file:)` takes its text as written, without reading
+        // escapes, and rejects raw literals, so no directive can name a file
+        // whose name has a backslash or a quote: the statements keep the
+        // location of the expansion rather than name another file.
+        assertExpansion(source, expandedSource: """
+            struct Zoo: Ontology {
+                var body: some Content {
+                    RDFCore.Namespace("https://zoo.example.org/#")
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    []
+                }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
+            }
+            """, testFileName: #"/tmp/a\b/"Zoo".swift"#)
+    }
 }

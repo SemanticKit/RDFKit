@@ -4,6 +4,7 @@ import IRIKit
 import RDFCore
 import RDFFormats
 import PlainData
+import SwiftParser
 @testable import RDFTranslator
 
 /// Data translated by `RDFTranslatorPlugin` into `PlainData`, a module with
@@ -66,6 +67,21 @@ struct PlainDataTranslationTests {
         let sorted = Set(nodes).sorted(by: SubjectTerm.inIRIOrder)
         #expect(larger.sorted(by: SubjectTerm.inIRIOrder) == sorted)
         #expect(sorted.suffix(3).allSatisfy { $0.iri == nil })
+    }
+
+    /// The translator writes Swift that parses as written: the source file
+    /// built from typed nodes and `formatted()` has no syntax error, and
+    /// SwiftParser reads back every character of it.
+    @Test func renderedSwiftParses() throws {
+        let fixtures = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "Fixtures")
+        let paths = ["PlainData/people.ttl", "PlainData/namespaces.ttl", "restrictions.ttl"].map { fixtures.appending(path: $0).path }
+        let layer = try Layer(module: "PlainData", paths: paths, firstDocument: 0)
+        let vocabulary = Vocabulary([layer])
+        let declarations = try Declarations(layer, vocabulary, below: [])
+        let source = SwiftSource(layer: layer, vocabulary: vocabulary, declarations: declarations, below: []).render()
+        let tree = Parser.parse(source: source)
+        #expect(!tree.hasError)
+        #expect(tree.description == source)
     }
 
     private func document(_ path: String) throws -> Graph {

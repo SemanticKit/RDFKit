@@ -59,9 +59,20 @@ let package = Package(
                 "RDFKitMacros"
             ]
         ),
+        // How generated Swift spells a name and a text, shared by the
+        // @Ontology macro and RDFTranslator so both decide it the same way,
+        // through SwiftParser.
+        .target(
+            name: "SwiftSpelling",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax")
+            ]
+        ),
         .macro(
             name: "RDFKitMacros",
             dependencies: [
+                "SwiftSpelling",
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
@@ -85,10 +96,10 @@ let package = Package(
                 "IRIKit",
                 "RDFCore",
                 "RDFFormats",
+                "SwiftSpelling",
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
-                .product(name: "SwiftBasicFormat", package: "swift-syntax"),
-                .product(name: "SwiftParser", package: "swift-syntax")
+                .product(name: "SwiftBasicFormat", package: "swift-syntax")
             ]
         ),
         .plugin(
@@ -265,7 +276,8 @@ let package = Package(
                 "RDFFormats",
                 "PlainData",
                 "RDFTranslator",
-                .product(name: "IRIKit", package: "IRIKit")
+                .product(name: "IRIKit", package: "IRIKit"),
+                .product(name: "SwiftParser", package: "swift-syntax")
             ],
             exclude: ["Fixtures"]
         ),

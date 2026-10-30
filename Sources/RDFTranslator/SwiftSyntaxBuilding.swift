@@ -1,5 +1,5 @@
 import RDFCore
-import SwiftParser
+import SwiftSpelling
 import SwiftSyntax
 import SwiftSyntaxBuilder
 
@@ -8,16 +8,14 @@ import SwiftSyntaxBuilder
 // arrays, accessors and declarations laid out a member to a line.
 
 extension TokenSyntax {
-    /// The identifier of a name RDF gives, in backticks when Swift requires
-    /// them: a keyword, or a name Swift's identifier grammar does not allow,
-    /// which is then a raw identifier (SE-0451), `` `resource 3` ``.
+    /// The identifier of a name RDF gives, in backticks where Swift
+    /// requires them (``TokenSyntax/swiftIdentifier(_:)``, the rule the
+    /// `@Ontology` macro uses too): a keyword, `` `Type` `` after a dot, or a
+    /// name Swift's identifier grammar does not allow, which is then a raw
+    /// identifier (SE-0451), `` `resource 3` ``.
     static func swift(_ name: String) -> TokenSyntax {
-        .identifier(name.isValidSwiftIdentifier(for: .variableName) && !reservedTypeMembers.contains(name) ? name : "`" + name + "`")
+        .swiftIdentifier(name)
     }
-
-    /// Names that are identifiers but mean something else after a type and
-    /// a dot: `RDF::Resource.Type` is a metatype.
-    private static let reservedTypeMembers: Set<String> = ["Type", "Protocol", "Self", "self", "init"]
 }
 
 extension SwiftReference {
