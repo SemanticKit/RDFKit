@@ -7,6 +7,8 @@ Each RDF/RDFS/OWL term gets its own file. The file contains all layers for that 
 ```
 Sources/RDFCore/
 ├── Core/
+│   ├── Declarations/
+│   │   └── Individual.swift  # DSL form for owl:NamedIndividual
 │   ├── Node.swift
 │   ├── Ontology.swift
 │   ├── OntologyTerm.swift

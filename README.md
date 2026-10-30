@@ -59,7 +59,7 @@ Related terms are written as their types: `SubClassOf(FOAF.Person)`, `Range(RDF.
 
 ## Design Rules
 
-`docs/DslInvariants.md` holds the rules of the DSL. The essential ones:
+The rules of the DSL:
 
 - **The type is the identity.** Inside the runtime, terms refer to each other as Swift types; an individual is an object. IRIs exist only at the boundary: the encoders and decoders.
 - **One runtime.** DSL-declared and translated individuals are the same kind of `Resource`, keep their values in an `IndividualStorage` as typed Swift values, and encode through the same encoders.

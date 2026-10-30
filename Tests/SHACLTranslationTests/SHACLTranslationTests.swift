@@ -16,23 +16,31 @@ struct SHACLTranslationTests {
     /// its own accessor, and each keeps its own values.
     @Test func propertiesWithOneLocalNameAreBothMembers() throws {
         let result = SHACL.ValidationResultIndividual()
-        let focus = Literal("focus")
-        result.value = [.literal(focus)]
+        result.value = [.individual(SHACL.Info)]
         result.shaclValue = [.individual(SHACL.Violation)]
+        guard case .individual(let value) = try #require(result.value.first) else {
+            Issue.record("rdf:value holds the individual it was given")
+            return
+        }
         #expect(result.value.count == 1)
+        #expect(value === SHACL.Info)
         guard case .individual(let severity) = try #require(result.shaclValue.first) else {
             Issue.record("sh:value holds the individual it was given")
             return
         }
+        #expect(result.shaclValue.count == 1)
         #expect(severity === SHACL.Violation)
 
         // Each accessor writes its own property.
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([result]))
         let rdfValue = try #require(IRI(RDF.value.key))
         let shaclValue = try #require(IRI(SHACL.value.key))
+        let info = try #require(IRI(of: SHACL.Info))
+        let violation = try #require(IRI(of: SHACL.Violation))
         #expect(rdfValue != shaclValue)
-        #expect(output.contains { $0.predicate == rdfValue && $0.object == .literal(focus) })
-        #expect(output.contains { $0.predicate == shaclValue && $0.object.subject != nil })
+        #expect(output.contains { $0.predicate == rdfValue && $0.object == .iri(info) })
+        #expect(output.contains { $0.predicate == shaclValue && $0.object == .iri(violation) })
+        #expect(!output.contains { $0.predicate == rdfValue && $0.object == .iri(violation) })
     }
 
     /// The SHACL document comes back as the same graph (RDF 1.2 Concepts

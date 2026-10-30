@@ -105,15 +105,13 @@ Its property values are typed Swift values in one `RDFCore.IndividualStorage`, t
 
 Individuals are `Sendable` as checked by the compiler: `IndividualStorage` is a mutex, and each read and each write of a property takes the lock.
 
-The DSL declares vocabulary, not data. A named individual comes from RDF that `RDFTranslatorPlugin` translates, as a module-level value such as `alice`, never a static member of the ontology type.
-
 ## Properties Are Many-Valued
 
 A property has any number of values, so its requirement is an array of its range's members, as the translator types it: `[any Fauna.Habitat]` for a class of this ontology, `[RDFCore.Literal]` for a datatype of it, and `[X.YIndividual.Member]` for a class `X.Y` of another module, which the compiler resolves through that class's generated Swift class: `Range(RDF.Literal)` is `[RDFCore.Literal]`, `Range(FOAF.Person)` is `[any FOAF.Person]`. A property without a `Range` holds `[RDFCore.Value]`. No table of spellings or IRIs decides a type.
 
 ## Terms Refer to Each Other as Types
 
-Related terms are written with their type as the argument: `Domain(Fauna.Animal)`, `Type(RDF.Class)`. The macro reads them as syntax. Each term's IRI is computed during expansion from the namespace and the local name, and emitted as a literal. It is read only at the boundary: serialization, translation into SPARQL or SHACL, dereferencing. Generated code never builds an identity at runtime.
+Related terms are written with their type as the argument: `Domain(Fauna.Animal)`, `Type(RDF.Class)`. The macro reads them as syntax and generates each term's declared `TermKey`, never an IRI. An encoder derives the IRI from that key and the ontology's namespace when it asks for it, at the boundary: serialization, translation into SPARQL or SHACL, dereferencing. Generated code never stores an IRI.
 
 ## Owning var body
 
@@ -132,8 +130,7 @@ The macros also report at the authored declaration:
 
 - a term annotation written with a generic argument or a `.self` argument, with a fix-it to `Domain(Fauna.Animal)`;
 - a related term written as a term of this ontology that it does not declare (`Fauna.Habitatt`);
-- a class whose generated type names are taken by a declared term;
-- a named individual.
+- a class whose generated type names are taken by a declared term.
 
 ## Testing
 
