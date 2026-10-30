@@ -34,7 +34,7 @@ do {
         documents += group.paths.count
         layers.append(layer)
         vocabulary = Vocabulary(layers)
-        declarations.append(Declarations(layer, vocabulary, below: declarations))
+        declarations.append(try Declarations(layer, vocabulary, below: declarations))
     }
     let source = SwiftSource(
         layer: layers[layers.count - 1],
