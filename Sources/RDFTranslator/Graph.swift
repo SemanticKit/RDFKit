@@ -65,6 +65,8 @@ extension Layer {
                 triples = try TurtleDecoder().decode(text)
             case "nt":
                 triples = try NTriplesDecoder().decode(text)
+            case "rdf":
+                triples = try RDFXMLDecoder().decode(text)
             default:
                 throw TranslationError(description: "\(path): no decoder reads .\(url.pathExtension) documents")
             }

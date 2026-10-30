@@ -14,6 +14,7 @@ enum Term {
     static let range = rdfs + "range"
     static let label = rdfs + "label"
     static let comment = rdfs + "comment"
+    static let isDefinedBy = rdfs + "isDefinedBy"
     static let resource = rdfs + "Resource"
     static let `class` = rdfs + "Class"
     static let literal = rdfs + "Literal"
