@@ -10,12 +10,13 @@
 public macro OntologyContent(file: String = "", line: Int = 0) = #externalMacro(module: "RDFKitMacros", type: "OntologyContentMacro")
 
 /// Gives the storing protocol `@Ontology` generates for a class,
-/// `Fauna.AnimalStoring`, the accessors of the class's requirements, backed
-/// by the conformer's ``RDFCore/IndividualStorage`` of the class's values.
+/// `Fauna.AnimalStoring`, the accessors of the class's own properties,
+/// backed by the class's values in the individual's
+/// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
 ///
 /// An individual declared in another ontology or module that is typed with
 /// the class, `Type(Fauna.Animal)`, conforms to the storing protocol, so it
-/// stores the class's property values the way the class's own individual
-/// type does. `@Ontology` attaches it; it is not written by hand.
+/// stores the values of the class and its superclasses, each property once.
+/// `@Ontology` attaches it; it is not written by hand.
 @attached(extension, names: arbitrary)
 public macro IndividualStoring() = #externalMacro(module: "RDFKitMacros", type: "IndividualStoringMacro")

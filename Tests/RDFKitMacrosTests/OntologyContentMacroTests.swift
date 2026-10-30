@@ -104,19 +104,16 @@ struct OntologyContentMacroTests {
                     }
                 }
 
-                /// The property values an individual of ``Zoo/Animal`` stores.
-                public struct AnimalValues: Sendable {
+                /// The values of the properties of ``Zoo/Animal`` that an individual stores.
+                public struct AnimalValues: RDFCore.ClassValues {
                     public init() {
                     }
                 }
 
-                /// An individual of ``Zoo/Animal`` that keeps the class's
-                /// property values in an ``RDFCore/IndividualStorage`` of
-                /// ``Zoo/AnimalValues``. An individual of another
-                /// ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal {
-                    /// Reads or changes this individual's values of the class under its lock.
-                    func withAnimalValues<Result: Sendable>(_ body: (inout Zoo.AnimalValues) -> Result) -> Result
+                /// An individual of ``Zoo/Animal`` that stores the values of its
+                /// classes in an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
+                /// An individual of another ontology typed with the class conforms to it.
+                public protocol AnimalStoring: Zoo.Animal, RDFCore.ClassValuesStoring {
                 }
             }
             """,

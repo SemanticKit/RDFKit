@@ -4,13 +4,15 @@ import SwiftSyntaxMacros
 /// The extension macro on the storing protocol `@Ontology` generates for a
 /// class, `Fauna.AnimalStoring`.
 ///
-/// The protocol restates the class's requirements and requires one method,
-/// `withAnimalValues(_:)`, that reads or changes the class's property values,
-/// ``Fauna/AnimalValues``, under the lock of the individual's
-/// ``RDFCore/IndividualStorage``. This macro gives every restated requirement
-/// the same accessors an individual type of the class has, through that
-/// method, so an individual declared in another ontology or module that is
-/// typed with the class conforms by storing its values.
+/// The protocol restates the requirements of the class's own properties,
+/// those whose domain is the class. This macro gives each one accessors that
+/// read and change the class's values, `Fauna.AnimalValues`, through
+/// ``RDFCore/ClassValuesStoring/withClassValues(_:)``, under the lock of the
+/// individual's ``RDFCore/IndividualStorage``. An individual declared in
+/// another ontology or module that is typed with the class conforms by
+/// storing its classes' values. The properties of a superclass are supplied
+/// by the superclass's storing protocol, which this one refines, so each
+/// property has one pair of accessors.
 public struct IndividualStoringMacro: ExtensionMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -19,27 +21,25 @@ public struct IndividualStoringMacro: ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        guard let storing = declaration.as(ProtocolDeclSyntax.self) else {
+        guard let storing = declaration.as(ProtocolDeclSyntax.self), storing.name.text.hasSuffix("Storing") else {
             throw MacroError("@IndividualStoring applies to the storing protocol @Ontology generates")
         }
-        let members = storing.memberBlock.members.map(\.decl)
-        guard let method = members.lazy.compactMap({ $0.as(FunctionDeclSyntax.self) }).first?.name.text else {
-            throw MacroError("@IndividualStoring requires the protocol's values method")
-        }
-        let accessors = members.compactMap { $0.as(VariableDeclSyntax.self) }.compactMap { variable -> String? in
+        let storingType = type.trimmedDescription
+        let valuesType = String(storingType.dropLast("Storing".count)) + "Values"
+        let accessors = storing.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }.compactMap { variable -> String? in
             guard let binding = variable.bindings.first,
                   let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                   let type = binding.typeAnnotation?.type.trimmedDescription else { return nil }
             return """
                 public var \(name): \(type) {
-                    get { \(method) { $0.\(name) } }
-                    set { \(method) { $0.\(name) = newValue } }
+                    get { withClassValues { (values: inout \(valuesType)) in values.\(name) } }
+                    set { withClassValues { (values: inout \(valuesType)) in values.\(name) = newValue } }
                 }
             """
         }
         guard !accessors.isEmpty else { return [] }
         let source: DeclSyntax = """
-        extension \(type.trimmed) {
+        extension \(raw: storingType) {
         \(raw: accessors.joined(separator: "\n\n"))
         }
         """
