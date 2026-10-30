@@ -232,25 +232,11 @@ struct EntityGenerator {
                 lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property).key))")
             }
         }
-        // A document `SeeAlso` names is a resource outside the runtime,
-        // dereferenced by its IRI: its declared key is the document's IRI as
-        // a namespace with no local name.
-        for (index, document) in declaration.annotations("SeeAlso").compactMap(\.text).enumerated() {
-            lines += [
-                "struct SeeAlsoNamespace\(index): RDFCore.Vocabulary {",
-                "    static var namespace: String {",
-                "        \(Documentation.literal(document))",
-                "    }",
-                "}",
-                "final class SeeAlsoDocument\(index): RDFCore.Resource {",
-                "    static var key: RDFCore.TermKey? {",
-                "        RDFCore.TermKey(\"\", in: SeeAlsoNamespace\(index).self)",
-                "    }",
-                "    func encode(to encoder: any Encoder) throws {",
-                "    }",
-                "}",
-            ]
-            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso.key))")
+        // The document `SeeAlso` names is a resource outside the runtime,
+        // known only by its address: it is written as that IRI, and the
+        // encoder makes it the object node, at the boundary.
+        for document in declaration.annotations("SeeAlso").compactMap(\.text) {
+            lines.append("try container.encode(IRIKit.IRI(validating: \(Documentation.literal(document))), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))")
         }
         if !declaration.annotations("Deprecated").isEmpty {
             lines.append("try container.encode([try RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")

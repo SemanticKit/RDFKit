@@ -581,19 +581,7 @@ struct OntologyMacroTests {
                     static func encodeDescription(to encoder: any Encoder) throws {
                         var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                         try container.encode([FOAF.PersonIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf.key))
-                        struct SeeAlsoNamespace0: RDFCore.Vocabulary {
-                            static var namespace: String {
-                                "https://club.example.org/rules"
-                            }
-                        }
-                        final class SeeAlsoDocument0: RDFCore.Resource {
-                            static var key: RDFCore.TermKey? {
-                                RDFCore.TermKey("", in: SeeAlsoNamespace0.self)
-                            }
-                            func encode(to encoder: any Encoder) throws {
-                            }
-                        }
-                        try container.encode([SeeAlsoDocument0()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso.key))
+                        try container.encode(IRIKit.IRI(validating: "https://club.example.org/rules"), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))
                         try container.encode([try RDFCore.Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
                     }
                 }
