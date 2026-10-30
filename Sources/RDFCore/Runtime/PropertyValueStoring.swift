@@ -25,15 +25,33 @@ public protocol PropertyValueStoring: Resource {
 
     /// The individual's property values.
     var storage: IndividualStorage { get }
+
+    /// The property the individual's classes are written with: `rdf:type`,
+    /// which the translated `RDF` module declares and gives every member of
+    /// `rdfs:Resource` (every individual, RDF 1.2 Semantics rdfs4).
+    static var typeProperty: (any Resource)? { get }
 }
 
 extension PropertyValueStoring {
+    /// No property for the individual's classes; the translated `RDF` module
+    /// gives `rdf:type` to every member of `rdfs:Resource`.
+    public static var typeProperty: (any Resource)? { nil }
+
     /// Writes the individual's classes as `rdf:type`, then its property
     /// values.
+    ///
+    /// - Throws: `EncodingError.invalidValue` when the individual has classes
+    ///   but no property to write them with.
     public func encode(to encoder: any Encoder) throws {
         if !Self.classes.isEmpty {
+            guard let property = Self.typeProperty else {
+                throw EncodingError.invalidValue(self, EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "An individual's classes are written with rdf:type, which the RDF module gives members of rdfs:Resource."
+                ))
+            }
             var container = encoder.container(keyedBy: PropertyKey.self)
-            try container.encode(Self.classes, for: .type)
+            try container.encode(Self.classes, for: PropertyKey(property))
         }
         try storage.encode(to: encoder)
     }

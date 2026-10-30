@@ -83,6 +83,15 @@ struct SwiftSource {
             source += "public let \(individual.name.swiftIdentifier): \(individual.publicType) = { _ = described; return \(handle(node)) }()\n"
         }
 
+        // `rdf:type` is the property every member of `rdfs:Resource` writes
+        // its classes with, so the module that declares `rdfs:Resource`
+        // gives it to the class's storing protocol.
+        if let resource = declarations.classes[.iri(.rdfsResource)], propertyDeclaration(.iri(.rdfType)) != nil || declarations.individuals[.iri(.rdfType)] != nil {
+            source += "\n/// `rdf:type`, the property a member of `rdfs:Resource` writes its classes with.\n"
+            source += "extension \(resource.storingReference) {\n"
+            source += "    public static var typeProperty: (any RDFCore.Resource)? { \(reference(.iri(.rdfType))) }\n}\n"
+        }
+
         for (index, node) in declarations.additions.enumerated() {
             source += "\n" + addition(node, index: index)
         }
