@@ -37,6 +37,14 @@ struct LayerTests {
         #expect(RDF.first.domain.count == 1)
     }
 
+    /// A class is a protocol and a Swift class, and in object position it is
+    /// that Swift type: `rdf:first rdfs:domain rdf:List`.
+    @Test func classesAreTypes() {
+        #expect(type(of: RDF.nil) == RDF.ListIndividual.self)
+        #expect(RDF.first.domain.contains { $0 == RDF.ListIndividual.self })
+        #expect(RDF.ListIndividual.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#List")
+    }
+
     /// A value set through a member is read back through it.
     @Test func propertyValuesChange() {
         let property = RDF.value

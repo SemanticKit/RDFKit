@@ -90,15 +90,15 @@ public struct NTriplesEncoder: Sendable {
 }
 
 extension NTriplesEncoder {
-    /// Encodes resources as a canonical N-Triples document: the triples
-    /// each resource's property values state, through its `Encodable`
-    /// conformance.
+    /// Encodes descriptions as a canonical N-Triples document: the triples
+    /// each one states, through its `Encodable` conformance.
     ///
     ///     let document = try NTriplesEncoder().encode([alice, bob])
+    ///     let vocabulary = try NTriplesEncoder().encode(FOAF.ontology)
     ///
-    /// - Throws: `EncodingError` when a resource writes something other than
-    ///   resources and literals keyed by property IRIs.
-    public func encode(_ resources: [any RDFRuntime.Resource]) throws -> String {
-        encode(try TripleEncoder().encode(resources))
+    /// - Throws: `EncodingError` when a description writes something other
+    ///   than resources and literals keyed by property IRIs.
+    public func encode(_ descriptions: [any RDFRuntime.Description]) throws -> String {
+        encode(try TripleEncoder().encode(descriptions))
     }
 }

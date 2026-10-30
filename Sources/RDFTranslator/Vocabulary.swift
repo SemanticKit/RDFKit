@@ -27,7 +27,9 @@ enum Term {
 /// What the merged graph of a module and the layers below it states and
 /// RDFS-entails about its nodes.
 ///
-/// Class membership follows RDF 1.2 Semantics, RDFS entailment: rdfs2
+/// Class membership follows RDF 1.2 Semantics, RDF entailment: rdfD2
+/// (`xxx aaa yyy .` entails `aaa rdf:type rdf:Property .`), and RDFS
+/// entailment: rdfs2
 /// (`aaa rdfs:domain xxx . yyy aaa zzz .` entails `yyy rdf:type xxx .`),
 /// rdfs3 (range, for the object) and rdfs9 (`rdfs:subClassOf`), applied to
 /// the stated triples and to the `rdf:type` triples they entail, until
@@ -98,6 +100,12 @@ struct Vocabulary {
         return node.iri?.hasPrefix(Term.xsd) ?? false
     }
 
+    /// Whether the members of `node` are classes: `rdfs:Class` or a subclass
+    /// of it, such as `owl:Class` or `rdfs:Datatype`.
+    func isMetaclass(_ node: NodeID) -> Bool {
+        superclassClosure(of: node).contains(.iri(Term.class))
+    }
+
     /// The literal values of `predicate` on `node`.
     func literals(_ predicate: String, of node: NodeID) -> [Literal] {
         statements.compactMap { statement in
@@ -115,8 +123,11 @@ struct Vocabulary {
     }
 
     private mutating func entail() {
-        for statement in statements where statement.predicate == Term.type {
-            if let object = statement.object.node { types[statement.subject, default: []].insert(object) }
+        for statement in statements {
+            types[.iri(statement.predicate), default: []].insert(.iri(Term.property))
+            if statement.predicate == Term.type, let object = statement.object.node {
+                types[statement.subject, default: []].insert(object)
+            }
         }
         let typeDomains = domains[Term.type] ?? []
         let typeRanges = ranges[Term.type] ?? []
