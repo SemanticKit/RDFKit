@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Build and test on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Generated Swift has none of the rejected shapes
+        # RDFTranslatorPlugin writes the Swift the RDF describes under
+        # .build/plugins/outputs. These are the shapes Charles rejected in
+        # real code (DESIGN-CONTRACT.md, rules 1 and 6): IndividualGraph,
+        # values(of:), Foaf.agentClass, ACL.readClass, and add* modifiers
+        # chained on a declaration.
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          files=(.build/plugins/outputs/**/*.swift)
+          if (( ${#files[@]} == 0 )); then
+            echo "::error::No generated Swift under .build/plugins/outputs"
+            exit 1
+          fi
+          echo "Checking ${#files[@]} generated Swift files"
+          if grep -nE 'IndividualGraph|values\(of:|agentClass|readClass|(\)|^)[[:space:]]*\.add[[:alnum:]_]*[[:space:]]*\(' "${files[@]}"; then
+            echo "::error::Generated Swift contains a rejected shape (see the lines above)"
+            exit 1
+          fi
+
+      - name: Test
+        run: swift test

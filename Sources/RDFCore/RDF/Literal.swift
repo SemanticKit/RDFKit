@@ -1,0 +1,188 @@
+import Foundation
+import IRIKit
+
+/// An RDF literal.
+///
+/// RDF 1.2 Concepts §3.4 Literals: "A literal in an RDF graph consists of
+/// two, three, or four elements: a lexical form, … a datatype IRI, … if and
+/// only if the datatype IRI is `rdf:langString` or `rdf:dirLangString`, a
+/// non-empty language tag, … if and only if the datatype IRI is
+/// `rdf:dirLangString`, a base direction."
+///
+/// A literal has one of four forms: a simple literal, a language-tagged
+/// string, a directional language-tagged string, or a typed literal with
+/// its ``datatype`` IRI. The datatype IRI of the first three follows from
+/// the form (`xsd:string`, `rdf:langString`, `rdf:dirLangString`), so
+/// ``datatype`` is `nil` for them. Those three IRIs are terms of the
+/// vocabularies RDFCore sits below; the format decoders and encoders, at the
+/// boundary, map `^^xsd:string`, `rdf:langString` and `rdf:dirLangString` to
+/// and from the forms, so that a typed literal here never names them.
+///
+/// Two literals are the same term when their lexical forms, datatype IRIs,
+/// language tags (compared case-insensitively) and base directions are
+/// equal. RDF 1.2 Concepts §3.4: "The lexical forms and the language tags
+/// compare equal, character by character", so lexical forms are compared
+/// Unicode scalar by Unicode scalar, never by Swift `String`'s canonical
+/// equivalence: `"\u{E9}"` and `"e\u{301}"` are different literals, as
+/// IRIKit's `IRI` compares its characters. The language tag is ASCII and
+/// stored in lower case, so comparing it gives the case-insensitive match.
+public struct Literal: Object, Hashable, Sendable, Comparable, CustomStringConvertible {
+    /// The lexical form, a Unicode string.
+    public let lexicalForm: String
+
+    /// The language tag of a language-tagged string, in lower case.
+    public let languageTag: String?
+
+    /// The base direction of a directional language-tagged string.
+    public let baseDirection: BaseDirection?
+
+    /// The datatype IRI of a typed literal; `nil` for simple literals and
+    /// language-tagged strings, whose datatype follows from their form.
+    public let datatype: IRI?
+
+    /// Creates a simple literal, whose datatype is `xsd:string`.
+    public init(_ lexicalForm: String) {
+        self.lexicalForm = lexicalForm
+        self.languageTag = nil
+        self.baseDirection = nil
+        self.datatype = nil
+    }
+
+    /// Creates a language-tagged string, with a base direction when it is a
+    /// directional language-tagged string.
+    ///
+    /// RDF 1.2 Concepts §3.4 Literals: "Lexical representations of
+    /// language tags MUST be well-formed according to section 2.2.9 of
+    /// [BCP47]", which is a tag matching the `Language-Tag` ABNF of BCP 47
+    /// §2.1.
+    ///
+    /// - Throws: ``TermError/emptyLanguageTag`` when the tag is empty, and
+    ///   ``TermError/malformedLanguageTag`` when it is not a well-formed
+    ///   BCP 47 tag.
+    public init(_ lexicalForm: String, languageTag: String, baseDirection: BaseDirection? = nil) throws(TermError) {
+        guard !languageTag.isEmpty else { throw .emptyLanguageTag }
+        guard Self.isWellFormed(languageTag: languageTag) else { throw .malformedLanguageTag }
+        self.lexicalForm = lexicalForm
+        self.languageTag = languageTag.lowercased()
+        self.baseDirection = baseDirection
+        self.datatype = nil
+    }
+
+    /// Creates a typed literal with the datatype IRI `datatype`.
+    ///
+    /// Only the format decoders and encoders and the translator make typed
+    /// literals. A decoder reads `^^xsd:string` as a simple literal
+    /// (``init(_:)``) and refuses `^^rdf:langString` and
+    /// `^^rdf:dirLangString`, whose literals carry a language tag (RDF 1.2
+    /// Concepts §3.4), before it calls this.
+    public init(_ lexicalForm: String, datatype: IRI) {
+        self.lexicalForm = lexicalForm
+        self.languageTag = nil
+        self.baseDirection = nil
+        self.datatype = datatype
+    }
+
+    /// The literal as N-Triples writes it, without escaping.
+    public var description: String {
+        var value = "\"\(lexicalForm)\""
+        if let languageTag {
+            value += "@\(languageTag)"
+            if let baseDirection {
+                value += "--\(baseDirection)"
+            }
+        } else if let datatype {
+            value += "^^<\(datatype)>"
+        }
+        return value
+    }
+
+    public static func == (lhs: Literal, rhs: Literal) -> Bool {
+        lhs.lexicalForm.unicodeScalars.elementsEqual(rhs.lexicalForm.unicodeScalars)
+            && lhs.languageTag == rhs.languageTag
+            && lhs.baseDirection == rhs.baseDirection
+            && lhs.datatype == rhs.datatype
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        for scalar in lexicalForm.unicodeScalars {
+            hasher.combine(scalar.value)
+        }
+        hasher.combine(languageTag)
+        hasher.combine(baseDirection)
+        hasher.combine(datatype)
+    }
+
+    /// Orders literals by lexical form, language tag, base direction and
+    /// datatype IRI, each compared Unicode scalar by Unicode scalar, so the
+    /// order agrees with ``==(_:_:)``.
+    public static func < (lhs: Literal, rhs: Literal) -> Bool {
+        func precedes(_ lhs: String, _ rhs: String) -> Bool? {
+            if lhs.unicodeScalars.elementsEqual(rhs.unicodeScalars) { return nil }
+            return lhs.unicodeScalars.lexicographicallyPrecedes(rhs.unicodeScalars)
+        }
+        let pairs = [
+            (lhs.lexicalForm, rhs.lexicalForm),
+            (lhs.languageTag ?? "", rhs.languageTag ?? ""),
+            (lhs.baseDirection?.rawValue ?? "", rhs.baseDirection?.rawValue ?? ""),
+            (lhs.datatype?.rawValue ?? "", rhs.datatype?.rawValue ?? ""),
+        ]
+        for (left, right) in pairs {
+            if let order = precedes(left, right) { return order }
+        }
+        return false
+    }
+}
+
+extension Literal {
+    /// Whether `tag` matches BCP 47 §2.1 `Language-Tag`:
+    ///
+    /// ```
+    /// Language-Tag  = langtag / privateuse / grandfathered
+    /// langtag       = language ["-" script] ["-" region] *("-" variant)
+    ///                 *("-" extension) ["-" privateuse]
+    /// language      = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+    /// extlang       = 3ALPHA *2("-" 3ALPHA)
+    /// script        = 4ALPHA
+    /// region        = 2ALPHA / 3DIGIT
+    /// variant       = 5*8alphanum / (DIGIT 3alphanum)
+    /// extension     = singleton 1*("-" (2*8alphanum))
+    /// singleton     = DIGIT / %x41-57 / %x59-5A / %x61-77 / %x79-7A
+    /// privateuse    = "x" 1*("-" (1*8alphanum))
+    /// ```
+    ///
+    /// The ABNF is case-insensitive. `grandfathered` lists the irregular
+    /// tags; the regular ones already match `langtag`.
+    private static func isWellFormed(languageTag tag: String) -> Bool {
+        let languageTag = #/(?i)(?:(?:[a-z]{2,3}(?:-[a-z]{3}){0,3}|[a-z]{4}|[a-z]{5,8})(?:-[a-z]{4})?(?:-(?:[a-z]{2}|[0-9]{3}))?(?:-(?:[a-z0-9]{5,8}|[0-9][a-z0-9]{3}))*(?:-[a-wyz0-9](?:-[a-z0-9]{2,8})+)*(?:-x(?:-[a-z0-9]{1,8})+)?|x(?:-[a-z0-9]{1,8})+|en-gb-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|i-tsu|sgn-be-fr|sgn-be-nl|sgn-ch-de)/#
+        return tag.unicodeScalars.allSatisfy(\.isASCII) && tag.wholeMatch(of: languageTag) != nil
+    }
+}
+
+extension Literal: ExpressibleByStringLiteral {
+    /// A simple literal: the lexical form with datatype `xsd:string`
+    /// (RDF 1.2 Concepts, Representation of Literals: "Simple literals are
+    /// syntactic sugar for abstract syntax literals with the datatype IRI
+    /// http://www.w3.org/2001/XMLSchema#string").
+    ///
+    ///     alice.name.contains("Alice")
+    public init(stringLiteral value: String) {
+        self.init(value)
+    }
+}
+
+extension Literal: Encodable {
+    private enum CodingKeys: String, CodingKey {
+        case lexicalForm, languageTag, baseDirection, datatype
+    }
+
+    /// Writes the literal's elements (RDF 1.2 Concepts §3.4): its lexical
+    /// form, and its language tag, base direction or datatype IRI when it
+    /// has one. An encoder that writes RDF writes the literal itself.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(lexicalForm, forKey: .lexicalForm)
+        try container.encodeIfPresent(languageTag, forKey: .languageTag)
+        try container.encodeIfPresent(baseDirection?.rawValue, forKey: .baseDirection)
+        try container.encodeIfPresent(datatype?.rawValue, forKey: .datatype)
+    }
+}
