@@ -300,17 +300,12 @@ struct SwiftSource {
 
     /// The class a decoder makes a value of a property of `kind` a member
     /// of, when the document states no class for it: the class of the one
-    /// class the property's range gives, or `rdfs:Resource` for any value.
+    /// class the property's range gives, else `rdfs:Resource`'s.
     private func decodingClass(_ kind: ValueKind) -> String {
-        switch kind {
-        case .literals, .classes, .properties:
-            return ""
-        case .values:
-            return ", as: " + (classDeclaration(.iri(.rdfsResource)).map { "\($0.classReference).self" } ?? "nil")
-        case .individuals(let protocols):
-            guard protocols.count == 1, let declaration = classDeclaration(protocols[0]) else { return ", as: nil" }
+        if case .individuals(let protocols) = kind, protocols.count == 1, let declaration = classDeclaration(protocols[0]) {
             return ", as: \(declaration.classReference).self"
         }
+        return ", as: " + (classDeclaration(.iri(.rdfsResource)).map { "\($0.classReference).self" } ?? "nil")
     }
 
     /// The storing protocol that gives an individual a property's accessor.

@@ -4,90 +4,58 @@
 /// denotes.
 ///
 /// It is the boundary of decoding: the objects are IRIs, blank nodes and
-/// literals of the document, and what it returns are Swift values. An IRI or
-/// blank node the document has already been decoded for is that individual;
-/// one the document states is a member of a class the decoder may make is a
-/// new member of it; any other is a new member of the class the property's
-/// range gives.
+/// literals of the document, and what it returns are Swift values. A literal
+/// is the literal; an IRI that names a class or property the decoder knows is
+/// that class or property; an IRI or blank node the document has already been
+/// decoded for is that individual; one the document states is a member of a
+/// class the decoder may make is a new member of it; any other is a new
+/// member of the class the property's range gives.
 public protocol PropertyObjectsDecoder: Decoder {
-    /// The objects as literals.
+    /// The objects as Swift values, a node the document gives no class the
+    /// decoder may make being a new member of `class`.
     ///
-    /// - Throws: `DecodingError.typeMismatch` for an object that is not a
-    ///   literal.
-    func literals() throws -> [Literal]
-
-    /// The objects as individuals, each a member of `class` unless the
-    /// document states it is a member of a class the decoder may make.
-    ///
-    /// - Throws: `DecodingError.typeMismatch` for a literal.
-    func individuals(_ class: (any DecodableResource.Type)?) throws -> [any Resource]
-
-    /// The objects as any value: a literal, a class or property the decoder
-    /// knows, or an individual, a member of `resource` unless the document
-    /// states otherwise.
-    func values(_ resource: (any DecodableResource.Type)?) throws -> [Value]
-
-    /// The objects as classes the decoder knows.
-    ///
-    /// - Throws: `DecodingError.dataCorrupted` for an object that names no
-    ///   class the decoder knows.
-    func classes() throws -> [any ResourceClass.Type]
-
-    /// The objects as properties the decoder knows.
-    ///
-    /// - Throws: `DecodingError.dataCorrupted` for an object that names no
-    ///   property the decoder knows.
-    func properties() throws -> [any PropertyTerm.Type]
+    /// - Throws: `DecodingError` for an object that has no Swift value, such
+    ///   as a node no class is given for.
+    func values(_ class: (any DecodableResource.Type)?) throws -> [Value]
 }
 
 extension KeyedDecodingContainer where Key == PropertyKey {
-    /// Reads literal values of a property.
-    public func decode(_ type: [Literal].Type, for property: PropertyKey) throws -> [Literal] {
-        try objects(property).literals()
-    }
-
-    /// Reads individuals that are values of a property, typed `Member`, the
-    /// Swift type of the property's values. An object the document gives no
-    /// class the decoder may make is a member of `class`.
+    /// Reads the values of a property, typed `Member`, the Swift type of the
+    /// property's values: a literal, an individual of the range's classes, a
+    /// class, a property or any ``Value``. An object the document gives no
+    /// class the decoder may make is a new member of `class`, the class of
+    /// the property's range.
     ///
     /// - Throws: `DecodingError.typeMismatch` for a value that is not a
-    ///   `Member`.
+    ///   `Member`, and when the decoder is not an RDF decoder.
     public func decode<Member>(_ type: [Member].Type, for property: PropertyKey, as class: (any DecodableResource.Type)?) throws -> [Member] {
-        try objects(property).individuals(`class`).map { individual in
-            guard let member = individual as? Member else {
-                throw DecodingError.typeMismatch(Member.self, DecodingError.Context(
-                    codingPath: codingPath + [property],
-                    debugDescription: "The value is not a member of the property's range."
-                ))
-            }
-            return member
-        }
-    }
-
-    /// Reads classes that are values of a property.
-    public func decode(_ type: [any ResourceClass.Type].Type, for property: PropertyKey) throws -> [any ResourceClass.Type] {
-        try objects(property).classes()
-    }
-
-    /// Reads properties that are values of a property, as their term types.
-    public func decode(_ type: [any PropertyTerm.Type].Type, for property: PropertyKey) throws -> [any PropertyTerm.Type] {
-        try objects(property).properties()
-    }
-
-    /// Reads values of a property whose range admits any resource. An
-    /// individual the document gives no class the decoder may make is a
-    /// member of `resource`.
-    public func decode(_ type: [Value].Type, for property: PropertyKey, as resource: (any DecodableResource.Type)?) throws -> [Value] {
-        try objects(property).values(resource)
-    }
-
-    private func objects(_ property: PropertyKey) throws -> any PropertyObjectsDecoder {
         guard let decoder = try superDecoder(forKey: property) as? any PropertyObjectsDecoder else {
             throw DecodingError.typeMismatch(Value.self, DecodingError.Context(
                 codingPath: codingPath + [property],
                 debugDescription: "The values of a property are decoded from RDF, by an RDF decoder."
             ))
         }
-        return decoder
+        return try decoder.values(`class`).map { value in
+            guard let member = value.member(Member.self) else {
+                throw DecodingError.typeMismatch(Member.self, DecodingError.Context(
+                    codingPath: codingPath + [property],
+                    debugDescription: "The value is not of the Swift type of the property's values."
+                ))
+            }
+            return member
+        }
+    }
+}
+
+extension Value {
+    /// The value as a `Member`: the value itself, or what its case holds.
+    fileprivate func member<Member>(_ type: Member.Type) -> Member? {
+        if let member = self as? Member { return member }
+        return switch self {
+        case .individual(let individual): individual as? Member
+        case .class(let type): type as? Member
+        case .property(let term): term as? Member
+        case .literal(let literal): literal as? Member
+        }
     }
 }

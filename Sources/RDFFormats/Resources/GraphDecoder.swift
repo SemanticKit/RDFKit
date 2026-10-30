@@ -286,49 +286,17 @@ struct ObjectsDecoder: PropertyObjectsDecoder {
         throw NodeDecoder.notADescription(codingPath)
     }
 
-    func literals() throws -> [Literal] {
-        try objects.map { object in
-            guard case .literal(let literal) = object else { throw mismatch(Literal.self, "The value is not a literal.") }
-            return literal
-        }
-    }
-
-    func individuals(_ class: (any DecodableResource.Type)?) throws -> [any Resource] {
-        try objects.map { object in
-            guard let node = object.subject else { throw mismatch((any Resource).self, "The value is not an IRI or a blank node.") }
-            return try run.individual(for: node, as: `class`)
-        }
-    }
-
-    func values(_ resource: (any DecodableResource.Type)?) throws -> [Value] {
+    func values(_ class: (any DecodableResource.Type)?) throws -> [Value] {
         try objects.map { object in
             if case .literal(let literal) = object { return .literal(literal) }
             if let type = run.class(object) { return .class(type) }
             if let property = run.property(object) { return .property(property) }
             guard let node = object.subject else { throw mismatch(Value.self, "A triple term has no Swift value yet.") }
-            return .individual(try run.individual(for: node, as: resource))
-        }
-    }
-
-    func classes() throws -> [any ResourceClass.Type] {
-        try objects.map { object in
-            guard let type = run.class(object) else { throw corrupted("\(object) names no class the decoder may make.") }
-            return type
-        }
-    }
-
-    func properties() throws -> [any PropertyTerm.Type] {
-        try objects.map { object in
-            guard let property = run.property(object) else { throw corrupted("\(object) names no property the decoder knows.") }
-            return property
+            return .individual(try run.individual(for: node, as: `class`))
         }
     }
 
     private func mismatch(_ type: Any.Type, _ description: String) -> DecodingError {
         DecodingError.typeMismatch(type, DecodingError.Context(codingPath: codingPath, debugDescription: description))
-    }
-
-    private func corrupted(_ description: String) -> DecodingError {
-        DecodingError.dataCorrupted(DecodingError.Context(codingPath: codingPath, debugDescription: description))
     }
 }

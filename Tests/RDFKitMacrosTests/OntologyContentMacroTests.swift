@@ -95,10 +95,16 @@ struct OntologyContentMacroTests {
                 protocol AnimalStoring: Zoo.Animal, RDF.ResourceStoring {
                 }
 
-                final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
+                final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
                     static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Animal", in: Zoo.self)
 
                     static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        RDF.ResourceIndividual.properties
+                    }
 
                     /// A member of the class as a property value.
                     typealias Member = any Zoo.Animal

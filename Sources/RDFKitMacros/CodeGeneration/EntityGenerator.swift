@@ -13,14 +13,16 @@ import SwiftSyntaxMacros
 ///   class with no superclass refines `RDF.Resource` (rdfs4). It also gets a
 ///   storing protocol (`Fauna.AnimalStoring`), which gives a member every
 ///   property it can have, and a final class whose instances are its
-///   members (`Fauna.AnimalIndividual`). The class writes its own
+///   members (`Fauna.AnimalIndividual`), which RDFFormats' `GraphDecoder`
+///   can make from a document (``RDFCore/DecodableResource``). The class writes its own
 ///   description: the `Type`, `SubClassOf`, `Label`, `Comment`, `SeeAlso`
 ///   and `Deprecated` it is declared with.
 /// - A datatype is a class whose members are literals.
 /// - A property becomes a term type, which writes its own description
 ///   (`Type`, `Domain`, `Range`, `Label`, `Comment`, `SeeAlso`,
 ///   `Deprecated`), and a value type and storing protocol that keep its
-///   values in an individual's ``RDFCore/IndividualStorage``.
+///   values in an individual's ``RDFCore/IndividualStorage``; the value
+///   type encodes and decodes them, keyed by the property.
 /// - The ontology type gets `ontology`, the descriptions of its terms, the
 ///   way back to RDF, as a translated module has.
 /// - An `Individual` (`owl:NamedIndividual`) becomes a final class that
@@ -150,11 +152,21 @@ struct EntityGenerator {
         \(access)protocol \(names.storing): \(storing.joined(separator: ", ")) {}
         """
         let qualifiedIndividual = "\(ontology.typeName).\(names.individual)"
+        let properties = (model.ownRequirements(of: declaration.name).map { requirement in
+            "[\(ontology.typeName).\(ClassNames(className: SwiftIdentifier.sanitized(requirement.declaration.name)).value).self]"
+        } + model.refinements(of: declaration.name).map { ClassNames(qualifiedClass: $0).qualifiedIndividual + ".properties" })
+            .joined(separator: " + ")
         let individualSource = """
-        \(Documentation.docComment(for: declaration))\(access)final class \(names.individual): \(ontology.typeName).\(names.storing), RDFCore.ResourceClass {
+        \(Documentation.docComment(for: declaration))\(access)final class \(names.individual): \(ontology.typeName).\(names.storing), RDFCore.ResourceClass, RDFCore.DecodableResource {
             \(memberAccess)static let classKey: RDFCore.TermKey? = \(key(of: declaration))
 
             \(memberAccess)static let classes: [any RDFCore.ResourceClass.Type] = [\(qualifiedIndividual).self]
+
+            /// The properties a member of the class has, which a decoder reads:
+            /// its own and its superclasses'.
+            \(memberAccess)static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                \(properties)
+            }
 
             /// A member of the class as a property value.
             \(memberAccess)typealias Member = \(model.memberType(ofClass: declaration.name))
@@ -269,6 +281,14 @@ struct EntityGenerator {
 
     // MARK: - Properties
 
+    /// The Swift class of the property's range, whose members a decoder
+    /// makes for values the document gives no class: `rdfs:Resource`'s when
+    /// the property has no `Range`.
+    private func rangeClass(of declaration: ParsedEntity) -> String {
+        guard let spelling = declaration.term("Range") else { return ClassNames(qualifiedClass: ClassNames.resource).qualifiedIndividual }
+        return ClassNames(qualifiedClass: ontology.spelling(of: ontology.resolve(spelling))).qualifiedIndividual
+    }
+
     /// The term type of a property, and, when a class of this ontology is
     /// its domain, the value type that holds its values on an individual
     /// (`Fauna.hasHabitatValue`) and the storing protocol that gives the
@@ -297,7 +317,7 @@ struct EntityGenerator {
             term,
             """
             /// The values an individual has for ``\(ontology.typeName)/\(names.className)``.
-            \(access)struct \(names.value): RDFCore.PropertyValue {
+            \(access)struct \(names.value): RDFCore.PropertyValue, Decodable {
                 /// The declared key of the property, from which an encoder derives its IRI.
                 \(memberAccess)static var key: RDFCore.TermKey {
                     \(ontology.typeName).\(name).key
@@ -306,6 +326,11 @@ struct EntityGenerator {
                 \(memberAccess)var value: \(requirement.declaredType) = []
 
                 \(memberAccess)init() {}
+
+                \(memberAccess)init(from decoder: any Decoder) throws {
+                    let container = try decoder.container(keyedBy: RDFCore.PropertyKey.self)
+                    value = try container.decode(\(requirement.declaredType).self, for: RDFCore.PropertyKey(Self.key), as: \(rangeClass(of: declaration)).self)
+                }
 
                 \(memberAccess)func encode(to encoder: any Encoder) throws {
                     var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)

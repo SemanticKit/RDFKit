@@ -95,6 +95,32 @@ struct RDFKitTests {
         #expect(output == expected, "\(output)")
     }
 
+    /// A DSL class decodes from a document as a translated one does: the
+    /// decoder makes its members, typed by the classes the document states,
+    /// with their values, and the document context writes them back with
+    /// the document's IRIs.
+    @Test func dslIndividualsDecodeFromDocuments() throws {
+        let document = try TurtleDecoder().decode("""
+            @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+            @prefix club: <https://club.example.org/#> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            club:ivan a club:Member ; foaf:name "Ivan" ; club:joined "2025"^^xsd:gYear ; club:sponsor club:judy .
+            club:judy a foaf:Person ; foaf:name "Judy" ; foaf:knows club:ivan .
+            """)
+        let context = DocumentContext()
+        let decoder = GraphDecoder(classes: [Club.MemberIndividual.self, FOAF.PersonIndividual.self])
+        let members = try decoder.decode((any Club.Member).self, from: document, context: context)
+        let people = try decoder.decode((any FOAF.Person).self, from: document, context: DocumentContext())
+        #expect(people.count == 2)
+        let ivan = try #require(members.first as? Club.MemberIndividual)
+        #expect(members.count == 1)
+        let judy = try #require(ivan.sponsor.first as? FOAF.PersonIndividual)
+        #expect(judy.knows.contains { $0 === ivan })
+        #expect(ivan.joined.count == 1)
+        #expect(!ivan.name.isEmpty)
+        #expect(try GraphEncoder(context: context).encode([ivan, judy]) == document)
+    }
+
     /// An individual made in Swift that no declaration names is a blank node
     /// at the boundary: the encoder gives it one, and describes it where it
     /// is reached.
