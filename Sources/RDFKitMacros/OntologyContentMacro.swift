@@ -7,11 +7,18 @@ import SwiftSyntaxMacros
 /// `@Ontology` attaches it. The authored body names related terms by their
 /// type, `Domain(Fauna.Animal)`, which Swift cannot evaluate as an
 /// expression. A body macro owns the body, so the compiler reads it only as
-/// syntax and type-checks the body this macro returns instead: the same
-/// statements, with each term annotation written as the annotation type for
-/// that term, `Domain<Fauna.Animal>()`, and each declaration form qualified
-/// by its module, `RDFCore.Class("Animal")`, because the ontology may declare
-/// a term of the same name (`RDFS.Class`). The statements keep the authored
+/// syntax and type-checks the body this macro returns instead.
+///
+/// The annotations that relate a term to another term (`SubClassOf`,
+/// `Domain`, `Range`, `Type`, any annotation whose argument is a type) are
+/// not values: `@Ontology` writes each one as the Swift declaration it
+/// describes, protocol refinement or a requirement and its type. In the
+/// body this macro returns they are left out, and their lines stay blank so
+/// the statements after them keep their authored lines. The body is the
+/// declarations and the annotations that carry text, `Label`, `Comment`,
+/// `SeeAlso`, `Deprecated`, with each declaration form qualified by its
+/// module, `RDFCore.Class("Animal")`, because the ontology may declare a
+/// term of the same name (`RDFS.Class`). The statements keep the authored
 /// file and line, so the compiler reports an error in them at the line it
 /// was written on. `content()` takes ``ContentBuilder`` from the `Ontology`
 /// requirement, so the returned statements are built into `Content`.
@@ -50,10 +57,10 @@ public struct OntologyContentMacro: BodyMacro {
     }
 }
 
-/// Rewrites `Domain(Fauna.Animal)` as `Domain<Fauna.Animal>()` and
-/// `Class("Animal")` as `RDFCore.Class("Animal")`, and reports the spellings
-/// the DSL does not use (`Domain<Fauna.Animal>()`, `Domain(Fauna.Animal.self)`)
-/// at the authored call.
+/// Qualifies `Class("Animal")` as `RDFCore.Class("Animal")` and leaves out
+/// the annotations that relate a term to another term, and reports the
+/// spellings the DSL does not use (a generic argument, or a `.self`
+/// argument) at the authored call.
 private final class ContentRewriter: SyntaxRewriter {
     let declaredNames: Set<String>
     private(set) var diagnostics: [Diagnostic] = []
@@ -63,37 +70,61 @@ private final class ContentRewriter: SyntaxRewriter {
         super.init(viewMode: .sourceAccurate)
     }
 
+    /// Drops the term annotations from a declaration's closure. Their lines
+    /// stay as blank lines, so every statement after them keeps the line it
+    /// was authored on.
+    override func visit(_ node: ClosureExprSyntax) -> ExprSyntax {
+        let visited = super.visit(node)
+        guard var closure = visited.as(ClosureExprSyntax.self) else { return visited }
+        var kept: [CodeBlockItemSyntax] = []
+        var droppedLines = 0
+        for item in closure.statements {
+            if let call = item.item.as(FunctionCallExprSyntax.self), relatesTerms(call) {
+                droppedLines += item.description.count { $0 == "\n" }
+                continue
+            }
+            kept.append(droppedLines == 0 ? item : item.with(\.leadingTrivia, .newlines(droppedLines) + item.leadingTrivia))
+            droppedLines = 0
+        }
+        closure.statements = CodeBlockItemListSyntax(kept)
+        if droppedLines > 0 {
+            closure.rightBrace = closure.rightBrace.with(\.leadingTrivia, .newlines(droppedLines) + closure.rightBrace.leadingTrivia)
+        }
+        return ExprSyntax(closure)
+    }
+
     override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
         diagnoseUnusedSpellings(of: node)
         let visited = super.visit(node)
         guard let call = visited.as(FunctionCallExprSyntax.self),
-              let reference = call.calledExpression.as(DeclReferenceExprSyntax.self) else { return visited }
-
-        let form = reference.baseName.text
-        if ParsedEntity.Kind(rawValue: form) != nil {
-            let qualified: ExprSyntax = "RDFCore.\(raw: form)"
-            return ExprSyntax(call.with(\.calledExpression, qualified.with(\.leadingTrivia, reference.leadingTrivia)))
-        }
-        guard let term = TermArgument.typePath(of: call, declaredNames: declaredNames) else { return visited }
-        let rewritten: ExprSyntax = "\(raw: form)<\(raw: term)>()"
-        return rewritten
-            .with(\.leadingTrivia, call.leadingTrivia)
-            .with(\.trailingTrivia, call.trailingTrivia)
+              let reference = call.calledExpression.as(DeclReferenceExprSyntax.self),
+              ParsedEntity.Kind(rawValue: reference.baseName.text) != nil else { return visited }
+        let qualified: ExprSyntax = "RDFCore.\(raw: reference.baseName.text)"
+        return ExprSyntax(call.with(\.calledExpression, qualified.with(\.leadingTrivia, reference.leadingTrivia)))
     }
 
-    /// Reports `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`.
-    private func diagnoseUnusedSpellings(of call: FunctionCallExprSyntax) {
-        guard call.trailingClosure == nil, call.additionalTrailingClosures.isEmpty else { return }
+    /// Whether a call relates the declared term to another term,
+    /// `Domain(Fauna.Animal)`, which `@Ontology` writes as a Swift
+    /// declaration, or is one of the spellings reported for it.
+    private func relatesTerms(_ call: FunctionCallExprSyntax) -> Bool {
+        if call.calledExpression.is(DeclReferenceExprSyntax.self),
+           TermArgument.typePath(of: call, declaredNames: declaredNames) != nil {
+            return true
+        }
+        return unusedSpelling(of: call) != nil
+    }
+
+    /// The form and related type of a term annotation written with a generic
+    /// argument or a `.self` argument instead of the related type.
+    private func unusedSpelling(of call: FunctionCallExprSyntax) -> (form: String, type: String)? {
+        guard call.trailingClosure == nil, call.additionalTrailingClosures.isEmpty else { return nil }
 
         if let specialized = call.calledExpression.as(GenericSpecializationExprSyntax.self),
            let reference = specialized.expression.as(DeclReferenceExprSyntax.self),
            call.arguments.isEmpty,
            specialized.genericArgumentClause.arguments.count == 1,
            let argument = specialized.genericArgumentClause.arguments.first {
-            let form = reference.baseName.text
-            let type = argument.argument.trimmedDescription
-            diagnose(call, form: form, type: type)
-            return
+            return (reference.baseName.text, argument.argument.trimmedDescription)
         }
 
         if let reference = call.calledExpression.as(DeclReferenceExprSyntax.self),
@@ -101,11 +132,13 @@ private final class ContentRewriter: SyntaxRewriter {
            let argument = call.arguments.first, argument.label == nil,
            let components = TermArgument.components(of: argument.expression),
            components.count > 1, components.last == "self" {
-            diagnose(call, form: reference.baseName.text, type: components.dropLast().joined(separator: "."))
+            return (reference.baseName.text, components.dropLast().joined(separator: "."))
         }
+        return nil
     }
 
-    private func diagnose(_ call: FunctionCallExprSyntax, form: String, type: String) {
+    private func diagnoseUnusedSpellings(of call: FunctionCallExprSyntax) {
+        guard let (form, type) = unusedSpelling(of: call) else { return }
         let replacement: ExprSyntax = "\(raw: form)(\(raw: type))"
         diagnostics.append(Diagnostic(
             node: call,
@@ -115,17 +148,5 @@ private final class ContentRewriter: SyntaxRewriter {
                 changes: [.replace(oldNode: Syntax(call), newNode: Syntax(replacement.with(\.leadingTrivia, call.leadingTrivia).with(\.trailingTrivia, call.trailingTrivia)))]
             )
         ))
-    }
-}
-
-private extension Trivia {
-    /// This trivia without the newlines before its first non-whitespace piece,
-    /// keeping the indentation.
-    var droppingLeadingNewlines: Trivia {
-        Trivia(pieces: pieces.drop { piece in
-            if case .newlines = piece { return true }
-            if case .carriageReturnLineFeeds = piece { return true }
-            return false
-        })
     }
 }

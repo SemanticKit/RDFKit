@@ -43,8 +43,8 @@ struct EntityGenerator {
             guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
-            case .alias(let form, let isGeneric):
-                sources = [alias(declaration, form: form, isGeneric: isGeneric)]
+            case .alias(let form):
+                sources = [alias(declaration, form: form)]
             case .classProtocol:
                 sources = classProtocol(declaration)
             case .value:
@@ -76,12 +76,9 @@ struct EntityGenerator {
 
     // MARK: - Shapes
 
-    private func alias(_ declaration: ParsedEntity, form: String, isGeneric: Bool) -> String {
+    private func alias(_ declaration: ParsedEntity, form: String) -> String {
         let name = SwiftIdentifier.escaped(declaration.name)
         let documentation = Documentation.docComment(for: declaration)
-        if isGeneric {
-            return "\(documentation)public typealias \(name)<Term> = RDFCore.`\(form)`<Term>"
-        }
         return "\(documentation)public typealias \(name) = RDFCore.`\(form)`"
     }
 

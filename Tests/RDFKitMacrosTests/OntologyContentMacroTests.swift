@@ -35,18 +35,18 @@ struct OntologyContentMacroTests {
             func content() -> Content {
                 Namespace("https://zoo.example.org/#")
                 RDFCore.Class("Animal") {
-                        Type(RDFS.Class)
+
                         Label("Animal")
-                        Endangered<Zoo.Animal>()
+
                     }
                 RDFCore.Class("Keeper") {
-                        SubClassOf(Animal)
+
                         Label(keeperLabel)
                     }
                 if includeVets {
                         RDFCore.Property("treats") {
-                            Domain(Zoo.Vet)
-                            Range(Zoo.Animal)
+
+
                         }
                     }
             }
@@ -61,16 +61,16 @@ struct OntologyContentMacroTests {
             @OntologyContent
             func content() -> Content {
                 Class("Animal") {
-                    SubClassOf(Zoo.Animal)
-                    Domain(Zoo.Animal.self)
+                    SubClassOf\("<")Zoo.Animal>()
+                    Domain(Zoo.Animal\(".self"))
                 }
             }
             """,
             expandedSource: """
             func content() -> Content {
                 RDFCore.Class("Animal") {
-                        SubClassOf(Zoo.Animal)
-                        Domain(Zoo.Animal.self)
+
+
                     }
             }
             """,
@@ -108,7 +108,7 @@ struct OntologyContentMacroTests {
                     Namespace("https://zoo.example.org/#")
 
                     Class("Animal") {
-                        Type(RDFS.Clas)
+                        Comment(animalComent)
                     }
                 }
             }
@@ -128,7 +128,7 @@ struct OntologyContentMacroTests {
             #"#sourceLocation(file: "/Zoo/Zoo.swift", line: 6)"#,
             """
             RDFCore.Class("Animal") {
-                        Type(RDFS.Clas)
+                        Comment(animalComent)
                     }
             """,
             "#sourceLocation()",

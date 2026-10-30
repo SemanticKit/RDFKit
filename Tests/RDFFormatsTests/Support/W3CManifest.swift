@@ -56,7 +56,7 @@ struct W3CManifest {
         let text = try String(contentsOf: try file(for: iri), encoding: .utf8)
         let graph = ManifestGraph(triples: try TurtleDecoder(base: iri).decode(text))
         guard let manifest = graph.subjects(
-            RDF.type<any RDFCore.Resource>.metadata.id,
+            RDF.type.metadata.id,
             TestManifest.ManifestIndividual.metadata.id
         ).first else {
             throw W3CManifestError.malformed(iri, "no mf:Manifest")
@@ -79,7 +79,7 @@ struct W3CManifest {
 
     func test(_ entry: SubjectTerm, in graph: ManifestGraph, manifest: IRI) throws -> W3CTestCase {
         guard case .iri(let id) = entry else { throw W3CManifestError.malformed(manifest, "a test without an IRI") }
-        guard case .iri(let type)? = graph.object(entry, RDF.type<any RDFCore.Resource>.metadata.id),
+        guard case .iri(let type)? = graph.object(entry, RDF.type.metadata.id),
               let kind = Self.kind(of: type) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
         }

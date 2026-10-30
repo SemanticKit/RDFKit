@@ -5,8 +5,7 @@ import IRIKit
 /// Metadata is read when a term leaves the runtime: its IRI for Turtle,
 /// N-Triples, SPARQL or SHACL, and its label and comment for documentation.
 /// It never carries relations to other terms. Those are expressed as Swift
-/// types (``Domain``, ``Range``, ``SubClassOf`` and the generated stored
-/// properties).
+/// declarations: protocol refinement and the generated stored properties.
 public protocol ContentMetadata: Codable, Identifiable, Sendable {
     /// The IRI of the term, for use at the boundary only.
     var id: IRI { get }

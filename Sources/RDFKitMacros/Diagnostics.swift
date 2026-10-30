@@ -8,7 +8,8 @@ struct OntologyDiagnostic: DiagnosticMessage {
 
     var diagnosticID: MessageID { MessageID(domain: "RDFKitMacros", id: id) }
 
-    /// `Domain<Fauna.Animal>()` or `Domain(Fauna.Animal.self)` written in content.
+    /// A term annotation written in content with a generic argument or a
+    /// `.self` argument instead of the related type.
     static func writeRelatedTypeAsArgument(form: String, type: String) -> Self {
         Self(message: "Write \(form) with the related type as its argument: \(form)(\(type))", id: "relatedTypeArgument")
     }

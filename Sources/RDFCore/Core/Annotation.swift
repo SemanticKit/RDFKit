@@ -1,6 +1,8 @@
-/// An annotation inside a declaration: `Label("Animal")`, `Domain(Fauna.Animal)`.
+/// An annotation inside a declaration that carries text: `Label("Animal")`,
+/// `Comment("An animal.")`.
 ///
-/// Annotations that carry text (``Label``, ``Comment``) hold the text.
-/// Annotations that relate the declared term to another term are
-/// ``TermAnnotation``s.
+/// An annotation that relates the declared term to another term,
+/// `Domain(Fauna.Animal)`, is not a value: `@Ontology` writes it as the Swift
+/// declaration it describes, protocol refinement or a requirement and its
+/// type.
 public protocol Annotation: Entity {}

@@ -13,7 +13,7 @@
 struct OntologyModel {
     enum Shape: Equatable {
         /// A term RDFCore already provides.
-        case alias(form: String, isGeneric: Bool)
+        case alias(form: String)
         /// A class of individuals: a protocol.
         case classProtocol
         /// A datatype or literal class: a value type.
@@ -186,7 +186,7 @@ struct OntologyModel {
 
     private func shape(computing declaration: ParsedEntity) -> Shape {
         if let form = BootstrapTerm.form(namespace: ontology.namespace, name: declaration.name) {
-            return .alias(form: form.type, isGeneric: form.isGeneric)
+            return .alias(form: form)
         }
         switch declaration.kind {
         case .class: return isLiteralClass(declaration.name) ? .value : .classProtocol

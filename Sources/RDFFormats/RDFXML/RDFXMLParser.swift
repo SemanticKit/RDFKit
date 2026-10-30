@@ -441,7 +441,7 @@ struct RDFXMLParser {
 
     // MARK: - Terms
 
-    static let typeIRI = RDF.type<any RDFCore.Resource>.metadata.id
+    static let typeIRI = RDF.type.metadata.id
     static let nilIRI = type(of: RDF.nil).metadata.id
     static let xmlLiteralIRI = RDF.XMLLiteral.metadata.id
 

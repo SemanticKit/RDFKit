@@ -7,21 +7,21 @@
 /// generate a second Swift type for the same term. It aliases the RDFCore
 /// type, so one term has one Swift type.
 enum BootstrapTerm {
-    /// The RDFCore type for a term, and whether that type is generic over a term.
-    static func form(namespace: String, name: String) -> (type: String, isGeneric: Bool)? {
+    /// The RDFCore type for a term.
+    ///
+    /// The terms that relate a term to another term (`rdf:type`,
+    /// `rdfs:domain`, `rdfs:range`, `rdfs:subClassOf`, `rdfs:subPropertyOf`)
+    /// have no RDFCore type: `@Ontology` writes each use of them as a Swift
+    /// declaration, and declares them as property terms like any other.
+    static func form(namespace: String, name: String) -> String? {
         switch (namespace, name) {
-        case (rdfs, "Resource"): ("Resource", false)
-        case (rdfkit, "Namespace"): ("Namespace", false)
-        case (rdfkit, "Prefix"): ("Prefix", false)
-        case (rdf, "type"): ("Type", true)
-        case (rdfs, "domain"): ("Domain", true)
-        case (rdfs, "range"): ("Range", true)
-        case (rdfs, "subClassOf"): ("SubClassOf", true)
-        case (rdfs, "subPropertyOf"): ("SubPropertyOf", true)
-        case (rdfs, "label"): ("Label", false)
-        case (rdfs, "comment"): ("Comment", false)
-        case (rdfs, "seeAlso"): ("SeeAlso", false)
-        case (owl, "deprecated"): ("Deprecated", false)
+        case (rdfs, "Resource"): "Resource"
+        case (rdfkit, "Namespace"): "Namespace"
+        case (rdfkit, "Prefix"): "Prefix"
+        case (rdfs, "label"): "Label"
+        case (rdfs, "comment"): "Comment"
+        case (rdfs, "seeAlso"): "SeeAlso"
+        case (owl, "deprecated"): "Deprecated"
         default: nil
         }
     }
@@ -63,7 +63,6 @@ enum BootstrapTerm {
         spelling == "OWL.FunctionalProperty"
     }
 
-    private static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     private static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
     private static let owl = "http://www.w3.org/2002/07/owl#"
     private static let rdfkit = "http://semantickit.io/o/2026/06/rdfkit#"
