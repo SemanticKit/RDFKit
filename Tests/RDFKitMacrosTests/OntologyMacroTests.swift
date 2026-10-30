@@ -77,6 +77,8 @@ struct OntologyMacroTests {
                 public final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
                     public static let iri: IRIKit.IRI? = "https://zoo.example.org/#Animal"
 
+                    public static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
+
                     /// A member of the class as a property value.
                     public typealias Member = any Zoo.Animal
 
@@ -87,12 +89,6 @@ struct OntologyMacroTests {
                     /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
                     public init(iri: IRIKit.IRI? = nil) {
                         self.iri = iri
-                    }
-
-                    public func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
                     }
 
                     public static func encodeDescription(to encoder: any Encoder) throws {
@@ -119,6 +115,8 @@ struct OntologyMacroTests {
                 public final class KeeperIndividual: Zoo.KeeperStoring, RDFCore.ResourceClass {
                     public static let iri: IRIKit.IRI? = "https://zoo.example.org/#Keeper"
 
+                    public static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.KeeperIndividual.self]
+
                     /// A member of the class as a property value.
                     public typealias Member = any Zoo.Keeper
 
@@ -131,20 +129,24 @@ struct OntologyMacroTests {
                         self.iri = iri
                     }
 
-                    public func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Zoo.KeeperIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
-                    }
-
                     public static func encodeDescription(to encoder: any Encoder) throws {
                         var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                         try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
                     }
                 }
 
-                public struct feeds: RDFCore.Entity {
+                public struct feeds: RDFCore.Entity, RDFCore.Description {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#feeds", name: "feeds")
+
+                    /// The property's description, which ``Zoo/ontology`` lists.
+                    public init() {
+                    }
+
+                    public func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.KeeperIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain))
+                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.range))
+                    }
                 }
 
                 /// The values an individual has for ``Zoo/feeds``.
@@ -168,8 +170,18 @@ struct OntologyMacroTests {
                     }
                 }
 
-                public struct name: RDFCore.Entity {
+                public struct name: RDFCore.Entity, RDFCore.Description {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#name", name: "name")
+
+                    /// The property's description, which ``Zoo/ontology`` lists.
+                    public init() {
+                    }
+
+                    public func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain))
+                        try container.encode([RDF.LiteralIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.range))
+                    }
                 }
 
                 /// The values an individual has for ``Zoo/name``.
@@ -192,19 +204,32 @@ struct OntologyMacroTests {
                         set
                     }
                 }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                public var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.AnimalIndividual.self),
+                        RDFCore.ClassDescription(Zoo.KeeperIndividual.self),
+                        Zoo.feeds(),
+                        Zoo.name(),
+                    ]
+                }
             }
 
             extension feedsStoring {
                 public var feeds: [any Zoo.Animal] {
                     get {
-                        withPropertyValue { (stored: inout feedsValue) in
-                            stored.value
-                        }
+                        storage[feedsValue.self].value
                     }
                     set {
-                        withPropertyValue { (stored: inout feedsValue) in
-                            stored.value = newValue
-                        }
+                        storage[feedsValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[feedsValue.self].value
                     }
                 }
             }
@@ -212,14 +237,13 @@ struct OntologyMacroTests {
             extension nameStoring {
                 public var name: [RDF.LiteralIndividual.Member] {
                     get {
-                        withPropertyValue { (stored: inout nameValue) in
-                            stored.value
-                        }
+                        storage[nameValue.self].value
                     }
                     set {
-                        withPropertyValue { (stored: inout nameValue) in
-                            stored.value = newValue
-                        }
+                        storage[nameValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[nameValue.self].value
                     }
                 }
             }
@@ -274,6 +298,8 @@ struct OntologyMacroTests {
                 final class BookIndividual: Library.BookStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://library.example/#Book"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Library.BookIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Library.Book
 
@@ -284,12 +310,6 @@ struct OntologyMacroTests {
                     /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
                     init(iri: IRIKit.IRI? = nil) {
                         self.iri = iri
-                    }
-
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Library.BookIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
                     }
 
                     static func encodeDescription(to encoder: any Encoder) throws {
@@ -309,6 +329,8 @@ struct OntologyMacroTests {
                 final class PeriodicalIndividual: Library.PeriodicalStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://library.example/#Periodical"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Library.PeriodicalIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Library.Periodical
 
@@ -319,12 +341,6 @@ struct OntologyMacroTests {
                     /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
                     init(iri: IRIKit.IRI? = nil) {
                         self.iri = iri
-                    }
-
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Library.PeriodicalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
                     }
 
                     static func encodeDescription(to encoder: any Encoder) throws {
@@ -344,6 +360,8 @@ struct OntologyMacroTests {
                 final class AnnualIndividual: Library.AnnualStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://library.example/#Annual"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Library.AnnualIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Library.Annual
 
@@ -356,16 +374,23 @@ struct OntologyMacroTests {
                         self.iri = iri
                     }
 
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Library.AnnualIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
-                    }
-
                     static func encodeDescription(to encoder: any Encoder) throws {
                         var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                         try container.encode([Library.BookIndividual.self, Library.PeriodicalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
                     }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Library().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Library.BookIndividual.self),
+                        RDFCore.ClassDescription(Library.PeriodicalIndividual.self),
+                        RDFCore.ClassDescription(Library.AnnualIndividual.self),
+                    ]
                 }
             }
             """
@@ -443,6 +468,8 @@ struct OntologyMacroTests {
                 final class CodeIndividual: Club.CodeStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://club.example.org/#Code"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Club.CodeIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = RDFCore.Literal
 
@@ -453,12 +480,6 @@ struct OntologyMacroTests {
                     /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
                     init(iri: IRIKit.IRI? = nil) {
                         self.iri = iri
-                    }
-
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Club.CodeIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
                     }
 
                     static func encodeDescription(to encoder: any Encoder) throws {
@@ -490,6 +511,8 @@ struct OntologyMacroTests {
                 final class MemberIndividual: Club.MemberStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://club.example.org/#Member"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Club.MemberIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Club.Member
 
@@ -502,12 +525,6 @@ struct OntologyMacroTests {
                         self.iri = iri
                     }
 
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Club.MemberIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
-                    }
-
                     static func encodeDescription(to encoder: any Encoder) throws {
                         var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                         try container.encode([FOAF.PersonIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
@@ -516,8 +533,18 @@ struct OntologyMacroTests {
                     }
                 }
 
-                struct code: RDFCore.Entity {
+                struct code: RDFCore.Entity, RDFCore.Description {
                     static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#code", name: "code")
+
+                    /// The property's description, which ``Club/ontology`` lists.
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Club.MemberIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain))
+                        try container.encode([Club.CodeIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.range))
+                    }
                 }
 
                 /// The values an individual has for ``Club/code``.
@@ -541,8 +568,18 @@ struct OntologyMacroTests {
                     }
                 }
 
-                struct friend: RDFCore.Entity {
+                struct friend: RDFCore.Entity, RDFCore.Description {
                     static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#friend", name: "friend")
+
+                    /// The property's description, which ``Club/ontology`` lists.
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Club.MemberIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain))
+                        try container.encode([FOAF.PersonIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.range))
+                    }
                 }
 
                 /// The values an individual has for ``Club/friend``.
@@ -566,22 +603,44 @@ struct OntologyMacroTests {
                     }
                 }
 
-                struct note: RDFCore.Entity {
+                struct note: RDFCore.Entity, RDFCore.Description {
                     static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#note", name: "note")
+
+                    /// The property's description, which ``Club/ontology`` lists.
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                    }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Club().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Club.CodeIndividual.self),
+                        RDFCore.ClassDescription(Club.MemberIndividual.self),
+                        Club.code(),
+                        Club.friend(),
+                        Club.note(),
+                    ]
                 }
             }
 
             extension codeStoring {
                 var code: [RDFCore.Literal] {
                     get {
-                        withPropertyValue { (stored: inout codeValue) in
-                            stored.value
-                        }
+                        storage[codeValue.self].value
                     }
                     set {
-                        withPropertyValue { (stored: inout codeValue) in
-                            stored.value = newValue
-                        }
+                        storage[codeValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[codeValue.self].value
                     }
                 }
             }
@@ -589,14 +648,13 @@ struct OntologyMacroTests {
             extension friendStoring {
                 var friend: [FOAF.PersonIndividual.Member] {
                     get {
-                        withPropertyValue { (stored: inout friendValue) in
-                            stored.value
-                        }
+                        storage[friendValue.self].value
                     }
                     set {
-                        withPropertyValue { (stored: inout friendValue) in
-                            stored.value = newValue
-                        }
+                        storage[friendValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[friendValue.self].value
                     }
                 }
             }
@@ -659,6 +717,8 @@ struct OntologyMacroTests {
                 final class KeeperIndividual: Zoo.KeeperStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://zoo.example.org/#Keeper"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.KeeperIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Zoo.Keeper
 
@@ -669,12 +729,6 @@ struct OntologyMacroTests {
                     /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
                     init(iri: IRIKit.IRI? = nil) {
                         self.iri = iri
-                    }
-
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Zoo.KeeperIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
                     }
 
                     static func encodeDescription(to encoder: any Encoder) throws {
@@ -695,6 +749,8 @@ struct OntologyMacroTests {
                 final class AnimalIndividualIndividual: Zoo.AnimalIndividualStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://zoo.example.org/#AnimalIndividual"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividualIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Zoo.AnimalIndividual
 
@@ -707,15 +763,21 @@ struct OntologyMacroTests {
                         self.iri = iri
                     }
 
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Zoo.AnimalIndividualIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
-                    }
-
                     static func encodeDescription(to encoder: any Encoder) throws {
                         _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                     }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.KeeperIndividual.self),
+                        RDFCore.ClassDescription(Zoo.AnimalIndividualIndividual.self),
+                    ]
                 }
             }
             """,

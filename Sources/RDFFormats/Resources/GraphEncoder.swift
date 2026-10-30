@@ -59,6 +59,10 @@ final class EncodedGraph {
         } else if let description = description as? ClassDescription {
             guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
             subject = term(description.class.iri, ObjectIdentifier(description.class))
+        } else if let term = description as? any Entity {
+            // A term type `@Ontology` declares, such as a property, describes
+            // the term it names.
+            subject = .iri(type(of: term).metadata.id)
         } else if let addition = description as? any Addition {
             switch addition.resource {
             case .individual(let individual): subject = term(individual.iri, ObjectIdentifier(individual))
@@ -72,7 +76,7 @@ final class EncodedGraph {
         } else {
             throw EncodingError.invalidValue(description, EncodingError.Context(
                 codingPath: [],
-                debugDescription: "A description is an individual, a class description or an addition."
+                debugDescription: "A description is an individual, a class description, a declared term or an addition."
             ))
         }
         try description.encode(to: ResourceEncoder(graph: self, subject: subject))

@@ -160,20 +160,17 @@ struct SwiftSource {
         return text + "}\n"
     }
 
-    /// The IRI, the storage and `encode(to:)` of a generated class.
+    /// The classes, the IRI and the storage of a generated class. Its
+    /// `Encodable` conformance comes from ``RDFCore/PropertyValueStoring``,
+    /// which writes the classes as `rdf:type`.
     private func individual(stated: [SubjectTerm]) -> String {
-        var text = "    public let iri: IRIKit.IRI?\n\n"
+        let types = stated.compactMap(classDeclaration).map { "\($0.classReference).self" }
+        var text = "    public static let classes: [any RDFCore.ResourceClass.Type] = [\(types.joined(separator: ", "))]\n\n"
+        text += "    public let iri: IRIKit.IRI?\n\n"
         text += "    public let storage = RDFCore.IndividualStorage()\n\n"
         text += "    /// An individual, denoted by `iri`, or a blank node when it is `nil`.\n"
         text += "    public init(iri: IRIKit.IRI? = nil) {\n        self.iri = iri\n    }\n"
-        text += "\n    public func encode(to encoder: any Encoder) throws {\n"
-        let types = stated.compactMap(classDeclaration).map { "\($0.classReference).self" }
-        if !types.isEmpty {
-            text += "        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)\n"
-            text += "        try container.encode([\(types.joined(separator: ", "))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(reference(.iri(.rdfType)))))\n"
-        }
-        text += "        try storage.encode(to: encoder)\n"
-        return text + "    }\n"
+        return text
     }
 
     // MARK: - Properties
@@ -202,8 +199,9 @@ struct SwiftSource {
         text += "extension \(SwiftName.identifier(property.storingName)) {\n"
         text += documentation(property.node, indent: "    ", deprecation: false)
         text += "    \(property.isPublic ? "public " : "")var \(member): \(type(of: property.kind)) {\n"
-        text += "        get { withPropertyValue { (values: inout \(value)) in values.value } }\n"
-        text += "        set { withPropertyValue { (values: inout \(value)) in values.value = newValue } }\n"
+        text += "        get { storage[\(value).self].value }\n"
+        text += "        set { storage[\(value).self].value = newValue }\n"
+        text += "        _modify { yield &storage[\(value).self].value }\n"
         text += "    }\n}\n"
         return text
     }

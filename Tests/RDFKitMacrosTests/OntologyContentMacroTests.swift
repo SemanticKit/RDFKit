@@ -98,6 +98,8 @@ struct OntologyContentMacroTests {
                 final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
                     static let iri: IRIKit.IRI? = "https://zoo.example.org/#Animal"
 
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
+
                     /// A member of the class as a property value.
                     typealias Member = any Zoo.Animal
 
@@ -110,15 +112,20 @@ struct OntologyContentMacroTests {
                         self.iri = iri
                     }
 
-                    func encode(to encoder: any Encoder) throws {
-                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                        try storage.encode(to: encoder)
-                    }
-
                     static func encodeDescription(to encoder: any Encoder) throws {
                         _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                     }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.AnimalIndividual.self),
+                    ]
                 }
             }
             """,

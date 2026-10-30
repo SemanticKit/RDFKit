@@ -2,6 +2,7 @@ import Testing
 import IRIKit
 import RDF
 import RDFCore
+import RDFFormats
 import RDFKit
 
 /// A class with a property in its domain, declared in one ontology.
@@ -23,12 +24,9 @@ struct ServiceDescription: Ontology {
 /// An individual typed with that class, declared in another module's Swift:
 /// an instance of a class that conforms to the class's storing protocol.
 final class EntailmentRegime: ServiceDescription.EntailmentRegimeStoring {
+    static let classes: [any ResourceClass.Type] = [ServiceDescription.EntailmentRegimeIndividual.self]
     let iri: IRI? = "http://www.w3.org/ns/entailment/RDFS"
     let storage = IndividualStorage()
-
-    func encode(to encoder: any Encoder) throws {
-        try storage.encode(to: encoder)
-    }
 }
 
 @Suite("An individual typed with another ontology's class", .tags(.ontology, .generated))
@@ -89,15 +87,12 @@ struct Staff: Ontology {
 /// An individual typed with both subclasses: one Swift class that conforms
 /// to the storing protocol of each.
 final class PersonAndEmployee: People.PersonStoring, Staff.EmployeeStoring {
+    static let classes: [any ResourceClass.Type] = [People.PersonIndividual.self, Staff.EmployeeIndividual.self]
     let iri: IRI?
     let storage = IndividualStorage()
 
     init(iri: IRI? = nil) {
         self.iri = iri
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        try storage.encode(to: encoder)
     }
 }
 
@@ -128,6 +123,25 @@ struct ChainedOntologyTests {
         #expect(bob.badge == ["42"])
         #expect(bob.nickname == ["Bobby"])
     }
+
+    @Test("An individual typed across vocabularies encodes each of its classes")
+    func encodesEveryClass() throws {
+        let bob = PersonAndEmployee(iri: "https://people.example.org/#bob")
+        bob.name = ["Bob"]
+        bob.nickname = ["Bobby"]
+        bob.badge = ["42"]
+        let output = try TurtleDecoder().decode(try TurtleEncoder().encode([bob]))
+        let expected = try TurtleDecoder().decode("""
+            @prefix agents: <https://agents.example.org/#> .
+            @prefix people: <https://people.example.org/#> .
+            @prefix staff: <https://staff.example.org/#> .
+            people:bob a people:Person, staff:Employee ;
+                agents:name "Bob" ;
+                people:nickname "Bobby" ;
+                staff:badge "42" .
+            """)
+        #expect(output.isIsomorphic(to: expected), "\(output)")
+    }
 }
 
 /// A property with two domains: its subject is in both (RDFS, an intersection).
@@ -147,12 +161,9 @@ struct Teaching: Ontology {
 
 /// An individual in both domains.
 final class TeacherAndResearcher: Teaching.TeacherStoring, Teaching.ResearcherStoring {
+    static let classes: [any ResourceClass.Type] = [Teaching.TeacherIndividual.self, Teaching.ResearcherIndividual.self]
     let iri: IRI? = nil
     let storage = IndividualStorage()
-
-    func encode(to encoder: any Encoder) throws {
-        try storage.encode(to: encoder)
-    }
 }
 
 @Suite("A property with two domains", .tags(.ontology, .generated))

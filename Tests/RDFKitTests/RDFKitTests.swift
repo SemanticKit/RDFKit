@@ -24,8 +24,11 @@ struct Club: Ontology {
             Range(RDF.Literal)
         }
         Property("sponsor") {
+            Type(RDF.Property)
             Domain(Club.Member)
             Range(FOAF.Person)
+            Label("sponsor")
+            Comment("The person who sponsored the member.")
         }
     }
 }
@@ -101,6 +104,31 @@ struct RDFKitTests {
                 rdfs:comment "A person who belongs to the club." .
             """)
         #expect(output == expected, "\(output)")
+    }
+
+    /// A DSL vocabulary encodes back to RDF, as a translated one does: its
+    /// classes and properties write what they are declared with, and the
+    /// Turtle decodes to the equivalent graph.
+    @Test func dslVocabularyRoundTrips() throws {
+        let turtle = try TurtleEncoder().encode(Club().ontology)
+        let output = try TurtleDecoder().decode(turtle)
+        let expected = try TurtleDecoder().decode("""
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+            @prefix club: <https://club.example.org/#> .
+            club:Member a rdfs:Class ;
+                rdfs:subClassOf foaf:Person ;
+                rdfs:label "Member" ;
+                rdfs:comment "A person who belongs to the club." .
+            club:joined rdfs:domain club:Member ; rdfs:range rdfs:Literal .
+            club:sponsor a rdf:Property ;
+                rdfs:domain club:Member ;
+                rdfs:range foaf:Person ;
+                rdfs:label "sponsor" ;
+                rdfs:comment "The person who sponsored the member." .
+            """)
+        #expect(output.isIsomorphic(to: expected), "\(turtle)")
     }
 
     /// The RDFKit vocabulary is declared in the DSL on the same runtime: a

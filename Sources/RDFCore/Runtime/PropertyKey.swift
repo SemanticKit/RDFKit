@@ -23,6 +23,13 @@ public struct PropertyKey: CodingKey, Sendable {
         stringValue = metadata.id.rawValue
     }
 
+    /// The key of an individual's classes, `rdf:type`, which
+    /// ``PropertyValueStoring`` writes for every individual. RDFCore is the
+    /// runtime the translated `RDF` module is built on, so it names the
+    /// property by its IRI here, at the coding key, where the value leaves
+    /// the runtime.
+    public static let type = PropertyKey(stringValue: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type")!
+
     public init?(stringValue: String) {
         self.stringValue = stringValue
     }

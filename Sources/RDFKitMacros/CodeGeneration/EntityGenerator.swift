@@ -17,8 +17,12 @@ import SwiftSyntaxMacros
 ///   description: the `Type`, `SubClassOf`, `Label`, `Comment`, `SeeAlso`
 ///   and `Deprecated` it is declared with.
 /// - A datatype is a class whose members are literals.
-/// - A property becomes a term type, and a value type and storing protocol
-///   that keep its values in an individual's ``RDFCore/IndividualStorage``.
+/// - A property becomes a term type, which writes its own description
+///   (`Type`, `Domain`, `Range`, `Label`, `Comment`, `SeeAlso`,
+///   `Deprecated`), and a value type and storing protocol that keep its
+///   values in an individual's ``RDFCore/IndividualStorage``.
+/// - The ontology type gets `ontology`, the descriptions of its terms, the
+///   way back to RDF, as a translated module has.
 /// - A named individual is a module-level value (`alice`), which a macro
 ///   attached at module scope cannot declare, so `Individual` is reported.
 ///
@@ -41,19 +45,42 @@ struct EntityGenerator {
     func members() -> [DeclSyntax] {
         diagnoseUndeclaredTerms()
         var generated: Set<String> = []
-        return ontology.declarations.flatMap { declaration -> [DeclSyntax] in
+        var descriptions: [String] = []
+        let members = ontology.declarations.flatMap { declaration -> [DeclSyntax] in
             // A term declared twice gets one type.
             guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
-            case .class, .datatype: sources = classDeclarations(declaration)
-            case .property: sources = propertyDeclarations(declaration)
+            case .class, .datatype:
+                sources = classDeclarations(declaration)
+                if sources.count > 1 {
+                    descriptions.append("RDFCore.ClassDescription(\(ontology.typeName).\(ClassNames(className: SwiftIdentifier.sanitized(declaration.name)).individual).self)")
+                }
+            case .property:
+                sources = propertyDeclarations(declaration)
+                descriptions.append("\(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name))()")
             case .individual:
                 context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.individualIsModuleLevel(declaration.name)))
                 sources = []
             }
             return sources.map { DeclSyntax(stringLiteral: $0) }
         }
+        return members + [DeclSyntax(stringLiteral: ontologyDescriptions(descriptions))]
+    }
+
+    /// `ontology`: the description of every term the ontology declares, the
+    /// way back to RDF, as a translated module's `ontology` is.
+    private func ontologyDescriptions(_ descriptions: [String]) -> String {
+        """
+        /// The descriptions of the terms this ontology declares.
+        ///
+        /// Encoding them gives the ontology's graph:
+        ///
+        ///     let document = try TurtleEncoder().encode(\(ontology.typeName)().ontology)
+        \(access)var ontology: [any RDFCore.Description] {
+            [\(descriptions.map { "\n        \($0)," }.joined())\(descriptions.isEmpty ? "" : "\n    ")]
+        }
+        """
     }
 
     /// Reports, at the authored annotation, a related term written as a term
@@ -119,6 +146,8 @@ struct EntityGenerator {
         \(Documentation.docComment(for: declaration))\(access)final class \(names.individual): \(ontology.typeName).\(names.storing), RDFCore.ResourceClass {
             \(memberAccess)static let iri: IRIKit.IRI? = \(Documentation.literal(ontology.iri(of: declaration.name)))
 
+            \(memberAccess)static let classes: [any RDFCore.ResourceClass.Type] = [\(qualifiedIndividual).self]
+
             /// A member of the class as a property value.
             \(memberAccess)typealias Member = \(model.memberType(ofClass: declaration.name))
 
@@ -129,12 +158,6 @@ struct EntityGenerator {
             /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
             \(memberAccess)init(iri: IRIKit.IRI? = nil) {
                 self.iri = iri
-            }
-
-            \(memberAccess)func encode(to encoder: any Encoder) throws {
-                var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                try container.encode([\(qualifiedIndividual).self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
-                try storage.encode(to: encoder)
             }
 
             \(memberAccess)static func encodeDescription(to encoder: any Encoder) throws {
@@ -150,8 +173,8 @@ struct EntityGenerator {
     private var memberAccess: String { access }
 
     /// The statements that write what the declaration states about its term:
-    /// `rdf:type`, `rdfs:subClassOf`, `rdfs:label`, `rdfs:comment`,
-    /// `rdfs:seeAlso` and `owl:deprecated`.
+    /// `rdf:type`, `rdfs:subClassOf`, `rdfs:domain`, `rdfs:range`,
+    /// `rdfs:label`, `rdfs:comment`, `rdfs:seeAlso` and `owl:deprecated`.
     private func description(of declaration: ParsedEntity, indent: String) -> String {
         var lines: [String] = []
         func classes(_ form: String) -> String {
@@ -162,8 +185,8 @@ struct EntityGenerator {
         if !declaration.terms("Type").isEmpty {
             lines.append("try container.encode([\(classes("Type"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))")
         }
-        if !declaration.terms("SubClassOf").isEmpty {
-            lines.append("try container.encode([\(classes("SubClassOf"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))")
+        for (form, property) in [("SubClassOf", "RDF.subClassOf"), ("Domain", "RDF.domain"), ("Range", "RDF.range")] where !declaration.terms(form).isEmpty {
+            lines.append("try container.encode([\(classes(form))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(property)))")
         }
         for (form, property) in [("Label", "RDF.label"), ("Comment", "RDF.comment")] {
             let texts = declaration.annotations(form).compactMap(\.text)
@@ -194,8 +217,15 @@ struct EntityGenerator {
     private func propertyDeclarations(_ declaration: ParsedEntity) -> [String] {
         let name = SwiftIdentifier.escaped(declaration.name)
         let term = """
-        \(Documentation.docComment(for: declaration))\(access)struct \(name): RDFCore.Entity {
+        \(Documentation.docComment(for: declaration))\(access)struct \(name): RDFCore.Entity, RDFCore.Description {
             \(memberAccess)static let metadata: any RDFCore.ContentMetadata = \(Documentation.metadata(for: declaration, in: ontology))
+
+            /// The property's description, which ``\(ontology.typeName)/ontology`` lists.
+            \(memberAccess)init() {}
+
+            \(memberAccess)func encode(to encoder: any Encoder) throws {
+        \(description(of: declaration, indent: "        "))
+            }
         }
         """
         guard model.isStored(declaration) else { return [term] }

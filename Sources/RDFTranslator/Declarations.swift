@@ -65,7 +65,7 @@ struct Declarations {
     static let reserved: Set<String> = ["ontology", "described"]
 
     /// Names a generated class declares itself.
-    static let memberNames: Set<String> = ["iri", "storage", "encode", "encodeDescription", "init", "Member", "withPropertyValue"]
+    static let memberNames: Set<String> = ["iri", "storage", "encode", "encodeDescription", "init", "Member", "classes"]
 
     init(_ layer: Layer, _ vocabulary: Vocabulary, below: [Declarations]) throws {
         module = layer.module

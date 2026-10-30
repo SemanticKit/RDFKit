@@ -6,9 +6,9 @@ import SwiftSyntaxMacros
 ///
 /// The protocol restates the property's requirement. This macro gives it
 /// accessors that read and change the property's value,
-/// `Fauna.hasHabitatValue`, through
-/// ``RDFCore/PropertyValueStoring/withPropertyValue(_:)``, under the lock of
-/// the individual's ``RDFCore/IndividualStorage``. The storing protocol of
+/// `Fauna.hasHabitatValue`, in the individual's ``RDFCore/IndividualStorage``,
+/// under its lock; a change in place holds the lock from the read to the
+/// write. The storing protocol of
 /// every domain of the property refines this one, so the property has one
 /// pair of accessors however many of its domains an individual is in.
 public struct IndividualStoringMacro: ExtensionMacro {
@@ -35,8 +35,9 @@ public struct IndividualStoringMacro: ExtensionMacro {
                   let type = binding.typeAnnotation?.type.trimmedDescription else { return nil }
             return """
                 \(access)var \(name): \(type) {
-                    get { withPropertyValue { (stored: inout \(valueType)) in stored.value } }
-                    set { withPropertyValue { (stored: inout \(valueType)) in stored.value = newValue } }
+                    get { storage[\(valueType).self].value }
+                    set { storage[\(valueType).self].value = newValue }
+                    _modify { yield &storage[\(valueType).self].value }
                 }
             """
         }
