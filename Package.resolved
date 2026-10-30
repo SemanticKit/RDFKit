@@ -1,5 +1,5 @@
 {
-  "originHash" : "57f40abd7b406beb144c8ce42551c010d575e2f44995c857ae5ecbd96bf09bf8",
+  "originHash" : "8d34bd9f455ae9ac8a032da12887920bb6df0f242db76b4265640784544a6159",
   "pins" : [
     {
       "identity" : "bitbytedata",
@@ -25,7 +25,7 @@
       "location" : "https://github.com/SemanticKit/SemanticKitBuildPlugins.git",
       "state" : {
         "branch" : "main",
-        "revision" : "a928bfe42e8a43d93892a4ded6cfdf5163d26c40"
+        "revision" : "40d90da0fff8568fc313e9f927ed3dde70d1fcd5"
       }
     },
     {
