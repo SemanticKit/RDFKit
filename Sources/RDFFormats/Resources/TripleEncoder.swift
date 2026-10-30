@@ -2,20 +2,20 @@ import IRIKit
 import RDFCore
 import RDFRuntime
 
-/// Encodes resources as the triples that describe them, through their
+/// Encodes descriptions as the triples they state, through their
 /// `Encodable` conformance.
 ///
-/// Each resource given is the subject of the triples its property values
-/// make. A resource in object position is written as its IRI; a blank node is
-/// written as a blank node and described too, once, since nothing outside the
-/// graph can name it (RDF 1.2 Concepts §3.5: "Blank nodes are disjoint from
-/// IRIs and literals").
+/// Each description writes the triples about one subject: an individual, a
+/// class, or the resource an ``RDFRuntime/Addition`` refers to. A resource in
+/// object position is written as its IRI; a blank node is written as a blank
+/// node and described too, once, since nothing outside the graph can name it
+/// (RDF 1.2 Concepts §3.5: "Blank nodes are disjoint from IRIs and literals").
 struct TripleEncoder {
-    /// The triples describing the resources and the blank nodes they reach.
-    func encode(_ resources: [any RDFRuntime.Resource]) throws -> Graph {
+    /// The triples of the descriptions and of the blank nodes they reach.
+    func encode(_ descriptions: [any RDFRuntime.Description]) throws -> [DecodedTriple] {
         let graph = EncodedGraph()
-        for resource in resources {
-            try graph.describe(resource)
+        for description in descriptions {
+            try graph.describe(description)
         }
         while let blank = graph.undescribed.popLast() {
             try graph.describe(blank)
@@ -27,36 +27,66 @@ struct TripleEncoder {
 
 /// The graph a ``TripleEncoder`` run writes.
 final class EncodedGraph {
-    var triples: Graph = []
-    var undescribed: [any RDFRuntime.Resource] = []
+    var triples: [DecodedTriple] = []
+    var undescribed: [any RDFRuntime.Description] = []
     var error: (any Error)?
     private var described: Set<ObjectIdentifier> = []
     private var blankNodes: [ObjectIdentifier: BlankNode] = [:]
 
-    func describe(_ resource: any RDFRuntime.Resource) throws {
-        guard described.insert(ObjectIdentifier(resource)).inserted else { return }
-        try resource.encode(to: ResourceEncoder(graph: self, subject: subject(resource)))
+    func describe(_ description: any RDFRuntime.Description) throws {
+        let subject: SubjectTerm
+        if let individual = description as? any RDFRuntime.Resource {
+            guard described.insert(ObjectIdentifier(individual)).inserted else { return }
+            subject = term(individual.iri, ObjectIdentifier(individual))
+        } else if let description = description as? RDFRuntime.ClassDescription {
+            guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
+            subject = term(description.class.iri, ObjectIdentifier(description.class))
+        } else if let addition = description as? any RDFRuntime.Addition {
+            switch addition.resource {
+            case .individual(let individual): subject = term(individual.iri, ObjectIdentifier(individual))
+            case .class(let type): subject = term(type.iri, ObjectIdentifier(type))
+            case .literal(let literal):
+                throw EncodingError.invalidValue(literal, EncodingError.Context(
+                    codingPath: [],
+                    debugDescription: "A subject is an IRI or a blank node (RDF 1.2 Concepts §3.1), not a literal."
+                ))
+            }
+        } else {
+            throw EncodingError.invalidValue(description, EncodingError.Context(
+                codingPath: [],
+                debugDescription: "A description is an individual, a class description or an addition."
+            ))
+        }
+        try description.encode(to: ResourceEncoder(graph: self, subject: subject))
     }
 
-    func subject(_ resource: any RDFRuntime.Resource) -> SubjectTerm {
-        if let iri = type(of: resource).iri { return .iri(iri) }
-        let id = ObjectIdentifier(resource)
-        if let node = blankNodes[id] { return .blankNode(node) }
-        let node = try! BlankNode("b\(blankNodes.count)")  // never empty
-        blankNodes[id] = node
+    /// The IRI, or the blank node of a resource that has none.
+    private func term(_ iri: IRI?, _ identity: ObjectIdentifier) -> SubjectTerm {
+        if let iri { return .iri(iri) }
+        if let node = blankNodes[identity] { return .blankNode(node) }
+        let node = BlankNode(rawValue: "b\(blankNodes.count)")
+        blankNodes[identity] = node
         return .blankNode(node)
     }
 
-    func object(_ resource: any RDFRuntime.Resource) -> ObjectTerm {
-        let term = subject(resource)
-        if case .blankNode = term, !described.contains(ObjectIdentifier(resource)) {
-            undescribed.append(resource)
+    /// A value in object position. A blank node it reaches is described too.
+    func object(_ value: RDFRuntime.Value) -> ObjectTerm {
+        switch value {
+        case .literal(let literal):
+            return .literal(literal)
+        case .individual(let individual):
+            let identity = ObjectIdentifier(individual)
+            if individual.iri == nil, !described.contains(identity) { undescribed.append(individual) }
+            return term(individual.iri, identity).object
+        case .class(let type):
+            let identity = ObjectIdentifier(type)
+            if type.iri == nil, !described.contains(identity) { undescribed.append(RDFRuntime.ClassDescription(type)) }
+            return term(type.iri, identity).object
         }
-        return term.object
     }
 }
 
-/// The encoder a resource writes its property values to.
+/// The encoder a description writes its property values to.
 struct ResourceEncoder: Encoder {
     let graph: EncodedGraph
     let subject: SubjectTerm
@@ -85,14 +115,6 @@ struct ResourceEncoder: Encoder {
     }
 }
 
-/// The key a ``ResourceEncoder`` reads a property IRI from.
-struct PropertyKey: CodingKey {
-    let stringValue: String
-    init?(stringValue: String) { self.stringValue = stringValue }
-    var intValue: Int? { nil }
-    init?(intValue: Int) { nil }
-}
-
 /// Writes one triple for each value: the subject, the property its key
 /// names, and the value as an object.
 struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
@@ -112,8 +134,10 @@ struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
             ))
         }
         let object: ObjectTerm
-        if let resource = value as? any RDFRuntime.Resource {
-            object = graph.object(resource)
+        if let value = value as? RDFRuntime.Value {
+            object = graph.object(value)
+        } else if let resource = value as? any RDFRuntime.Resource {
+            object = graph.object(.individual(resource))
         } else if let literal = value as? Literal {
             object = .literal(literal)
         } else {
@@ -122,7 +146,7 @@ struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
                 debugDescription: "An object is a resource or a literal (RDF 1.2 Concepts §3.1)."
             ))
         }
-        graph.triples.insert(Graph.Element(subject: subject, predicate: predicate, object: object))
+        graph.triples.append(DecodedTriple(subject: subject, predicate: predicate, object: object))
     }
 
     mutating func encodeNil(forKey key: Key) throws {
@@ -188,11 +212,11 @@ struct RejectingEncoder: Encoder {
     }
 
     func unkeyedContainer() -> any UnkeyedEncodingContainer {
-        RejectingContainer<PropertyKey>(graph: graph, codingPath: codingPath)
+        RejectingContainer<RDFRuntime.PropertyKey>(graph: graph, codingPath: codingPath)
     }
 
     func singleValueContainer() -> any SingleValueEncodingContainer {
-        RejectingContainer<PropertyKey>(graph: graph, codingPath: codingPath)
+        RejectingContainer<RDFRuntime.PropertyKey>(graph: graph, codingPath: codingPath)
     }
 }
 

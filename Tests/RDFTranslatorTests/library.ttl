@@ -48,7 +48,7 @@
 :gazette a :Periodical ;
     :title "Gazette" ;
     :cites :almanac ;
-    rdfs:comment [ rdf:value "A note found in the first issue." ; rdfs:label "note" ] .
+    rdfs:seeAlso [ rdf:value "A note found in the first issue." ; rdfs:label "note" ] .
 
 :second-edition a :Book ;
     :title "Almanac, second edition" ;

@@ -15,12 +15,11 @@ jobs:
       - name: Build
         run: swift build --build-tests
 
-      - name: Generated Swift has none of the rejected shapes
+      - name: Generated Swift stores properties as members
         # RDFTranslatorPlugin writes the Swift the RDF describes under
-        # .build/plugins/outputs. These are the shapes Charles rejected in
-        # real code (DESIGN-CONTRACT.md, rules 1 and 6): IndividualGraph,
-        # values(of:), Foaf.agentClass, ACL.readClass, and add* modifiers
-        # chained on a declaration.
+        # .build/plugins/outputs. Each property is a stored member of the
+        # classes of the things that have it, never a lookup in a list of
+        # (property, value) statements (DESIGN-CONTRACT.md, rules 1 and 11).
         shell: bash
         run: |
           shopt -s globstar nullglob
@@ -30,8 +29,8 @@ jobs:
             exit 1
           fi
           echo "Checking ${#files[@]} generated Swift files"
-          if grep -nE 'IndividualGraph|values\(of:|agentClass|readClass|(\)|^)[[:space:]]*\.add[[:alnum:]_]*[[:space:]]*\(' "${files[@]}"; then
-            echo "::error::Generated Swift contains a rejected shape (see the lines above)"
+          if grep -nF 'propertyValues[' "${files[@]}"; then
+            echo "::error::Generated Swift looks property values up by property (see the lines above)"
             exit 1
           fi
 

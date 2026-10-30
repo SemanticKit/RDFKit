@@ -17,6 +17,18 @@ struct LibraryTests {
         #expect(!((gazette as AnyObject) is any Book))
     }
 
+    /// `:almanac a :Annual`: the individual is an instance of the Swift
+    /// class of its class, and an individual made in Swift is one too.
+    @Test func individualsAreInstancesOfTheirClass() throws {
+        #expect(type(of: almanac) == AnnualIndividual.self)
+        let reprint = BookIndividual(iri: "https://library.example/vocabulary#reprint")
+        reprint.cites = [almanac]
+        reprint.title = ["Almanac, reprint"]
+        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([reprint]))
+        #expect(output.count == 3)
+        #expect(output.contains { $0.predicate.rawValue == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && $0.object == .iri("https://library.example/vocabulary#Book") })
+    }
+
     /// Values that are individuals are the individuals themselves, cycles
     /// included, and a resource can name itself.
     @Test func objectValuesAreTheIndividuals() {
@@ -50,7 +62,7 @@ struct LibraryTests {
     @Test func individualsTranslateBackToTheirDescriptions() throws {
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([gazette]))
         let subjects = Set(output.map(\.subject))
-        // The gazette and the blank node of its comment.
+        // The gazette and the blank node of the note it refers to.
         #expect(subjects.count == 2)
         #expect(subjects.contains(.iri("https://library.example/vocabulary#gazette")))
     }
