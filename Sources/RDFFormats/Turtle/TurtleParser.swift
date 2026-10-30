@@ -9,8 +9,9 @@ struct TurtleParser {
     var current: (token: TurtleToken, position: Int)
     var base: String?
     /// Prefix labels declared by `@prefix` / `PREFIX`, with their namespace
-    /// IRI as written after resolution.
-    var namespaces: [String: String] = [:]
+    /// IRI as written after resolution. Keyed by the label's Unicode scalars,
+    /// so canonically equivalent labels stay distinct prefixes.
+    var namespaces: [[Unicode.Scalar]: String] = [:]
     var blankNodes = BlankNodeLabels()
     var graph: Graph = []
 
@@ -89,7 +90,7 @@ struct TurtleParser {
         guard case .iriReference(let reference) = current.token else {
             throw error("expected an IRI for prefix '\(prefix):'")
         }
-        namespaces[prefix] = try resolve(reference).rawValue
+        namespaces[Array(prefix.unicodeScalars)] = try resolve(reference).rawValue
         try advance()
     }
 
@@ -369,7 +370,7 @@ struct TurtleParser {
             try advance()
             return iri
         case .prefixedName(let prefix, let local):
-            guard let namespace = namespaces[prefix] else {
+            guard let namespace = namespaces[Array(prefix.unicodeScalars)] else {
                 throw error("prefix '\(prefix):' is not declared")
             }
             let expanded = namespace + local

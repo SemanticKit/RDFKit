@@ -23,6 +23,20 @@ struct LiteralTests {
         #expect(ltr.description == #""chat"@fr--ltr"#)
     }
 
+    @Test("Lexical forms compare Unicode scalar by Unicode scalar, not by canonical equivalence")
+    func lexicalFormScalars() throws {
+        let composed = Literal("\u{E9}")
+        let decomposed = Literal("e\u{301}")
+        #expect(composed != decomposed)
+        #expect(Set([composed, decomposed]).count == 2)
+        #expect(decomposed < composed)
+        #expect(!(composed < decomposed))
+        #expect(!(composed < Literal("\u{E9}")))
+        let tagged = try Literal("\u{E9}", languageTag: "fr")
+        #expect(tagged != (try Literal("e\u{301}", languageTag: "fr")))
+        #expect(tagged == (try Literal("\u{E9}", languageTag: "FR")))
+    }
+
     @Test("A language tag cannot be empty")
     func emptyLanguageTag() {
         #expect(throws: TermError.emptyLanguageTag) {

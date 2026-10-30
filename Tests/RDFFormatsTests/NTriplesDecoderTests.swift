@@ -23,6 +23,20 @@ struct NTriplesDecoderTests {
             """)
     }
 
+    @Test("Canonically equivalent literals and labels stay distinct terms and round-trip byte for byte")
+    func canonicallyEquivalentTerms() throws {
+        let document = """
+            <http://e/s> <http://e/p> "\u{E9}" .
+            <http://e/s> <http://e/p> "e\u{301}" .
+            _:\u{E9} <http://e/p> <http://e/o> .
+            _:e\u{301} <http://e/p> <http://e/o> .
+
+            """
+        let graph = try NTriplesDecoder().decode(document)
+        #expect(graph.count == 4)
+        #expect(Array(NTriplesEncoder().encode(graph).utf8) == Array(document.utf8))
+    }
+
     @Test("A relative IRI is a syntax error at its position")
     func relativeIRI() {
         #expect(throws: SyntaxError(line: 1, column: 1, message: "<s> is not an absolute IRI")) {

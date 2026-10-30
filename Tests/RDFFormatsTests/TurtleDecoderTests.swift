@@ -23,6 +23,20 @@ struct TurtleDecoderTests {
         ])
     }
 
+    @Test("Canonically equivalent prefix and blank node labels stay distinct")
+    func canonicallyEquivalentLabels() throws {
+        let graph = try TurtleDecoder().decode("""
+            PREFIX \u{E9}: <http://a/>
+            PREFIX e\u{301}: <http://b/>
+            \u{E9}:s \u{E9}:p _:\u{E9} .
+            e\u{301}:s e\u{301}:p _:e\u{301} .
+            """)
+        #expect(graph == [
+            Graph.Element(subject: .iri("http://a/s"), predicate: "http://a/p", object: .blankNode(try BlankNode("\u{E9}"))),
+            Graph.Element(subject: .iri("http://b/s"), predicate: "http://b/p", object: .blankNode(try BlankNode("e\u{301}"))),
+        ])
+    }
+
     @Test("A base direction decodes into the literal's base direction")
     func baseDirection() throws {
         let graph = try TurtleDecoder().decode(#"<http://example/s> <http://example/p> "שלום"@HE--rtl ."#)

@@ -18,8 +18,12 @@ import IRIKit
 ///
 /// Two literals are the same term when their lexical forms, datatype IRIs,
 /// language tags (compared case-insensitively) and base directions are
-/// equal. The language tag is stored in lower case, so `Equatable` gives
-/// that comparison.
+/// equal. RDF 1.2 Concepts §3.4: "The lexical forms and the language tags
+/// compare equal, character by character", so lexical forms are compared
+/// Unicode scalar by Unicode scalar, never by Swift `String`'s canonical
+/// equivalence: `"\u{E9}"` and `"e\u{301}"` are different literals, as
+/// IRIKit's `IRI` compares its characters. The language tag is ASCII and
+/// stored in lower case, so comparing it gives the case-insensitive match.
 public struct Literal: Object, Hashable, Sendable, Comparable, CustomStringConvertible {
     /// The lexical form, a Unicode string.
     public let lexicalForm: String
@@ -86,9 +90,40 @@ public struct Literal: Object, Hashable, Sendable, Comparable, CustomStringConve
         return value
     }
 
+    public static func == (lhs: Literal, rhs: Literal) -> Bool {
+        lhs.lexicalForm.unicodeScalars.elementsEqual(rhs.lexicalForm.unicodeScalars)
+            && lhs.languageTag == rhs.languageTag
+            && lhs.baseDirection == rhs.baseDirection
+            && lhs.datatype == rhs.datatype
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        for scalar in lexicalForm.unicodeScalars {
+            hasher.combine(scalar.value)
+        }
+        hasher.combine(languageTag)
+        hasher.combine(baseDirection)
+        hasher.combine(datatype)
+    }
+
+    /// Orders literals by lexical form, language tag, base direction and
+    /// datatype IRI, each compared Unicode scalar by Unicode scalar, so the
+    /// order agrees with ``==(_:_:)``.
     public static func < (lhs: Literal, rhs: Literal) -> Bool {
-        (lhs.lexicalForm, lhs.languageTag ?? "", lhs.baseDirection?.rawValue ?? "", lhs.datatype?.rawValue ?? "")
-            < (rhs.lexicalForm, rhs.languageTag ?? "", rhs.baseDirection?.rawValue ?? "", rhs.datatype?.rawValue ?? "")
+        func precedes(_ lhs: String, _ rhs: String) -> Bool? {
+            if lhs.unicodeScalars.elementsEqual(rhs.unicodeScalars) { return nil }
+            return lhs.unicodeScalars.lexicographicallyPrecedes(rhs.unicodeScalars)
+        }
+        let pairs = [
+            (lhs.lexicalForm, rhs.lexicalForm),
+            (lhs.languageTag ?? "", rhs.languageTag ?? ""),
+            (lhs.baseDirection?.rawValue ?? "", rhs.baseDirection?.rawValue ?? ""),
+            (lhs.datatype?.rawValue ?? "", rhs.datatype?.rawValue ?? ""),
+        ]
+        for (left, right) in pairs {
+            if let order = precedes(left, right) { return order }
+        }
+        return false
     }
 }
 
