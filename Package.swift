@@ -15,12 +15,19 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main")
+        .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
+        // The SemanticKit invariants as build rules: RegoPolicyEvaluate runs
+        // the SemanticKitDesignGuidelines policies over every Swift file of
+        // the targets below, and a `deny` finding fails the build.
+        .package(url: "https://github.com/SemanticKit/SemanticKitBuildPlugins.git", branch: "main")
     ],
     targets: [
         .target(
             name: "RDFKit",
-            dependencies: ["IRIKit"],
+            dependencies: [
+                "IRIKit",
+                .product(name: "SemanticKitDesignGuidelines", package: "SemanticKitBuildPlugins")
+            ],
             exclude: [
                 "OWL/AGENTS.md",
                 "RDF/AGENTS.md",
@@ -30,14 +37,23 @@ let package = Package(
                 "Turtle/owl.ttl",
                 "Turtle/rdf.ttl",
                 "Turtle/rdfs.ttl"
+            ],
+            plugins: [
+                .plugin(name: "RegoPolicyEvaluate", package: "SemanticKitBuildPlugins")
             ]
         ),
         .testTarget(
             name: "RDFKitTests",
-            dependencies: ["RDFKit"],
+            dependencies: [
+                "RDFKit",
+                .product(name: "SemanticKitDesignGuidelines", package: "SemanticKitBuildPlugins")
+            ],
             exclude: [
                 "Data/shacl.rdf",
                 "Data/shacl.ttl"
+            ],
+            plugins: [
+                .plugin(name: "RegoPolicyEvaluate", package: "SemanticKitBuildPlugins")
             ]
         )
     ]
