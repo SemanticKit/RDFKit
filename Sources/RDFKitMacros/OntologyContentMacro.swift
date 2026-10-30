@@ -2,7 +2,7 @@ import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// The body macro on an ontology's `func content()`.
+/// The body macro on an ontology's `var body`.
 ///
 /// `@Ontology` attaches it. The authored body names related terms by their
 /// type, `Domain(Fauna.Animal)`, which Swift cannot evaluate as an
@@ -13,8 +13,8 @@ import SwiftSyntaxMacros
 /// by its module, `RDFCore.Class("Animal")`, because the ontology may declare
 /// a term of the same name (`RDFS.Class`). The statements keep the authored
 /// file and line, so the compiler reports an error in them at the line it
-/// was written on. `content()` takes ``ContentBuilder`` from the `Ontology`
-/// requirement, so the returned statements are built into `Content`.
+/// was written on. `var body` takes ``ContentBuilder`` from the `Ontology`
+/// requirement, so the returned statements are built into `some Content`.
 public struct OntologyContentMacro: BodyMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -22,7 +22,7 @@ public struct OntologyContentMacro: BodyMacro {
         in context: some MacroExpansionContext
     ) throws -> [CodeBlockItemSyntax] {
         guard let body = declaration.body else {
-            throw MacroError("@OntologyContent requires a 'func content() -> Content' with a body")
+            throw MacroError("@OntologyContent requires a 'var body: some Content' with a body")
         }
         let rewriter = ContentRewriter(declaredNames: OntologyParser.declaredNames(in: body.statements))
         let rewritten = rewriter.rewrite(body.statements).cast(CodeBlockItemListSyntax.self)
@@ -31,9 +31,12 @@ public struct OntologyContentMacro: BodyMacro {
         }
         // Each statement is preceded by the line it was authored on, so the
         // compiler reports an error in it at that line.
+        let anchor = BraceAnchor(node, body: body)
         var items: [CodeBlockItemSyntax] = []
         for (authored, statement) in zip(body.statements, rewritten) {
-            if let directive = sourceLocation(of: authored, in: context) { items.append(directive) }
+            if let directive = sourceLocation(of: authored, in: context) ?? anchor?.sourceLocation(of: authored) {
+                items.append(directive)
+            }
             items.append(statement)
         }
         if items.count > rewritten.count { items.append(CodeBlockItemSyntax(item: .decl("#sourceLocation()"))) }
@@ -47,6 +50,34 @@ public struct OntologyContentMacro: BodyMacro {
               let file = location.file.as(StringLiteralExprSyntax.self),
               let line = location.line.as(IntegerLiteralExprSyntax.self) else { return nil }
         return CodeBlockItemSyntax(item: .decl("#sourceLocation(file: \(file), line: \(line))"))
+    }
+}
+
+/// The file and line of the opening brace of `var body`, which `@Ontology`
+/// passes as `@OntologyContent(file:line:)`. The getter a body macro on a
+/// computed property is given is built outside the authored file, so the
+/// line of each statement is counted from the brace.
+private struct BraceAnchor {
+    let file: StringLiteralExprSyntax
+    let line: Int
+    let brace: TokenSyntax
+
+    init?(_ attribute: AttributeSyntax, body: CodeBlockSyntax) {
+        guard case .argumentList(let arguments) = attribute.arguments,
+              let file = arguments.first(where: { $0.label?.text == "file" })?.expression.as(StringLiteralExprSyntax.self),
+              let line = arguments.first(where: { $0.label?.text == "line" })?.expression.as(IntegerLiteralExprSyntax.self),
+              let value = Int(line.literal.text) else { return nil }
+        self.file = file.trimmed
+        self.line = value
+        self.brace = body.leftBrace
+    }
+
+    func sourceLocation(of statement: CodeBlockItemSyntax) -> CodeBlockItemSyntax? {
+        guard statement.root == brace.root else { return nil }
+        let converter = SourceLocationConverter(fileName: "", tree: statement.root)
+        let offset = converter.location(for: statement.positionAfterSkippingLeadingTrivia).line
+            - converter.location(for: brace.positionAfterSkippingLeadingTrivia).line
+        return CodeBlockItemSyntax(item: .decl("#sourceLocation(file: \(file), line: \(raw: line + offset))"))
     }
 }
 

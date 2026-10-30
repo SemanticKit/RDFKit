@@ -12,7 +12,7 @@ struct OntologyContentMacroTests {
         assertExpansion(
             """
             @OntologyContent
-            func content() -> Content {
+            var body: some Content {
                 Namespace("https://zoo.example.org/#")
                 Class("Animal") {
                     Type(RDFS.Class)
@@ -32,7 +32,7 @@ struct OntologyContentMacroTests {
             }
             """,
             expandedSource: """
-            func content() -> Content {
+            var body: some Content {
                 Namespace("https://zoo.example.org/#")
                 RDFCore.Class("Animal") {
                         Type(RDFS.Class)
@@ -59,7 +59,7 @@ struct OntologyContentMacroTests {
         assertExpansion(
             """
             @OntologyContent
-            func content() -> Content {
+            var body: some Content {
                 Class("Animal") {
                     SubClassOf(Zoo.Animal)
                     Domain(Zoo.Animal.self)
@@ -67,7 +67,7 @@ struct OntologyContentMacroTests {
             }
             """,
             expandedSource: """
-            func content() -> Content {
+            var body: some Content {
                 RDFCore.Class("Animal") {
                         SubClassOf(Zoo.Animal)
                         Domain(Zoo.Animal.self)
@@ -89,7 +89,7 @@ struct OntologyContentMacroTests {
             applyFixIts: ["Write SubClassOf(Zoo.Animal)", "Write Domain(Zoo.Animal)"],
             fixedSource: """
             @OntologyContent
-            func content() -> Content {
+            var body: some Content {
                 Class("Animal") {
                     SubClassOf(Zoo.Animal)
                     Domain(Zoo.Animal)
@@ -103,8 +103,8 @@ struct OntologyContentMacroTests {
     func keepsAuthoredLines() throws {
         let source: SourceFileSyntax = """
             struct Zoo {
-                @OntologyContent
-                func content() -> Content {
+                @OntologyContent(file: "/Zoo/Zoo.swift", line: 3)
+                var body: some Content {
                     Namespace("https://zoo.example.org/#")
 
                     Class("Animal") {
@@ -113,14 +113,25 @@ struct OntologyContentMacroTests {
                 }
             }
             """
-        let function = try #require(source.statements.first?.item.as(StructDeclSyntax.self)?
-            .memberBlock.members.first?.decl.as(FunctionDeclSyntax.self))
-        let attribute = try #require(function.attributes.first?.as(AttributeSyntax.self))
+        let variable = try #require(source.statements.first?.item.as(StructDeclSyntax.self)?
+            .memberBlock.members.first?.decl.as(VariableDeclSyntax.self))
+        let attribute = try #require(variable.attributes.first?.as(AttributeSyntax.self))
+        let accessorBlock = try #require(variable.bindings.first?.accessorBlock)
+        guard case .getter(let statements) = accessorBlock.accessors else {
+            Issue.record("var body has no getter")
+            return
+        }
+        // The getter the compiler gives a body macro on a computed property,
+        // built as SwiftSyntaxMacroExpansion builds it: outside the source file.
+        let getter = AccessorDeclSyntax(
+            accessorSpecifier: .keyword(.get, presence: .missing),
+            body: CodeBlockSyntax(leftBrace: accessorBlock.leftBrace, statements: statements, rightBrace: accessorBlock.rightBrace)
+        )
         let context = BasicMacroExpansionContext(
             sourceFiles: [source: .init(moduleName: "Zoo", fullFilePath: "/Zoo/Zoo.swift")]
         )
 
-        let body = try OntologyContentMacro.expansion(of: attribute, providingBodyFor: function, in: context)
+        let body = try OntologyContentMacro.expansion(of: attribute, providingBodyFor: getter, in: context)
 
         #expect(body.map(\.trimmedDescription) == [
             #"#sourceLocation(file: "/Zoo/Zoo.swift", line: 4)"#,

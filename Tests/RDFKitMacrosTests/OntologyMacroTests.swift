@@ -9,7 +9,7 @@ struct OntologyMacroTests {
             """
             @Ontology
             struct Zoo: Ontology {
-                func content() -> Content {
+                var body: some Content {
                     Namespace("https://zoo.example.org/#")
                     Class("Animal") {
                         Comment("An animal.")
@@ -34,26 +34,33 @@ struct OntologyMacroTests {
             """,
             expandedSource: """
             struct Zoo: Ontology {
-                func content() -> Content {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
                     Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Animal") {
                                 Comment("An animal.")
                             }
+                    #sourceLocation(file: "test.swift", line: 8)
                     RDFCore.Class("Keeper") {
                                 SubClassOf(Zoo.Animal)
                             }
+                    #sourceLocation(file: "test.swift", line: 11)
                     RDFCore.Individual("rex") {
                                 Type(Zoo.Keeper)
                             }
+                    #sourceLocation(file: "test.swift", line: 14)
                     RDFCore.Property("feeds") {
                                 Domain(Zoo.Keeper)
                                 Range(Zoo.Animal)
                             }
+                    #sourceLocation(file: "test.swift", line: 18)
                     RDFCore.Property("name") {
                                 Type(OWL.FunctionalProperty)
                                 Domain(Zoo.Animal)
                                 Range(RDFS.Literal)
                             }
+                    #sourceLocation()
                 }
 
                 /// An animal.
@@ -217,7 +224,7 @@ struct OntologyMacroTests {
             """
             @Ontology
             struct Zoo: Ontology {
-                func content() -> Content {
+                var body: some Content {
                     Namespace("https://zoo.example.org/#")
                     Class("Keeper")
                     Class("Vet")
@@ -234,18 +241,24 @@ struct OntologyMacroTests {
             """,
             expandedSource: """
             struct Zoo: Ontology {
-                func content() -> Content {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
                     Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Keeper")
+                    #sourceLocation(file: "test.swift", line: 6)
                     RDFCore.Class("Vet")
+                    #sourceLocation(file: "test.swift", line: 7)
                     RDFCore.Class("KeeperVet") {
                                 SubClassOf(Zoo.Keeper)
                                 SubClassOf(Zoo.Vet)
                             }
+                    #sourceLocation(file: "test.swift", line: 11)
                     RDFCore.Individual("rex") {
                                 Type(Zoo.Keeper)
                                 Type(Zoo.Vet)
                             }
+                    #sourceLocation()
                 }
 
                 public protocol Keeper: RDFCore.Resource {
@@ -328,7 +341,7 @@ struct OntologyMacroTests {
             """
             @Ontology
             struct Units: Ontology {
-                func content() -> Content {
+                var body: some Content {
                     Namespace("https://units.example.org/#")
                     Datatype("Kilograms") {
                         SubClassOf(RDFS.Literal)
@@ -346,19 +359,24 @@ struct OntologyMacroTests {
             """,
             expandedSource: """
             struct Units: Ontology {
-                func content() -> Content {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
                     Namespace("https://units.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Datatype("Kilograms") {
                                 SubClassOf(RDFS.Literal)
                             }
+                    #sourceLocation(file: "test.swift", line: 8)
                     RDFCore.Class("Animal") {
                                 SubClassOf(OWL.Thing)
                             }
+                    #sourceLocation(file: "test.swift", line: 11)
                     RDFCore.Property("weight") {
                                 Type(OWL.FunctionalProperty)
                                 Domain(Units.Animal)
                                 Range(Units.Kilograms)
                             }
+                    #sourceLocation()
                 }
 
                 public struct Kilograms: RDFCore.Entity {
@@ -395,7 +413,7 @@ struct OntologyMacroTests {
             """
             @Ontology
             struct OWL: Ontology {
-                func content() -> Content {
+                var body: some Content {
                     Namespace("http://www.w3.org/2002/07/owl#")
                     Class("Thing")
                     Class("Nothing") {
@@ -406,12 +424,16 @@ struct OntologyMacroTests {
             """,
             expandedSource: """
             struct OWL: Ontology {
-                func content() -> Content {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
                     Namespace("http://www.w3.org/2002/07/owl#")
+                    #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Thing")
+                    #sourceLocation(file: "test.swift", line: 6)
                     RDFCore.Class("Nothing") {
                                 SubClassOf(OWL.Thing)
                             }
+                    #sourceLocation()
                 }
 
                 public protocol Thing: RDFCore.Resource {
@@ -445,7 +467,7 @@ struct OntologyMacroTests {
             """
             @Ontology
             struct Zoo: Ontology {
-                func content() -> Content {
+                var body: some Content {
                     Namespace("https://zoo.example.org/#")
                     Class("Animal")
                     Class("Keeper") {
@@ -466,22 +488,30 @@ struct OntologyMacroTests {
             """,
             expandedSource: """
             struct Zoo: Ontology {
-                func content() -> Content {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
                     Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Animal")
+                    #sourceLocation(file: "test.swift", line: 6)
                     RDFCore.Class("Keeper") {
                                 SubClassOf(Zoo.Animl)
                             }
+                    #sourceLocation(file: "test.swift", line: 9)
                     RDFCore.Class("AnimalIndividual")
+                    #sourceLocation(file: "test.swift", line: 10)
                     RDFCore.Individual("rex") {
                                 Type(OWL.Thing)
                             }
+                    #sourceLocation(file: "test.swift", line: 13)
                     RDFCore.Datatype("Weight")
+                    #sourceLocation(file: "test.swift", line: 14)
                     RDFCore.Property("heavier") {
                                 Type(OWL.FunctionalProperty)
                                 Domain(Zoo.Weight)
                                 Range(Zoo.Weight)
                             }
+                    #sourceLocation()
                 }
 
                 public protocol Animal: RDFCore.Resource {
@@ -534,6 +564,70 @@ struct OntologyMacroTests {
                 DiagnosticSpec(message: "'AnimalIndividual' is declared in this ontology, so the individual type of 'Animal' cannot use that name", line: 5, column: 9),
                 DiagnosticSpec(message: "@Ontology generates the properties of individuals whose classes and superclasses are declared in this ontology (or are RDFS.Resource); 'OWL.Thing' is not", line: 11, column: 13),
                 DiagnosticSpec(message: "'heavier' has at most one 'Weight', which would make the value type 'Weight' contain itself; make the property many-valued", line: 14, column: 9),
+            ]
+        )
+    }
+
+    /// The rejected spelling, assembled so that no source file in the
+    /// package contains it.
+    static let contentFunction = "func " + "content()"
+
+    @Test("Content written as a function is an error with a fix-it to var body")
+    func contentFunctionIsAnError() {
+        assertExpansion(
+            """
+            @Ontology
+            public struct Zoo: Ontology {
+                public \(Self.contentFunction) -> Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal")
+                }
+            }
+            """,
+            expandedSource: """
+            public struct Zoo: Ontology {
+                public \(Self.contentFunction) -> Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal")
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "Write the ontology's content in 'var body: some Content', as a SwiftUI view's body; @Ontology does not read a 'content()' function",
+                    line: 3, column: 17,
+                    fixIts: [FixItSpec(message: "Write 'var body: some Content'")]
+                ),
+            ],
+            applyFixIts: ["Write 'var body: some Content'"],
+            fixedSource: """
+            @Ontology
+            public struct Zoo: Ontology {
+                public var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal")
+                }
+            }
+            """
+        )
+    }
+
+    @Test("An ontology without var body is an error")
+    func missingBodyIsAnError() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Zoo: Ontology {
+                let name = "Zoo"
+            }
+            """,
+            expandedSource: """
+            struct Zoo: Ontology {
+                let name = "Zoo"
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "@Ontology requires a 'var body: some Content' with a body", line: 1, column: 1),
             ]
         )
     }
