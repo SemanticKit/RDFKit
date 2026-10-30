@@ -1,61 +1,43 @@
-import IRIKit
 import RDFCore
 import Testing
 
+/// An RDF graph is a set of triples (RDF 1.2 Concepts §3.7), checked on
+/// graphs decoded from N-Triples fixtures.
 @Suite("Graph", .tags(.graph))
 struct GraphTests {
-    let s: SubjectTerm = .iri("http://example/s")
-    let p: IRI = "http://example/p"
-    let q: IRI = "http://example/q"
-
     @Test("A graph is a set: it holds a triple once, and its order is not part of its value")
     func setSemantics() throws {
-        let a = Graph.Element(subject: s, predicate: p, object: .literal(Literal("a")))
-        let b = Graph.Element(subject: s, predicate: p, object: .literal(Literal("b")))
-        var graph: Graph = [a, b]
+        var graph = try Fixture.graph("set.nt")
+        let reversed = try Fixture.graph("set-reversed.nt")
+        #expect(graph.count == 2)
+        #expect(graph == reversed)
+        #expect(Array(graph) == Array(reversed).reversed())
+        let a = try #require(graph.first)
+        let b = try #require(reversed.first)
         #expect(graph.insert(a).inserted == false)
         #expect(graph.count == 2)
-        #expect(graph == [b, a])
-        #expect(Array(graph) == [a, b])
-        #expect(graph.symmetricDifference([b, Graph.Element(subject: s, predicate: q, object: .literal(Literal("c")))]).count == 2)
         #expect(graph.remove(a) == a)
         #expect(graph == [b])
     }
 
     @Test("Triples match a pattern whose missing components match anything")
-    func matching() {
-        let o: ObjectTerm = .iri("http://example/o")
-        let first = Graph.Element(subject: s, predicate: p, object: o)
-        let second = Graph.Element(subject: s, predicate: q, object: o)
-        let graph: Graph = [first, second]
-        #expect(graph.triples(predicate: q) == [second])
-        #expect(graph.triples(subject: s, object: o) == graph)
-        #expect(graph.triples(subject: .iri("http://example/other")).isEmpty)
+    func matching() throws {
+        let graph = try Fixture.graph("matching.nt")
+        let first = try #require(graph.first)
+        let second = try #require(graph.dropFirst().first)
+        let other = try #require(try Fixture.graph("other-subject.nt").first)
+        #expect(graph.triples(predicate: second.predicate) == [second])
+        #expect(graph.triples(subject: first.subject, object: first.object) == graph)
+        #expect(graph.triples(subject: other.subject).isEmpty)
     }
 
     @Test("Graphs that differ only in blank node identifiers are isomorphic, not equal")
     func isomorphism() throws {
-        func chain(_ first: String, _ second: String) throws -> Graph {
-            let x = SubjectTerm.blankNode(try BlankNode(first))
-            let y = SubjectTerm.blankNode(try BlankNode(second))
-            return [
-                Graph.Element(subject: s, predicate: p, object: x.object),
-                Graph.Element(subject: x, predicate: p, object: y.object),
-                Graph.Element(subject: y, predicate: q, object: .literal(Literal("end"))),
-            ]
-        }
-        let left = try chain("a", "b")
-        let right = try chain("b", "c")
+        let left = try Fixture.graph("chain-ab.nt")
+        let right = try Fixture.graph("chain-bc.nt")
         #expect(left != right)
         #expect(left.isIsomorphic(to: right))
-
-        var other = right
-        other.insert(Graph.Element(subject: .blankNode(try BlankNode("c")), predicate: q, object: .literal(Literal("more"))))
-        #expect(!left.isIsomorphic(to: other))
-
-        let swapped = try chain("a", "b").map { triple in
-            Graph.Element(subject: triple.subject, predicate: triple.predicate == p ? q : p, object: triple.object)
-        }
-        #expect(!left.isIsomorphic(to: Graph(swapped)))
+        #expect(!left.isIsomorphic(to: try Fixture.graph("chain-bc-more.nt")))
+        #expect(!left.isIsomorphic(to: try Fixture.graph("chain-ab-swapped.nt")))
     }
 }

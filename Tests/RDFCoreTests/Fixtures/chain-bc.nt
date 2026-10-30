@@ -1,0 +1,3 @@
+<http://example/s> <http://example/p> _:b .
+_:b <http://example/p> _:c .
+_:c <http://example/q> "end" .

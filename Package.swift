@@ -183,8 +183,10 @@ let package = Package(
             name: "RDFCoreTests",
             dependencies: [
                 "RDFCore",
+                "RDFFormats",
                 .product(name: "IRIKit", package: "IRIKit")
-            ]
+            ],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "RDFKitMacrosTests",
