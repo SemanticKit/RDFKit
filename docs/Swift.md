@@ -68,18 +68,16 @@ protocol RDFPredicate: Node, Predicate {}
 
 ## Custom Type Conformances
 
+A Swift type is not mapped onto an RDF class by hand, and it stores no `rdfType`, label or IRI. Class membership is the type system: a `Class` declared in the DSL (or translated from RDF) generates a Swift class, and a class can be a protocol. An individual is an instance of the classes it belongs to, and the instance is its identity:
+
 ```swift
-// Define a custom type that conforms to RDF terms
-struct Person: Resource, NamedIndividual {
-    let name: String
-    let age: Int
-    
-    // Conform to RDF terms
-    var rdfType: RDF.Class { .Person }
-    var rdfLabel: String { name }
-    var rdfComment: String { "A person named \(name)" }
-}
+// alice.ttl: :alice a foaf:Person ; foaf:knows :bob .
+alice is Person                          // rdf:type is membership in the Swift type
+alice is Agent                           // foaf:Person rdfs:subClassOf foaf:Agent
+alice.knows.contains { $0 === bob }      // compared as instances, never by IRI
 ```
+
+`rdfs:label` and `rdfs:comment` on a class become DocC documentation on the generated type, not stored properties. The IRI is derived from the declaration (its ontology and namespace) only at the boundary, when an encoder, decoder or translator asks for it.
 
 ## Usage Patterns
 
@@ -92,19 +90,23 @@ let rdfList = resources.rdfList
 let individuals: Set<NamedIndividual> = [person1, person2, person3]
 let allDifferent = individuals.owlAllDifferent
 
-// Use custom types in ontologies
-let ontology = MyOntology {
-    Class("Person") {
-        Type(RDF.Class)
-        Label("Person")
-        Comment("A person entity.")
-    }
-    
-    Property("knows") {
-        Domain(Person)
-        Range(Person)
-        Label("knows")
-        Comment("knows another person.")
+// Declare classes and properties in an ontology's var body
+@Ontology
+struct MyOntology: Ontology {
+    var body: some Content {
+        Namespace("https://example.org/my#")
+        Class("Person") {
+            Type(RDF.Class)
+            Label("Person")
+            Comment("A person entity.")
+        }
+
+        Property("knows") {
+            Domain(MyOntology.Person)
+            Range(MyOntology.Person)
+            Label("knows")
+            Comment("knows another person.")
+        }
     }
 }
 ```
