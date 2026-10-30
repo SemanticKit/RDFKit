@@ -7,4 +7,4 @@
 /// `rdfs:label` is comes from the one translation of rdf.ttl, rdfs.ttl and
 /// owl.ttl, whose types the generated code names (`RDF.ClassIndividual`,
 /// `RDF.label`).
-public protocol Entity: Node {}
+public protocol Entity: Sendable {}
