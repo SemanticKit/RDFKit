@@ -4,9 +4,15 @@
 /// A class an IRI subject of the module's documents describes becomes a
 /// protocol named by its local name; any other IRI subject becomes a value
 /// named by its local name. A resource a lower layer already declares keeps
-/// that declaration. Two resources with one local name keep the name for the
-/// first one, in document order; the other is reachable only through the
-/// module's `ontology`.
+/// that declaration.
+///
+/// Two resources with one local name keep the name for the one the
+/// documents say a vocabulary defines: `rdfs:isDefinedBy` "is used to
+/// indicate a resource defining the subject resource" (RDF 1.2 Schema,
+/// rdfs:isDefinedBy). FOAF describes `dc:title` and defines `foaf:title`, so
+/// `title` is `foaf:title`. Between two resources both defined, or both not,
+/// the first in document order keeps the name. The other is reachable only
+/// through the module's `ontology`.
 struct Declarations {
     let module: String
     private(set) var protocols: [NodeID: String] = [:]
@@ -21,20 +27,26 @@ struct Declarations {
 
     init(_ layer: Layer, _ vocabulary: Vocabulary, below: [Declarations]) {
         module = layer.module
+        var subjects: [NodeID] = []
+        var seen: Set<NodeID> = []
+        for statement in layer.statements where statement.subject.iri != nil && seen.insert(statement.subject).inserted {
+            subjects.append(statement.subject)
+        }
+        // Resources the documents say a vocabulary defines take their names
+        // before resources the documents only describe.
+        let defined = Set(layer.statements.filter { $0.predicate == Term.isDefinedBy }.map(\.subject))
+        let byPrecedence = subjects.filter(defined.contains) + subjects.filter { !defined.contains($0) }
         var taken = Self.reserved
-        for statement in layer.statements {
-            let subject = statement.subject
-            guard let iri = subject.iri, protocols[subject] == nil, values[subject] == nil,
-                  !below.contains(where: { $0.declares(subject) }) else { continue }
-            let name = SwiftName.localName(of: iri)
+        for subject in byPrecedence where !below.contains(where: { $0.declares(subject) }) {
+            let name = SwiftName.localName(of: subject.iri!)
             guard SwiftName.isUsable(name), taken.insert(name).inserted else { continue }
             if vocabulary.isClass(subject) {
                 protocols[subject] = name
             } else {
                 values[subject] = name
             }
-            order.append(subject)
         }
+        order = subjects.filter(declares)
         refine(vocabulary, below: below)
     }
 
