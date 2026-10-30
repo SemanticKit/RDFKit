@@ -1,8 +1,5 @@
 import Testing
 import Foundation
-#if canImport(FoundationXML)
-import FoundationXML
-#endif
 import XSD
 
 /// The datatypes and their hierarchy come from translating the W3C
@@ -37,43 +34,27 @@ struct DatatypeTranslationTests {
 
     /// Each datatype's base is the base of its definition in the schema
     /// documents of XML Schema 1.1 Part 2 Appendix C, and a primitive's base
-    /// is `anyAtomicType`, which has no Swift type.
+    /// is `anyAtomicType`, which has no Swift type. The documents are read
+    /// here as text: each top-level `<xs:simpleType name="...">` and the
+    /// `base` of the first `<xs:restriction>` in it.
     @Test func hierarchyIsTheSchemaDocuments() throws {
         var bases: [String: String] = [:]
         for document in ["primitives.nxsd", "derived.nxsd"] {
-            let reader = DefinitionReader()
-            let parser = try #require(XMLParser(contentsOf: Self.documents.appending(path: document)))
-            parser.shouldProcessNamespaces = true
-            parser.delegate = reader
-            #expect(parser.parse())
-            bases.merge(reader.bases) { $1 }
+            let text = try String(contentsOf: Self.documents.appending(path: document), encoding: .utf8)
+            for definition in text.components(separatedBy: "<xs:simpleType name=\"").dropFirst() {
+                let name = String(definition.prefix { $0 != "\"" })
+                let body = definition.components(separatedBy: "</xs:simpleType>")[0]
+                guard let restriction = body.range(of: "<xs:restriction base=\"xs:") else { continue }
+                bases[name] = String(body[restriction.upperBound...].prefix { $0 != "\"" })
+            }
         }
         for datatype in XSD.datatypes {
             let name = datatype.datatype.name
-            let base = try #require(bases[name])
+            let base = try #require(bases[name], "\(name)")
             let translated = datatype.base.map { $0.datatype.name } ?? "anyAtomicType"
             #expect(translated == base, "\(name)")
         }
         let byteBase = XSD.byte.base.map(ObjectIdentifier.init)
         #expect(byteBase == ObjectIdentifier(XSD.short.self))
-    }
-
-    /// The local name of each `xs:simpleType`'s restriction base.
-    private final class DefinitionReader: NSObject, XMLParserDelegate {
-        var bases: [String: String] = [:]
-        private var open: [String?] = []
-
-        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String] = [:]) {
-            let elementName = String((qualifiedName ?? elementName).split(separator: ":").last ?? "")
-            if elementName == "simpleType" {
-                open.append(attributes["name"])
-            } else if elementName == "restriction", let name = open.last ?? nil, let base = attributes["base"], bases[name] == nil {
-                bases[name] = String(base.split(separator: ":").last ?? "")
-            }
-        }
-
-        func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName: String?) {
-            if (qualifiedName ?? elementName).split(separator: ":").last == "simpleType" { open.removeLast() }
-        }
     }
 }

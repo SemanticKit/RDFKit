@@ -311,11 +311,8 @@ struct SwiftSource {
         return text
     }
 
-    /// Whether a property of `kind` keeps `value` as a literal: a literal
-    /// its XSD datatype's value type does not hold.
     private func keepsLiteral(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
-        guard case .datatype(let datatype) = kind, case .literal(let literal) = value else { return false }
-        return !vocabulary.datatypes.holds(literal, as: datatype)
+        kind.keepsLiteral(value, vocabulary.datatypes)
     }
 
     /// The class a decoder makes a value of a property of `kind` a member

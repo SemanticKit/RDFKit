@@ -343,8 +343,7 @@ enum ValueKind: Hashable {
     /// Swift value type holds its values.
     case datatype(SubjectTerm)
     /// `[RDFCore::Literal]`: the range is another literal class or
-    /// datatype, or the documents give the property literals its
-    /// datatype's value type cannot hold.
+    /// datatype, one with no Swift value type.
     case literals
     /// `[any RDFCore::ResourceClass.Type]`: the range is a class of classes.
     case classes
@@ -355,6 +354,16 @@ enum ValueKind: Hashable {
     case properties
     /// `[RDFCore::Value]`: the range admits any resource.
     case values
+}
+
+extension ValueKind {
+    /// Whether a property of this kind keeps `value` as a literal: a literal
+    /// its XSD datatype's value type does not hold, ill-typed, of another
+    /// datatype or not canonical (``RDFCore/PropertyLiterals``).
+    func keepsLiteral(_ value: ObjectTerm, _ datatypes: DatatypeLayer) -> Bool {
+        guard case .datatype(let datatype) = self, case .literal(let literal) = value else { return false }
+        return !datatypes.holds(literal, as: datatype)
+    }
 }
 
 /// The public declarations of the modules below one module.

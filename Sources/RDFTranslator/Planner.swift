@@ -129,12 +129,8 @@ struct Planner {
         return .individuals(minimal(protocols))
     }
 
-    /// Whether a property of `kind` keeps `value` as a literal: a literal
-    /// its XSD datatype's value type does not hold
-    /// (``RDFCore/PropertyLiterals``).
     func keepsLiteral(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
-        guard case .datatype = kind, case .literal = value else { return false }
-        return !holds(kind, value)
+        kind.keepsLiteral(value, vocabulary.datatypes)
     }
 
     /// Whether `kind` holds `value`.
