@@ -1,6 +1,7 @@
 import Foundation
 import SwiftDiagnostics
 import SwiftSyntax
+import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 /// Generates the Swift declarations for an ontology's terms: the same Swift
@@ -238,12 +239,39 @@ struct EntityGenerator {
         for document in declaration.annotations("SeeAlso").compactMap(\.text) {
             lines.append("try container.encode(IRIKit.IRI(validating: \(Documentation.literal(document))), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))")
         }
+        // `owl:deprecated true`: the `xsd:boolean` true, as a value of the
+        // datatype's Swift type, which an encoder writes as its literal.
         if !declaration.annotations("Deprecated").isEmpty {
-            lines.append("try container.encode([RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")
+            lines.append(Self.deprecatedStatement.formatted().description)
         }
         guard !lines.isEmpty else { return "\(indent)_ = encoder.container(keyedBy: RDFCore.PropertyKey.self)" }
         return (["var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)"] + lines)
             .map { indent + $0 }.joined(separator: "\n")
+    }
+
+    /// `try container.encode([true] as [XSD.boolean], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))`,
+    /// built as syntax nodes.
+    private static var deprecatedStatement: ExprSyntax {
+        let values = AsExprSyntax(
+            expression: ArrayExprSyntax(expressions: [ExprSyntax(BooleanLiteralExprSyntax(true))]),
+            type: ArrayTypeSyntax(element: MemberTypeSyntax(baseType: IdentifierTypeSyntax(name: .identifier("XSD")), name: .identifier("boolean")))
+        )
+        let key = MemberAccessExprSyntax(
+            base: MemberAccessExprSyntax(base: DeclReferenceExprSyntax(baseName: .identifier("OWL")), name: .identifier("deprecatedValue")),
+            name: .identifier("key")
+        )
+        let property = FunctionCallExprSyntax(
+            callee: MemberAccessExprSyntax(base: DeclReferenceExprSyntax(baseName: .identifier("RDFCore")), name: .identifier("PropertyKey"))
+        ) {
+            LabeledExprSyntax(expression: key)
+        }
+        let encode = FunctionCallExprSyntax(
+            callee: MemberAccessExprSyntax(base: DeclReferenceExprSyntax(baseName: .identifier("container")), name: .identifier("encode"))
+        ) {
+            LabeledExprSyntax(expression: values)
+            LabeledExprSyntax(label: "for", expression: property)
+        }
+        return ExprSyntax(TryExprSyntax(expression: encode))
     }
 
     // MARK: - Individuals

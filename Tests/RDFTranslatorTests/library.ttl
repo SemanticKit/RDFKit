@@ -31,6 +31,21 @@
     rdfs:domain :Book ;
     rdfs:range xsd:nonNegativeInteger .
 
+:edition a owl:DatatypeProperty ;
+    rdfs:domain :Book ;
+    rdfs:range xsd:positiveInteger .
+
+:published a owl:DatatypeProperty ;
+    rdfs:domain :Work ;
+    rdfs:range xsd:gYear .
+
+:CatalogueNumber a rdfs:Datatype ;
+    rdfs:comment "The library's own datatype, which has no Swift type." .
+
+:catalogueNumber a owl:DatatypeProperty ;
+    rdfs:domain :Work ;
+    rdfs:range :CatalogueNumber .
+
 :shelfmark a owl:DatatypeProperty ;
     owl:deprecated true ;
     rdfs:comment "Replaced by the catalogue number." .
@@ -41,7 +56,11 @@
 
 :almanac a :Annual ;
     :title "Almanac"@en, "Almanach"@de ;
-    :pages "212"^^xsd:nonNegativeInteger ;
+    # An xsd:integer literal, as Turtle writes an integer, whose value is in
+    # the range of :pages, xsd:nonNegativeInteger.
+    :pages 212 ;
+    :published "1923"^^xsd:gYear ;
+    :catalogueNumber "A-1923"^^:CatalogueNumber ;
     :cites :gazette ;
     :editors ( :ann :ben ) .
 
@@ -52,7 +71,22 @@
 
 :second-edition a :Book ;
     :title "Almanac, second edition" ;
+    # Not the canonical form of 2, which is "2": the value 2, written back
+    # as "02".
+    :edition "02"^^xsd:positiveInteger ;
     :cites :almanac, :second-edition .
 
 :ann rdfs:label "Ann" .
 :ben rdfs:label "Ben" .
+
+# Ill-typed: not in the lexical space of xsd:positiveInteger.
+:third-edition a :Book ;
+    :edition "third"^^xsd:positiveInteger .
+
+# owl:cardinality ranges over xsd:nonNegativeInteger in owl.ttl; 1 is an
+# xsd:integer literal. A restriction is a class, whose description keeps
+# every literal as it is.
+:pages-restriction a owl:Restriction ;
+    owl:onProperty :pages ;
+    owl:cardinality 1 ;
+    owl:maxCardinality "1"^^xsd:nonNegativeInteger .

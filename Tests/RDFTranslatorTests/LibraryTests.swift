@@ -4,6 +4,7 @@ import IRIKit
 import RDFCore
 import RDFFormats
 import RDF
+import XSD
 
 /// `library.ttl`, translated into this test module by `RDFTranslatorPlugin`.
 @Suite("A vocabulary and its data translated to Swift", .tags(.generated))
@@ -42,28 +43,77 @@ struct LibraryTests {
         #expect(`second-edition`.cites.contains { $0 === `second-edition` })
     }
 
-    /// Literal values keep their language tags and datatypes, as the
-    /// document states them, decoded at the boundary.
-    @Test func literalValuesKeepTheirForm() throws {
+    /// The literals the document states about one individual for one
+    /// property, decoded at the boundary.
+    private func literals(of individual: any RDFCore.Resource, _ property: TermKey) throws -> [RDFCore.Literal] {
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
         let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
-        func literals(of subject: any RDFCore.Resource, _ predicate: IRI?) throws -> [RDFCore.Literal] {
-            let subject = try #require(IRI(of: subject))
-            let predicate = try #require(predicate)
-            return document.compactMap { triple in
-                guard triple.subject == .iri(subject), triple.predicate == predicate,
-                      case .literal(let literal) = triple.object else { return nil }
-                return literal
-            }
+        let subject = SubjectTerm.iri(try #require(IRI(of: individual)))
+        return document.compactMap { triple in
+            guard triple.subject == subject, triple.predicate == IRI(property),
+                  case .literal(let literal) = triple.object else { return nil }
+            return literal
         }
-        let almanacTitles = try literals(of: almanac, IRI(title.key))
-        #expect(almanacTitles.count == 2)
-        #expect(almanacTitles.allSatisfy { $0.languageTag != nil })
-        #expect(Set(almanac.title) == Set(almanacTitles))
-        let statedPages = try literals(of: almanac, IRI(pages.key))
-        #expect(statedPages.count == 1)
-        #expect(almanac.pages == statedPages)
-        #expect(gazette.title == (try literals(of: gazette, IRI(title.key))))
+    }
+
+    /// `:title` ranges over `xsd:string`, so its values are `XSD.string`
+    /// values. The almanac's titles are language-tagged strings, which are
+    /// not `xsd:string` values: they stay literals, with their language
+    /// tags, and the individual writes them back as they are.
+    @Test func literalValuesKeepTheirForm() throws {
+        let titles: [XSD.string] = gazette.title
+        #expect(titles == ["Gazette"])
+        #expect(almanac.title.isEmpty)
+        let kept = almanac.storage.keptLiterals(of: titleValue.self)
+        #expect(Set(kept) == Set(try literals(of: almanac, title.key)))
+        #expect(kept.allSatisfy { $0.languageTag != nil })
+    }
+
+    /// A property whose range is an XSD datatype holds values of the
+    /// datatype's Swift value type: the values the document's literals
+    /// denote in its value space, whatever form and related datatype they
+    /// are written in. `212` is an `xsd:integer` literal whose value is the
+    /// `xsd:nonNegativeInteger` 212, and `"02"^^xsd:positiveInteger` is 2.
+    @Test func datatypeValuesAreTheDatatypesValueTypes() throws {
+        let pageCounts: [XSD.nonNegativeInteger] = almanac.pages
+        #expect(pageCounts.map(\.value.int) == [212])
+        #expect(pageCounts.map(\.literalForm.lexicalForm) == (try literals(of: almanac, pages.key).map(\.lexicalForm)))
+        #expect(pageCounts.map(\.literalForm.datatype.name) == ["integer"])
+        let years: [XSD.gYear] = almanac.published
+        #expect(years.map(\.value.year?.int) == [1923])
+        let editions: [XSD.positiveInteger] = `second-edition`.edition
+        #expect(editions.map(\.lexicalForm) == ["2"])
+        #expect(editions.map(\.literalForm.lexicalForm) == ["02"])
+        #expect(`second-edition`.storage.keptLiterals(of: editionValue.self).isEmpty)
+    }
+
+    /// A literal that denotes no value of the range, one ill-typed
+    /// (`"third"`), stays a literal beside the property's values, as does a
+    /// literal of a datatype with no Swift type, and the data translates back
+    /// to the same graph (``translatesBackToTheSameGraph()``).
+    @Test func otherLiteralsStayLiterals() throws {
+        #expect(`third-edition`.edition.isEmpty)
+        let kept = `third-edition`.storage.keptLiterals(of: editionValue.self)
+        #expect(kept == (try literals(of: `third-edition`, edition.key)))
+        #expect(XSD.positiveInteger(try #require(kept.first)) == nil)
+        let catalogueNumbers: [RDFCore.Literal] = almanac.catalogueNumber
+        #expect(catalogueNumbers == (try literals(of: almanac, catalogueNumber.key)))
+    }
+
+    /// Setting a decoded individual's property states its values anew: the
+    /// literal kept for it is no longer written, only the values Swift gave.
+    @Test func settingAPropertyReplacesItsKeptLiterals() throws {
+        let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
+        let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
+        let context = DocumentContext()
+        let decoded = try GraphDecoder(classes: [BookIndividual.self, AnnualIndividual.self, PeriodicalIndividual.self])
+            .decode(BookIndividual.self, for: [try #require(IRI(of: `third-edition`))], from: document, context: context)
+        let book = try #require(decoded.first)
+        #expect(book.edition.isEmpty)
+        #expect(book.storage.keptLiterals(of: editionValue.self).map(\.lexicalForm) == ["third"])
+        book.edition = [try XSD.positiveInteger(lexicalForm: "3")]
+        let written = try GraphEncoder(context: context).encode([book]).filter { $0.predicate == IRI(edition.key) }
+        #expect(written.compactMap { if case .literal(let literal) = $0.object { literal.lexicalForm } else { nil } } == ["3"])
     }
 
     /// The data translates back to the same graph, blank nodes and the

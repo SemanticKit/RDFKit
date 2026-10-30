@@ -195,6 +195,20 @@ final class DecodingRun {
         return nil
     }
 
+    /// The literals each node's values did not hold, by property.
+    private var kept: [SubjectTerm: [(property: String, literals: [Literal])]] = [:]
+
+    /// Keeps literals of a property of `node` that its Swift values do not
+    /// hold, which the individual keeps as literals.
+    func keep(_ literals: [Literal], of property: String, for node: SubjectTerm) {
+        kept[node, default: []].append((property, literals))
+    }
+
+    /// The literals kept for a property of `node`.
+    func keptLiterals(of property: String, for node: SubjectTerm) -> [Literal] {
+        (kept[node] ?? []).filter { $0.property == property }.flatMap(\.literals)
+    }
+
     /// The property the decoder knows that `object` names.
     func property(_ object: ObjectTerm) -> (any PropertyTerm.Type)? {
         guard case .iri(let iri) = object else { return nil }
@@ -210,7 +224,7 @@ struct NodeDecoder: Decoder {
     var userInfo: [CodingUserInfoKey: Any] { [:] }
 
     func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
-        KeyedDecodingContainer(NodeContainer<Key>(run: run, statements: run.statements(about: node), codingPath: codingPath))
+        KeyedDecodingContainer(NodeContainer<Key>(run: run, node: node, statements: run.statements(about: node), codingPath: codingPath))
     }
 
     func unkeyedContainer() throws -> any UnkeyedDecodingContainer {
@@ -232,6 +246,7 @@ struct NodeDecoder: Decoder {
 /// The values of one node, keyed by their properties' IRIs.
 struct NodeContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
     let run: DecodingRun
+    let node: SubjectTerm
     let statements: [Graph.Element]
     var codingPath: [any CodingKey]
 
@@ -255,7 +270,7 @@ struct NodeContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
 
     /// The decoder of the objects of one property.
     func superDecoder(forKey key: Key) throws -> any Decoder {
-        ObjectsDecoder(run: run, objects: objects(key), codingPath: codingPath + [key])
+        ObjectsDecoder(run: run, node: node, property: key.stringValue, objects: objects(key), codingPath: codingPath + [key])
     }
 
     func superDecoder() throws -> any Decoder {
@@ -281,6 +296,9 @@ struct NodeContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
 /// they denote.
 struct ObjectsDecoder: PropertyObjectsDecoder {
     let run: DecodingRun
+    let node: SubjectTerm
+    /// The property's IRI, as its coding key gives it.
+    let property: String
     let objects: [ObjectTerm]
     var codingPath: [any CodingKey]
     var userInfo: [CodingUserInfoKey: Any] { [:] }
@@ -325,6 +343,14 @@ struct ObjectsDecoder: PropertyObjectsDecoder {
         case .blankNode(let node):
             return .individual(try run.individual(for: .blankNode(node), as: `class`))
         }
+    }
+
+    func keep(_ literals: [Literal]) {
+        run.keep(literals, of: property, for: node)
+    }
+
+    var keptLiterals: [Literal] {
+        run.keptLiterals(of: property, for: node)
     }
 
     private func mismatch(_ type: Any.Type, _ description: String) -> DecodingError {

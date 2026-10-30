@@ -41,6 +41,12 @@ extension KeyedEncodingContainer where Key == PropertyKey {
         for value in values { try encode(Value.class(value), forKey: property) }
     }
 
+    /// Writes values of a datatype, which an encoder that writes RDF writes
+    /// as literals.
+    public mutating func encode<Member: DatatypeValue>(_ values: [Member], for property: PropertyKey) throws {
+        for value in values { try encode(value, forKey: property) }
+    }
+
     /// Writes properties that are values of a property, by their term types.
     public mutating func encode(_ values: [any PropertyTerm.Type], for property: PropertyKey) throws {
         for value in values { try encode(Value.property(value), forKey: property) }

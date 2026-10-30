@@ -7,7 +7,11 @@ import PackagePlugin
 /// documents of the targets it depends on, directly or not, are the layers
 /// it builds on: the translator reads them to know what those modules
 /// declare, so a vocabulary refers to the Swift its layers were translated
-/// into.
+/// into. Below them is the target of the XSD datatypes, the dependency whose
+/// documents are the W3C's definitions of them (`.xsd`, `.nxsd` and RDF 1.2
+/// Concepts as `.html`), which `XSDTranslatorPlugin` translates: the
+/// translator reads the same documents to type the properties that range
+/// over the datatypes.
 @main
 struct RDFTranslatorPlugin: BuildToolPlugin {
     static let extensions: Set<String> = ["ttl", "nt", "rdf"]
@@ -16,6 +20,11 @@ struct RDFTranslatorPlugin: BuildToolPlugin {
         guard let target = target as? any SourceModuleTarget else { return [] }
         var groups: [String] = []
         var inputs: [URL] = []
+        if let datatypes = Self.dependencies(of: target).first(where: { !Self.datatypeDefinitions(of: $0).isEmpty }) {
+            let documents = Self.datatypeDefinitions(of: datatypes)
+            groups += ["--datatypes", datatypes.moduleName] + documents.map(\.path)
+            inputs += documents
+        }
         for layer in Self.layers(below: target) + [target] {
             let documents = Self.documents(of: layer)
             groups += ["--module", layer.moduleName] + documents.map(\.path)
@@ -40,9 +49,25 @@ struct RDFTranslatorPlugin: BuildToolPlugin {
             .sorted { $0.path < $1.path }
     }
 
+    /// The W3C documents the XSD datatypes are translated from, when the
+    /// target holds them: one of them gives the built-in datatype definitions
+    /// (`.nxsd`).
+    static func datatypeDefinitions(of target: any SourceModuleTarget) -> [URL] {
+        let documents = target.sourceFiles.map(\.url)
+            .filter { ["xsd", "nxsd", "html"].contains($0.pathExtension.lowercased()) }
+            .sorted { $0.path < $1.path }
+        return documents.contains { $0.pathExtension.lowercased() == "nxsd" } ? documents : []
+    }
+
     /// The targets a target depends on that have RDF documents, each after
     /// the targets it depends on.
     static func layers(below target: any SourceModuleTarget) -> [any SourceModuleTarget] {
+        dependencies(of: target).filter { !documents(of: $0).isEmpty }
+    }
+
+    /// The source targets a target depends on, directly or not, each after
+    /// the targets it depends on.
+    static func dependencies(of target: any SourceModuleTarget) -> [any SourceModuleTarget] {
         var ordered: [any SourceModuleTarget] = []
         var visited: Set<String> = []
         func visit(_ dependency: any Target) {
@@ -54,7 +79,7 @@ struct RDFTranslatorPlugin: BuildToolPlugin {
                 @unknown default: break
                 }
             }
-            if let module = dependency as? any SourceModuleTarget, !documents(of: module).isEmpty {
+            if let module = dependency as? any SourceModuleTarget {
                 ordered.append(module)
             }
         }
