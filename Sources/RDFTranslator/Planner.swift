@@ -7,16 +7,16 @@ import RDFCore
 ///
 /// - A property's values are typed by its range: the value type of an XSD
 ///   datatype, literals for another literal class or datatype, classes for
-///   a class of classes, the protocols of the range's classes for
-///   individuals, and ``RDFCore/Value`` for a range that admits any
-///   resource. When the documents give the property a value that type
-///   cannot hold, such as a blank node as the value of `rdfs:comment`, its
-///   values are typed `[RDFCore::Value]`; when they give an XSD-typed
-///   property a literal its datatype's value type does not write back as
-///   it is (ill-typed, of another datatype, or not canonical), its values
-///   are typed `[RDFCore::Literal]`. A property a module below types by an
-///   XSD datatype keeps its type, and such literals are kept as literals
-///   (``Declarations/untyped``).
+///   a class of classes, the term types of properties for a class of
+///   properties, the protocols of the range's classes for individuals, and
+///   ``RDFCore/Value`` for a range that admits any resource. When the
+///   documents give the property a value that type cannot hold, such as a
+///   blank node as the value of `rdfs:comment`, its values are typed
+///   `[RDFCore::Value]`. A literal the documents give an XSD-typed property
+///   that its datatype's value type does not write back as it is
+///   (ill-typed, of another datatype, or not canonical) leaves the type as
+///   it is: the individual keeps the literal as a literal
+///   (``RDFCore/PropertyLiterals``).
 /// - A class's storing protocol refines the storing protocols of the classes
 ///   it conforms to and of every property this module declares that a
 ///   member of it can have: one whose domain is the class or a superclass,
@@ -123,9 +123,18 @@ struct Planner {
         if ranges.count == 1, vocabulary.datatypes.datatype(ranges[0]) != nil { return .datatype(ranges[0]) }
         if ranges.contains(where: vocabulary.isLiteralClass) { return .literals }
         if ranges.contains(where: vocabulary.isMetaclass) { return .classes }
+        if ranges.contains(where: vocabulary.isPropertyClass) { return .properties }
         if ranges.isEmpty || ranges.contains(.iri(.rdfsResource)) { return .values }
         let protocols = Set(ranges.filter { hasProtocol($0) && classDeclaration($0)?.isPublic == true })
         return .individuals(minimal(protocols))
+    }
+
+    /// Whether a property of `kind` keeps `value` as a literal: a literal
+    /// its XSD datatype's value type does not hold
+    /// (``RDFCore/PropertyLiterals``).
+    func keepsLiteral(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
+        guard case .datatype = kind, case .literal = value else { return false }
+        return !holds(kind, value)
     }
 
     /// Whether `kind` holds `value`.
@@ -138,8 +147,9 @@ struct Planner {
         case (_, .literal), (_, .tripleTerm): return false
         case (.literals, _): return false
         case (.classes, _): return value.node.flatMap(classDeclaration) != nil
+        case (.properties, _): return value.node.flatMap(propertyDeclaration) != nil
         case (.individuals(let protocols), _):
-            guard let node = value.node, classDeclaration(node) == nil else { return false }
+            guard let node = value.node, classDeclaration(node) == nil, propertyDeclaration(node) == nil else { return false }
             let conformances = self.conformances[node] ?? lower.individual(node)?.conformances ?? []
             return Set(protocols).isSubset(of: conformances)
         }
@@ -153,28 +163,16 @@ struct Planner {
             guard var property = declarations.properties[node], let iri = node.iri else { continue }
             property.kind = kind(ofRanges: vocabulary.ranges(of: node))
             let objects = vocabulary.graph.filter { $0.predicate == iri }.map(\.object)
-            if !objects.allSatisfy({ holds(property.kind, $0) }) {
-                if case .datatype = property.kind, objects.allSatisfy({ holds(.literals, $0) }) {
-                    property.kind = .literals
-                } else {
-                    property.kind = .values
-                }
+            if !objects.allSatisfy({ holds(property.kind, $0) || keepsLiteral(property.kind, $0) }) {
+                property.kind = .values
             }
             declarations.properties[node] = property
         }
-        // A property a module below declares keeps its type. The literals
-        // its XSD datatype's value type cannot hold are kept as literals.
+        // A property a module below declares keeps its type.
         for triple in layer.graph {
             guard declarations.properties[.iri(triple.predicate)] == nil,
                   let property = lower.property(.iri(triple.predicate)),
-                  !holds(property.kind, triple.object) else { continue }
-            if case .datatype = property.kind, case .literal = triple.object {
-                // A class's description writes every value as it is.
-                if declarations.individuals[triple.subject] != nil, !declarations.untyped.contains(property.node) {
-                    declarations.untyped.append(property.node)
-                }
-                continue
-            }
+                  !holds(property.kind, triple.object), !keepsLiteral(property.kind, triple.object) else { continue }
             throw TranslationError(description: "\(layer.module): a value of '\(triple.predicate)' on \(triple.subject) is not of the type \(property.module) gives the property's values")
         }
     }

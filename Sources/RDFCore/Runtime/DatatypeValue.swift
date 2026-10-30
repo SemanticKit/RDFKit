@@ -27,6 +27,12 @@ public protocol DatatypeValue: Sendable, Hashable, Encodable {
 
     /// The canonical lexical form of the value.
     var lexicalForm: String { get }
+
+    /// The value a literal denotes, when the value writes back as that
+    /// literal: its datatype IRI is the datatype's, its lexical form is in
+    /// the lexical space, and it is the canonical form. Any other literal is
+    /// kept as it is (``PropertyLiterals``).
+    init?(holding literal: Literal)
 }
 
 extension DatatypeValue {
@@ -41,6 +47,12 @@ extension DatatypeValue {
             throw DatatypeError.otherDatatype
         }
         try self.init(lexicalForm: literal.lexicalForm)
+    }
+
+    public init?(holding literal: Literal) {
+        guard let value = try? Self(literal),
+              value.lexicalForm.unicodeScalars.elementsEqual(literal.lexicalForm.unicodeScalars) else { return nil }
+        self = value
     }
 
     /// Writes the canonical lexical form. An encoder that writes RDF writes

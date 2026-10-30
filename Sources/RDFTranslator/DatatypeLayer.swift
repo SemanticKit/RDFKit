@@ -37,9 +37,7 @@ struct DatatypeLayer {
     /// lexical form is in the datatype's lexical space (it is not
     /// ill-typed), and it is the canonical form of its value.
     func holds(_ literal: Literal, as node: SubjectTerm) -> Bool {
-        guard let datatype = datatype(node), literal.datatypeIRI == node.iri,
-              let value = try? datatype.init(lexicalForm: literal.lexicalForm) else { return false }
-        return value.lexicalForm.unicodeScalars.elementsEqual(literal.lexicalForm.unicodeScalars)
+        datatype(node)?.init(holding: literal) != nil
     }
 
     /// The declarations of the layer: a public class for each datatype,

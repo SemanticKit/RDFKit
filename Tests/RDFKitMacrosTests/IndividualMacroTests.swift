@@ -44,10 +44,16 @@ struct IndividualMacroTests {
                 public protocol AnimalStoring: Zoo.Animal, RDF.ResourceStoring {
                 }
 
-                public final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
+                public final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
                     public static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Animal", in: Zoo.self)
 
                     public static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    public static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        RDF.ResourceIndividual.properties
+                    }
 
                     /// A member of the class as a property value.
                     public typealias Member = any Zoo.Animal
@@ -201,10 +207,16 @@ struct IndividualMacroTests {
                 protocol tweetyIndividualStoring: Zoo.tweetyIndividual, RDF.ResourceStoring {
                 }
 
-                final class tweetyIndividualIndividual: Zoo.tweetyIndividualStoring, RDFCore.ResourceClass {
+                final class tweetyIndividualIndividual: Zoo.tweetyIndividualStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
                     static let classKey: RDFCore.TermKey? = RDFCore.TermKey("tweetyIndividual", in: Zoo.self)
 
                     static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.tweetyIndividualIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        RDF.ResourceIndividual.properties
+                    }
 
                     /// A member of the class as a property value.
                     typealias Member = any Zoo.tweetyIndividual

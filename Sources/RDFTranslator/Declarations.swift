@@ -9,10 +9,14 @@ import RDFCore
 ///   every property it can have; and a final class whose instances are its
 ///   members. FOAF's `foaf:Person` is the protocol `Person`, the storing
 ///   protocol `PersonStoring` and the class `PersonIndividual`.
-/// - A property is an individual of `rdf:Property`, and is also a
-///   ``RDFCore/PropertyValue`` type that holds its values on an individual
-///   (`knowsValue`) and a storing protocol that gives it its accessor
-///   (`knowsStoring`), typed by its range.
+/// - A property (an instance of `rdf:Property`, stated or entailed, named by
+///   an IRI) is a ``RDFCore/PropertyTerm`` type that carries its declared
+///   key and writes its description (`knows`), a requirement on the
+///   protocol of each of its domains, a ``RDFCore/PropertyValue`` type that
+///   holds its values on an individual (`knowsValue`) and a storing protocol
+///   that gives an individual its accessor (`knowsStoring`), typed by its
+///   range. It is not an individual in Swift: where RDF names it as a
+///   value, Swift names its term type.
 /// - Any other resource is an individual: one instance of the class of the
 ///   class its documents state it is a member of. An individual that is a
 ///   member of several classes, or of none, or that has a property its
@@ -52,7 +56,7 @@ struct Declarations {
     /// The individuals this module declares.
     var individuals: [SubjectTerm: IndividualDeclaration] = [:]
 
-    /// The properties this module declares: individuals that are properties.
+    /// The properties this module declares.
     var properties: [SubjectTerm: PropertyDeclaration] = [:]
 
     /// Every node this module declares, in document order.
@@ -71,13 +75,6 @@ struct Declarations {
     /// The resources a lower module declares that this module's documents
     /// describe.
     var additions: [SubjectTerm] = []
-
-    /// The literals the documents give individuals as values of a property
-    /// a module below types by an XSD datatype, which are not values of the
-    /// datatype: ill-typed literals, literals of another datatype, and
-    /// literals not in their canonical form. Each property's are kept as
-    /// literals in a value type of this module, which writes them back.
-    var untyped: [SubjectTerm] = []
 
     /// Names that generated code declares in every module.
     static let reserved: Set<String> = ["ontology", "described"]
@@ -140,22 +137,21 @@ struct Declarations {
             let name = names[node]
             if vocabulary.isClass(node) {
                 classes[node] = ClassDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle)
+            } else if vocabulary.isProperty(node), let iri = node.iri {
+                // A private property's member is named by its local name
+                // where Swift can spell it; only the private classes that
+                // store it have it.
+                var member = name ?? handle
+                if name == nil, case let local = iri.localName, local.isUsableAsIdentifier {
+                    member = local
+                }
+                if Self.memberNames.contains(member) { member += "_" }
+                if lowerMembers.contains(member) {
+                    member = module.lowerCamelCasePrefix + member.capitalizingFirstLetter
+                }
+                properties[node] = PropertyDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle, member: member)
             } else {
                 individuals[node] = IndividualDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle)
-                if vocabulary.isProperty(node) {
-                    // A private property's member is named by its local name
-                    // where Swift can spell it; only the private classes
-                    // that store it have it.
-                    var member = name ?? handle
-                    if name == nil, let iri = node.iri, case let local = iri.localName, local.isUsableAsIdentifier {
-                        member = local
-                    }
-                    if Self.memberNames.contains(member) { member += "_" }
-                    if lowerMembers.contains(member) {
-                        member = module.lowerCamelCasePrefix + member.capitalizingFirstLetter
-                    }
-                    properties[node] = PropertyDeclaration(node: node, module: module, isPublic: name != nil, name: name ?? handle, member: member)
-                }
             }
         }
 
@@ -262,8 +258,8 @@ struct ClassDeclaration {
     }
 }
 
-/// A property: its value type and storing protocol, and the Swift type of
-/// its values.
+/// A property: its term type, value type and storing protocol, and the
+/// Swift type of its values.
 struct PropertyDeclaration {
     let node: SubjectTerm
     var module: String
@@ -276,9 +272,12 @@ struct PropertyDeclaration {
     /// The Swift type of the property's values.
     var kind: ValueKind = .values
 
+    var termName: String { name }
     var valueName: String { isPublic ? name + "Value" : name + " Value" }
     var storingName: String { isPublic ? name + "Storing" : name + " Storing" }
 
+    /// The term type, as Swift refers to it from any module.
+    var termReference: String { reference(termName) }
     var valueReference: String { reference(valueName) }
     var storingReference: String { reference(storingName) }
 
@@ -351,6 +350,9 @@ enum ValueKind: Hashable {
     case classes
     /// `[any A & B]`: the range is classes of individuals.
     case individuals([SubjectTerm])
+    /// `[any RDFCore::PropertyTerm.Type]`: the range is a class of
+    /// properties.
+    case properties
     /// `[RDFCore::Value]`: the range admits any resource.
     case values
 }
@@ -364,7 +366,7 @@ struct Lower {
     }
 
     func declares(_ node: SubjectTerm) -> Bool {
-        `class`(node) != nil || individual(node) != nil
+        `class`(node) != nil || property(node) != nil || individual(node) != nil
     }
 
     func `class`(_ node: SubjectTerm) -> ClassDeclaration? {

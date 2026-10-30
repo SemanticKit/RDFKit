@@ -51,6 +51,27 @@ public final class IndividualStorage: Sendable {
         }
     }
 
+    /// Reads the value of one property from a decoder, and keeps it.
+    public func decode(_ property: any (PropertyValue & Decodable).Type, from decoder: any Decoder) throws {
+        try keep(property, decoder)
+    }
+
+    private func keep<Value: PropertyValue & Decodable>(_ property: Value.Type, _ decoder: any Decoder) throws {
+        let value = try Value(from: decoder)
+        // The literals the property's values do not hold, which the decoder
+        // kept while the value read them.
+        let objects = try decoder.container(keyedBy: PropertyKey.self).superDecoder(forKey: PropertyKey(Value.key))
+        let literals = (objects as? any PropertyObjectsDecoder)?.keptLiterals ?? []
+        lock.withLock {
+            values.set(value)
+            if !literals.isEmpty {
+                var kept = PropertyLiterals<Value>()
+                kept.value = literals
+                values.set(kept)
+            }
+        }
+    }
+
     /// Writes every property value stated, in the order the properties were
     /// first given a value.
     public func encode(to encoder: any Encoder) throws {

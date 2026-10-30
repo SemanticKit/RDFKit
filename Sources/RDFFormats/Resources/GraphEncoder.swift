@@ -20,16 +20,26 @@ import RDFCore
 ///
 /// The format encoders, ``NTriplesEncoder``, ``TurtleEncoder`` and
 /// ``RDFXMLEncoder``, write the graph it gives.
+///
+/// Given the ``DocumentContext`` a ``GraphDecoder`` decoded individuals
+/// with, it writes each of them with the IRI of the node it was decoded
+/// for, so a decoded document encodes back with the same IRIs.
 public struct GraphEncoder: Sendable {
-    /// Creates a graph encoder.
-    public init() {}
+    /// The correspondence of a decoded document's IRIs and individuals.
+    public let context: DocumentContext?
+
+    /// Creates a graph encoder, which writes the individuals `context`
+    /// records with their documents' IRIs.
+    public init(context: DocumentContext? = nil) {
+        self.context = context
+    }
 
     /// The triples of the descriptions and of the blank nodes they reach.
     ///
     /// - Throws: `EncodingError` when a description writes something other
     ///   than resources, classes and literals keyed by property IRIs.
     public func encode(_ descriptions: [any Description]) throws -> Graph {
-        let graph = EncodedGraph()
+        let graph = EncodedGraph(context: context)
         for description in descriptions {
             try graph.describe(description)
         }
@@ -48,28 +58,33 @@ public struct GraphEncoder: Sendable {
 
 /// The graph a ``GraphEncoder`` run writes.
 final class EncodedGraph {
+    let context: DocumentContext?
     var triples = Graph()
     var undescribed: [any Description] = []
     var error: (any Error)?
     private var described: Set<ObjectIdentifier> = []
     private var blankNodes: [ObjectIdentifier: BlankNode] = [:]
 
+    init(context: DocumentContext?) {
+        self.context = context
+    }
+
     func describe(_ description: any Description) throws {
         let subject: SubjectTerm
         if let individual = description as? any Resource {
             guard described.insert(ObjectIdentifier(individual)).inserted else { return }
-            subject = try term(type(of: individual).key, ObjectIdentifier(individual))
+            subject = try term(of: individual)
         } else if let description = description as? ClassDescription {
             guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
             subject = try term(description.class.classKey, ObjectIdentifier(description.class))
         } else if let term = description as? any PropertyTerm {
-            // A term type `@Ontology` declares, such as a property, describes
-            // the term it names.
+            // A property's term type describes the property.
             subject = try self.term(type(of: term).key)
         } else if let addition = description as? any Addition {
             switch addition.resource {
-            case .individual(let individual): subject = try term(type(of: individual).key, ObjectIdentifier(individual))
+            case .individual(let individual): subject = try term(of: individual)
             case .class(let type): subject = try term(type.classKey, ObjectIdentifier(type))
+            case .property(let property): subject = try term(property.key)
             case .literal(let literal):
                 throw EncodingError.invalidValue(literal, EncodingError.Context(
                     codingPath: [],
@@ -96,6 +111,13 @@ final class EncodedGraph {
                 underlyingError: error
             ))
         }
+    }
+
+    /// The IRI of a declared individual, else the IRI of the node the
+    /// context records it was decoded for, else its blank node.
+    private func term(of individual: any Resource) throws -> SubjectTerm {
+        if type(of: individual).key == nil, let iri = context?.iri(of: individual) { return .iri(iri) }
+        return try term(type(of: individual).key, ObjectIdentifier(individual))
     }
 
     /// The IRI of a declared resource, or the blank node of a resource no
@@ -141,13 +163,15 @@ final class EncodedGraph {
             return .literal(literal)
         case .individual(let individual):
             let identity = ObjectIdentifier(individual)
-            let key = type(of: individual).key
-            if key == nil, !described.contains(identity) { undescribed.append(individual) }
-            return try term(key, identity).object
+            let subject = try term(of: individual)
+            if case .blankNode = subject, !described.contains(identity) { undescribed.append(individual) }
+            return subject.object
         case .class(let type):
             let identity = ObjectIdentifier(type)
             if type.classKey == nil, !described.contains(identity) { undescribed.append(ClassDescription(type)) }
             return try term(type.classKey, identity).object
+        case .property(let property):
+            return try term(property.key).object
         }
     }
 }

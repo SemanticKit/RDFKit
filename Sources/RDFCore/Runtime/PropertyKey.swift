@@ -2,7 +2,7 @@
 /// declared key.
 ///
 /// A generated `encode(to:)` keys each value by its property's declared key,
-/// which the property's value type carries: `PropertyKey(FOAF.knowsValue.key)`
+/// which the property's term type carries: `PropertyKey(FOAF.knows.key)`
 /// for a translated property, `PropertyKey(Fauna.hasHabitat.key)` for one
 /// `@Ontology` declares. Its string value, the property's IRI, is derived
 /// here, where the value leaves the runtime.
@@ -45,6 +45,11 @@ extension KeyedEncodingContainer where Key == PropertyKey {
     /// as literals.
     public mutating func encode<Member: DatatypeValue>(_ values: [Member], for property: PropertyKey) throws {
         for value in values { try encode(value, forKey: property) }
+    }
+
+    /// Writes properties that are values of a property, by their term types.
+    public mutating func encode(_ values: [any PropertyTerm.Type], for property: PropertyKey) throws {
+        for value in values { try encode(Value.property(value), forKey: property) }
     }
 
     /// Writes values of a property.

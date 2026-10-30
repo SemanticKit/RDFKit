@@ -58,6 +58,27 @@ struct DatatypeValueTests {
         #expect(output == (try Self.description(of: unusual)), "\(output)")
     }
 
+    /// A decoder reads a document's literals into the XSD value types, and
+    /// keeps the literals they do not hold as literals: the decoded
+    /// individuals encode back to the document's triples (rule 20, Literal
+    /// is the boundary node).
+    @Test func decodedLiteralsAreValuesOrStayLiterals() throws {
+        let document = try Self.document()
+        let context = DocumentContext()
+        let samples = try GraphDecoder(classes: [Samples.SampleIndividual.self])
+            .decode((any Samples.SampleStoring).self, from: document, context: context)
+        #expect(samples.count == 2)
+        let decodedTypical = try #require(samples.first { context.iri(of: $0) == IRI(of: typical) })
+        let decodedUnusual = try #require(samples.first { context.iri(of: $0) == IRI(of: unusual) })
+        #expect(decodedTypical.dateTime == typical.dateTime)
+        #expect(decodedTypical.base64Binary == typical.base64Binary)
+        #expect(decodedUnusual.nonNegativeInteger.map(\.lexicalForm) == ["5"])
+        #expect(decodedUnusual.boolean.isEmpty)
+        #expect(decodedUnusual.storage[PropertyLiterals<Samples.booleanValue>.self].value.map(\.lexicalForm) == ["yes"])
+        let expected = try Self.description(of: typical).union(try Self.description(of: unusual))
+        #expect(try GraphEncoder(context: context).encode(samples) == expected)
+    }
+
     /// The whole document translates back to the same graph (RDF 1.2
     /// Concepts §3.7).
     @Test func documentTranslatesBackToTheSameGraph() throws {

@@ -9,7 +9,7 @@ RDF describes itself in layers, and RDF, RDFS and OWL go through the same transl
 The vocabularies follow the same rules as any translated vocabulary (see `Sources/RDFTranslator/Declarations.swift`):
 
 - Every class is a protocol, for membership, a storing protocol and a final class whose instances are its members: `RDF.List`, `RDF.ListStoring`, `RDF.ListIndividual`. `rdfs:subClassOf` is refinement (`OWL.ObjectProperty` refines `RDF.Property`).
-- Every property is an individual of `rdf:Property` (`RDF.type`, `OWL.sameAs`), a value type that holds its values on an individual, and a storing protocol that gives the individual its accessor, typed by the property's range.
+- Every property is a term type (`RDF.type`, `OWL.sameAs`) that carries its declared key and writes its description, a requirement on the protocol of each of its domains, a value type that holds its values on an individual, and a storing protocol that gives the individual its accessor, typed by the property's range. A property is not a module-level value: where RDF names a property as a value (`rdfs:subPropertyOf rdfs:label`, `owl:onProperty rdf:first`), Swift names its term type (`[RDF.first.self]`), and the encoders write the IRI its key gives.
 - Named individuals are module-level values: `RDF.nil` is the one empty list. Each is the one instance of a Swift class of its own that carries its declared key, from which the encoders derive its IRI.
 - Literal classes and datatypes (`RDF.Literal`, `RDF.langString`) have `RDFCore.Literal` members.
 

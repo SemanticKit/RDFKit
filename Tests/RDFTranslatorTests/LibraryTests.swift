@@ -30,7 +30,7 @@ struct LibraryTests {
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([reprint]))
         #expect(output.count == 3)
         #expect(output.allSatisfy { if case .blankNode = $0.subject { true } else { false } })
-        #expect(output.contains { $0.predicate == IRI(RDF.typeValue.key) && $0.object == .iri(IRI(of: BookIndividual.self)!) })
+        #expect(output.contains { $0.predicate == IRI(RDF.type.key) && $0.object == .iri(IRI(of: BookIndividual.self)!) })
         #expect(output.contains { $0.object == .iri(IRI(of: almanac)!) })
     }
 
@@ -56,37 +56,44 @@ struct LibraryTests {
         }
     }
 
-    /// Literal values keep their language tags and datatypes. `:title`
-    /// ranges over `xsd:string`, but the document gives it language-tagged
-    /// strings, which are not `xsd:string` values, so its values stay
-    /// literals.
+    /// `:title` ranges over `xsd:string`, so its values are `XSD.string`
+    /// values. The almanac's titles are language-tagged strings, which are
+    /// not `xsd:string` values: they stay literals, with their language
+    /// tags, and the individual writes them back as they are.
     @Test func literalValuesKeepTheirForm() throws {
-        #expect(Set(almanac.title) == Set(try literals(of: almanac, titleValue.key)))
-        #expect(almanac.title.count == 2)
-        #expect(gazette.title == ["Gazette"])
+        let titles: [XSD.string] = gazette.title
+        #expect(titles == ["Gazette"])
+        #expect(almanac.title.isEmpty)
+        let kept = almanac.storage[PropertyLiterals<titleValue>.self].value
+        #expect(Set(kept) == Set(try literals(of: almanac, title.key)))
+        #expect(kept.allSatisfy { $0.languageTag != nil })
     }
 
     /// A property whose range is an XSD datatype holds values of the
     /// datatype's Swift value type, built from the document's literals at
     /// the boundary.
     @Test func datatypeValuesAreTheDatatypesValueTypes() throws {
-        let pages: [XSD.nonNegativeInteger] = almanac.pages
-        #expect(pages == (try literals(of: almanac, pagesValue.key).map { try XSD.nonNegativeInteger($0) }))
-        #expect(pages.first?.value.int == 212)
-        let published: [XSD.gYear] = almanac.published
-        #expect(published == (try literals(of: almanac, publishedValue.key).map { try XSD.gYear($0) }))
+        let pageCounts: [XSD.nonNegativeInteger] = almanac.pages
+        #expect(pageCounts == (try literals(of: almanac, pages.key).map { try XSD.nonNegativeInteger($0) }))
+        #expect(pageCounts.first?.value.int == 212)
+        let years: [XSD.gYear] = almanac.published
+        #expect(years == (try literals(of: almanac, published.key).map { try XSD.gYear($0) }))
     }
 
     /// Literals a datatype's value type cannot write back as they are, one
-    /// not canonical (`"02"`) and one ill-typed (`"third"`), and a literal
-    /// of a datatype with no Swift type, stay literals, and the data
-    /// translates back to the same graph (``translatesBackToTheSameGraph()``).
+    /// not canonical (`"02"`) and one ill-typed (`"third"`), stay literals
+    /// beside the property's values, as does a literal of a datatype with no
+    /// Swift type, and the data translates back to the same graph
+    /// (``translatesBackToTheSameGraph()``).
     @Test func otherLiteralsStayLiterals() throws {
-        let editions: [RDFCore.Literal] = `second-edition`.edition + `third-edition`.edition
-        #expect(editions == (try literals(of: `second-edition`, editionValue.key) + literals(of: `third-edition`, editionValue.key)))
-        #expect(throws: DatatypeError.illTyped) { try XSD.positiveInteger(try #require(`third-edition`.edition.first)) }
+        let editions: [XSD.positiveInteger] = `second-edition`.edition + `third-edition`.edition
+        #expect(editions.isEmpty)
+        let kept = `second-edition`.storage[PropertyLiterals<editionValue>.self].value
+            + `third-edition`.storage[PropertyLiterals<editionValue>.self].value
+        #expect(kept == (try literals(of: `second-edition`, edition.key) + literals(of: `third-edition`, edition.key)))
+        #expect(throws: DatatypeError.illTyped) { try XSD.positiveInteger(try #require(kept.last)) }
         let catalogueNumbers: [RDFCore.Literal] = almanac.catalogueNumber
-        #expect(catalogueNumbers == (try literals(of: almanac, catalogueNumberValue.key)))
+        #expect(catalogueNumbers == (try literals(of: almanac, catalogueNumber.key)))
     }
 
     /// The data translates back to the same graph, blank nodes and the

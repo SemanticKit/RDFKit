@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import IRIKit
 import RDFCore
 import RDFFormats
 import RDF
@@ -22,10 +23,18 @@ struct EntailmentTranslationTests {
     }
 
     /// The individual's values, read through properties the RDF module
-    /// declares.
-    @Test func individualNamedLikeAModuleHasItsValues() {
-        #expect(EntailmentRegimes::RDF.comment == ["The specification for the RDF entailment is part of the RDF Semantics W3C Recommendation."])
-        #expect(RDF::type.label == ["type"])
+    /// declares, are the literals the document states; the RDF module's
+    /// properties stay reachable through their term types.
+    @Test func individualNamedLikeAModuleHasItsValues() throws {
+        let document = try document("Entailment.ttl").union(document("RDF.ttl"))
+        let comments: [RDFCore::Literal] = document.compactMap { triple in
+            guard triple.subject == .iri(IRI(of: EntailmentRegimes::RDF)!), triple.predicate == IRI(RDF::comment.key),
+                  case .literal(let literal) = triple.object else { return nil }
+            return literal
+        }
+        #expect(!comments.isEmpty)
+        #expect(EntailmentRegimes::RDF.comment == comments)
+        #expect(!(try GraphEncoder().encode(RDF::type())).isEmpty)
     }
 
     /// The documents translate back to the same graph (RDF 1.2 Concepts

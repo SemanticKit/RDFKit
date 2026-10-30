@@ -113,6 +113,12 @@ struct Vocabulary {
         superclassClosure(of: node).contains(.iri(.rdfsClass))
     }
 
+    /// Whether the members of `node` are properties: `rdf:Property` or a
+    /// subclass of it, such as `owl:ObjectProperty`.
+    func isPropertyClass(_ node: SubjectTerm) -> Bool {
+        superclassClosure(of: node).contains(.iri(.rdfProperty))
+    }
+
     /// The literal values of `predicate` on `node`.
     func literals(_ predicate: IRI, of node: SubjectTerm) -> [Literal] {
         graph.compactMap { triple in
