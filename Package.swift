@@ -72,10 +72,19 @@ let package = Package(
 
         // RDF in, Swift out: the translator and the build tool plugin that
         // runs it over a target's RDF documents. The Swift it writes uses
-        // RDFCore, as the Swift @Ontology writes does.
+        // RDFCore, as the Swift @Ontology writes does, and is built with
+        // SwiftSyntax's typed nodes, as @Ontology's is.
         .executableTarget(
             name: "RDFTranslator",
-            dependencies: ["IRIKit", "RDFCore", "RDFFormats"]
+            dependencies: [
+                "IRIKit",
+                "RDFCore",
+                "RDFFormats",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+                .product(name: "SwiftBasicFormat", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax")
+            ]
         ),
         .plugin(
             name: "RDFTranslatorPlugin",
