@@ -8,13 +8,6 @@ import IRIKit
 ///
 ///     Namespace("https://fauna.example.org/ontology#")
 public struct Namespace: Entity {
-    public static let metadata: any ContentMetadata = RDFMetadata(
-        id: "http://semantickit.io/o/2026/06/rdfkit#Namespace",
-        name: "Namespace",
-        label: "Namespace",
-        comment: "The namespace of the Ontology."
-    )
-
     /// The namespace IRI.
     public let iri: IRI
 

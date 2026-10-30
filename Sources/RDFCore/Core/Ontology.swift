@@ -7,7 +7,7 @@ public typealias Entities = [AnyEntity]
 /// A declaratively authored ontology.
 ///
 /// Conform a type to ``Ontology`` to define an RDF vocabulary — a collection of
-/// classes, properties, individuals, datatypes, prefixes, and annotations —
+/// classes, properties, datatypes, prefixes, and annotations —
 /// using the ``ContentBuilder`` result builder. The `@Ontology` macro reads the
 /// content and generates one Swift type per declared term, nested inside the
 /// conforming type.
@@ -45,7 +45,7 @@ public protocol Ontology: Sendable {
     /// The authored ontology content.
     ///
     /// Use the `@ContentBuilder` result builder to declaratively compose the
-    /// ontology's declarations — classes, properties, individuals, datatypes,
+    /// ontology's declarations — classes, properties, datatypes,
     /// and annotations — in a flat, ordered list. A conforming `body` takes
     /// the result builder from this requirement, as a SwiftUI view's `body`
     /// takes `@ViewBuilder`.
@@ -61,7 +61,6 @@ public protocol Ontology: Sendable {
     ///         Namespace("https://example.org/ontology#")
     ///         Class("Animal")
     ///         Property("age")
-    ///         Individual("tweety")
     ///     }
     /// }
     /// ```

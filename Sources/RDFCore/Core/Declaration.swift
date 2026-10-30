@@ -7,7 +7,7 @@
 /// at runtime.
 ///
 /// Conforming types are the declaration forms themselves (``Class``,
-/// ``Property``, ``Datatype``, ``Individual``). Inside an `@Ontology`
+/// ``Property``, ``Datatype``). Inside an `@Ontology`
 /// `var body` they are qualified as `RDFCore.Class` when the body is
 /// expanded, so an ontology may declare a term of the same name (`RDF.Class`).
 public protocol Declaration: Entity {

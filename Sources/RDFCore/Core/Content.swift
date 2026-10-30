@@ -1,5 +1,5 @@
 /// What an ontology's `body` returns: an ordered list of entities —
-/// declarations (classes, properties, individuals, datatypes), their
+/// declarations (classes, properties, datatypes), their
 /// annotations, prefixes and namespaces — that together define an
 /// ontology's vocabulary.
 ///

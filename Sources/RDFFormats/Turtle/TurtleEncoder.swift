@@ -196,14 +196,14 @@ private struct TurtleDocument {
     private mutating func planPrefixes() {
         var number = 1
         func add(_ iri: IRI) {
-            guard iri != .rdfType, let parts = iri.prefixableParts, prefixNames[parts.namespace] == nil else { return }
+            guard iri != .rdfType, let parts = iri.prefixableParts, prefixNames[parts.namespace.rawValue] == nil else { return }
             var name: String
             repeat {
                 name = "ns\(number)"
                 number += 1
             } while prefixNames.values.contains(name)
-            prefixNames[parts.namespace] = name
-            directives.append("PREFIX \(name): <\(parts.namespace)>")
+            prefixNames[parts.namespace.rawValue] = name
+            directives.append("PREFIX \(name): \(parts.namespace.iriReference)")
         }
         func add(_ triple: Graph.Element) {
             if case .iri(let iri) = triple.subject { add(iri) }
@@ -295,7 +295,7 @@ private struct TurtleDocument {
     /// A prefixed name where the IRI's namespace has a prefix, the
     /// `IRIREF` otherwise.
     private func term(_ iri: IRI) -> String {
-        if let parts = iri.prefixableParts, let prefix = prefixNames[parts.namespace] {
+        if let parts = iri.prefixableParts, let prefix = prefixNames[parts.namespace.rawValue] {
             return prefix + ":" + parts.local
         }
         return iri.iriReference

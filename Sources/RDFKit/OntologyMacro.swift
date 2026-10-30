@@ -55,11 +55,9 @@ import RDFCore
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion, for the boundary only.
 ///
-/// A named individual is a module-level value, `alice`, never a member of
-/// the ontology type. A macro attached at module scope cannot declare names
-/// of its own choosing there, so `Individual(...)` in `var body` is an
-/// error: a named individual comes from RDF data that `RDFTranslatorPlugin`
-/// translates, or is declared in Swift as an instance of its class.
+/// The DSL declares vocabulary, not data. A named individual comes from RDF
+/// that `RDFTranslatorPlugin` translates, as a module-level value (`alice`),
+/// never a member of the ontology type.
 ///
 /// `@Ontology` also attaches ``OntologyContent()`` to `var body`. That body
 /// macro owns the authored body, so `Domain(Fauna.Animal)` is read as syntax.

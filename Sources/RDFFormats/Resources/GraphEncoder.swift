@@ -59,7 +59,7 @@ final class EncodedGraph {
         } else if let description = description as? ClassDescription {
             guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
             subject = term(description.class.iri, ObjectIdentifier(description.class))
-        } else if let term = description as? any Entity {
+        } else if let term = description as? any PropertyTerm {
             // A term type `@Ontology` declares, such as a property, describes
             // the term it names.
             subject = .iri(type(of: term).metadata.id)
