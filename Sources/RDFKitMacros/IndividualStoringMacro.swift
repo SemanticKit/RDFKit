@@ -2,17 +2,15 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 
 /// The extension macro on the storing protocol `@Ontology` generates for a
-/// class, `Fauna.AnimalStoring`.
+/// property, `Fauna.hasHabitatStoring`.
 ///
-/// The protocol restates the requirements of the class's own properties,
-/// those whose domain is the class. This macro gives each one accessors that
-/// read and change the class's values, `Fauna.AnimalValues`, through
-/// ``RDFCore/ClassValuesStoring/withClassValues(_:)``, under the lock of the
-/// individual's ``RDFCore/IndividualStorage``. An individual declared in
-/// another ontology or module that is typed with the class conforms by
-/// storing its classes' values. The properties of a superclass are supplied
-/// by the superclass's storing protocol, which this one refines, so each
-/// property has one pair of accessors.
+/// The protocol restates the property's requirement. This macro gives it
+/// accessors that read and change the property's value,
+/// `Fauna.hasHabitatValue`, through
+/// ``RDFCore/PropertyValueStoring/withPropertyValue(_:)``, under the lock of
+/// the individual's ``RDFCore/IndividualStorage``. The storing protocol of
+/// every domain of the property refines this one, so the property has one
+/// pair of accessors however many of its domains an individual is in.
 public struct IndividualStoringMacro: ExtensionMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -25,15 +23,15 @@ public struct IndividualStoringMacro: ExtensionMacro {
             throw MacroError("@IndividualStoring applies to the storing protocol @Ontology generates")
         }
         let storingType = type.trimmedDescription
-        let valuesType = String(storingType.dropLast("Storing".count)) + "Values"
+        let valueType = String(storingType.dropLast("Storing".count)) + "Value"
         let accessors = storing.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }.compactMap { variable -> String? in
             guard let binding = variable.bindings.first,
                   let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                   let type = binding.typeAnnotation?.type.trimmedDescription else { return nil }
             return """
                 public var \(name): \(type) {
-                    get { withClassValues { (values: inout \(valuesType)) in values.\(name) } }
-                    set { withClassValues { (values: inout \(valuesType)) in values.\(name) = newValue } }
+                    get { withPropertyValue { (stored: inout \(valueType)) in stored.value } }
+                    set { withPropertyValue { (stored: inout \(valueType)) in stored.value = newValue } }
                 }
             """
         }
