@@ -140,6 +140,14 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "RDFCoreTests",
+            dependencies: [
+                "RDFCore",
+                "RDFKit",
+                .product(name: "IRIKit", package: "IRIKit")
+            ]
+        ),
+        .testTarget(
             name: "RDFKitMacrosTests",
             dependencies: [
                 "RDFKitMacros",

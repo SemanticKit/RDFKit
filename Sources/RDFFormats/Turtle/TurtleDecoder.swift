@@ -1,7 +1,7 @@
 import IRIKit
 import RDFCore
 
-/// Decodes RDF 1.2 Turtle documents into triples.
+/// Decodes RDF 1.2 Turtle documents into a ``Graph``.
 ///
 /// The decoder follows the grammar in RDF 1.2 Turtle §7.3, including triple
 /// terms (`<<( s p o )>>`), reified triples (`<< s p o ~ r >>`), annotations
@@ -11,7 +11,7 @@ import RDFCore
 /// resolved against the base IRI (RFC 3986 §5.2) and prefixed names are
 /// expanded before the IRI enters the runtime.
 ///
-///     let triples = try TurtleDecoder(base: "http://example/doc").decode("""
+///     let graph = try TurtleDecoder(base: "http://example/doc").decode("""
 ///         PREFIX : <http://example/>
 ///         :s :p :o ~ :r {| :source :q |} .
 ///         """)
@@ -33,7 +33,7 @@ public struct TurtleDecoder: Sendable {
     /// - Throws: ``SyntaxError`` when the document does not match the Turtle
     ///   grammar, uses an undeclared prefix, or names an IRI that is not
     ///   valid once resolved.
-    public func decode(_ document: String) throws -> [DecodedTriple] {
+    public func decode(_ document: String) throws -> Graph {
         var parser = try TurtleParser(document, base: base?.rawValue)
         return try parser.parseDocument()
     }

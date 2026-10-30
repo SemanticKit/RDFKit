@@ -240,13 +240,14 @@ struct SwiftSource {
 
     static func expression(_ literal: Literal) -> String {
         let lexical = SwiftName.stringLiteral(literal.lexicalForm)
-        if literal.languageTag == nil, literal.datatype == nil {
-            return "RDFCore.Literal(stringLiteral: \(lexical))"
+        if let language = literal.languageTag {
+            var arguments = [lexical, "languageTag: \(SwiftName.stringLiteral(language))"]
+            if let direction = literal.baseDirection { arguments.append("baseDirection: .\(direction.rawValue)") }
+            return "try! RDFCore.Literal(\(arguments.joined(separator: ", ")))"
         }
-        var arguments = [lexical]
-        if let language = literal.languageTag { arguments.append("languageTag: \(SwiftName.stringLiteral(language))") }
-        if let direction = literal.textDirection { arguments.append("textDirection: .\(direction.rawValue)") }
-        if let datatype = literal.datatype { arguments.append("datatype: \(SwiftName.stringLiteral(datatype.rawValue))") }
-        return "try! RDFCore.Literal(\(arguments.joined(separator: ", ")))"
+        if let datatype = literal.datatype {
+            return "try! RDFCore.Literal(\(lexical), datatype: \(SwiftName.stringLiteral(datatype.rawValue)))"
+        }
+        return "RDFCore.Literal(\(lexical))"
     }
 }

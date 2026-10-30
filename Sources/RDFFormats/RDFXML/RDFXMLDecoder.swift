@@ -36,7 +36,7 @@ public struct RDFXMLDecoder: Sendable {
     /// - Throws: ``SyntaxError`` when the document is not namespace
     ///   well-formed XML, does not match the RDF/XML grammar, or names an
     ///   IRI that is not valid once resolved.
-    public func decode(_ document: String) throws -> [DecodedTriple] {
+    public func decode(_ document: String) throws -> Graph {
         var parser = try RDFXMLParser(document, base: base?.rawValue)
         return try parser.parseDocument()
     }

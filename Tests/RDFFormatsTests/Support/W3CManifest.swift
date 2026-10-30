@@ -54,7 +54,7 @@ struct W3CManifest {
 
     func tests(inManifest iri: IRI) throws -> [W3CTestCase] {
         let text = try String(contentsOf: try file(for: iri), encoding: .utf8)
-        let graph = ManifestGraph(triples: try TurtleDecoder(base: iri).decode(text))
+        let graph = try TurtleDecoder(base: iri).decode(text)
         guard let manifest = graph.subjects(
             RDF.type.metadata.id,
             TestManifest.ManifestIndividual.metadata.id
@@ -77,7 +77,7 @@ struct W3CManifest {
         return tests
     }
 
-    func test(_ entry: SubjectTerm, in graph: ManifestGraph, manifest: IRI) throws -> W3CTestCase {
+    func test(_ entry: SubjectTerm, in graph: Graph, manifest: IRI) throws -> W3CTestCase {
         guard case .iri(let id) = entry else { throw W3CManifestError.malformed(manifest, "a test without an IRI") }
         guard case .iri(let type)? = graph.object(entry, RDF.type.metadata.id),
               let kind = Self.kind(of: type) else {
@@ -122,15 +122,13 @@ struct W3CManifest {
 }
 
 /// A decoded manifest, read by pattern.
-struct ManifestGraph {
-    let triples: [DecodedTriple]
-
+extension Graph {
     func subjects(_ predicate: IRI, _ object: IRI) -> [SubjectTerm] {
-        triples.filter { $0.predicate == predicate && $0.object == .iri(object) }.map(\.subject)
+        triples(predicate: predicate, object: .iri(object)).map(\.subject)
     }
 
     func object(_ subject: SubjectTerm, _ predicate: IRI) -> ObjectTerm? {
-        triples.first { $0.subject == subject && $0.predicate == predicate }?.object
+        triples(subject: subject, predicate: predicate).first?.object
     }
 
     /// The members of an `rdf:first` / `rdf:rest` list; none when absent.

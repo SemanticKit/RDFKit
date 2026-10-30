@@ -59,7 +59,7 @@ extension Layer {
         for (offset, path) in paths.enumerated() {
             let url = URL(filePath: path)
             let text = try String(contentsOf: url, encoding: .utf8)
-            let triples: [DecodedTriple]
+            let triples: Graph
             switch url.pathExtension.lowercased() {
             case "ttl":
                 triples = try TurtleDecoder().decode(text)

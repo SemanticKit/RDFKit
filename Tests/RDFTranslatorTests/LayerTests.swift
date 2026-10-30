@@ -52,19 +52,19 @@ struct LayerTests {
     /// The RDF and RDF Schema documents come back as the same graph
     /// (RDF 1.2 Concepts §3.7).
     @Test func rdfTranslatesBackToTheSameGraph() throws {
-        let input = try document("../ParallelTests/Fixtures/W3C/rdf.ttl") + document("../ParallelTests/Fixtures/W3C/rdfs.ttl")
+        let input = try document("../ParallelTests/Fixtures/W3C/rdf.ttl").union(document("../ParallelTests/Fixtures/W3C/rdfs.ttl"))
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(RDF.ontology))
-        #expect(GraphIsomorphism(input, output).holds)
+        #expect(input.isIsomorphic(to: output))
     }
 
     /// The OWL 2 document comes back as the same graph.
     @Test func owlTranslatesBackToTheSameGraph() throws {
         let input = try document("../../Sources/OWL/owl.ttl")
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(OWL.ontology))
-        #expect(GraphIsomorphism(input, output).holds)
+        #expect(input.isIsomorphic(to: output))
     }
 
-    private func document(_ path: String) throws -> [DecodedTriple] {
+    private func document(_ path: String) throws -> Graph {
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: path)
         return try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
     }

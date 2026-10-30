@@ -65,7 +65,7 @@ struct RDFXMLParser {
     let infoset: XMLInfoset
     let documentBase: String?
     var blankNodes = BlankNodeLabels()
-    var triples: [DecodedTriple] = []
+    var triples: Graph = []
     /// The IRIs `rdf:ID` attributes have produced (constraint-id).
     var identifiers: Set<IRI> = []
 
@@ -78,7 +78,7 @@ struct RDFXMLParser {
 
     /// Grammar start: production doc, or nodeElement for a document
     /// whose element is not `rdf:RDF`.
-    mutating func parseDocument() throws -> [DecodedTriple] {
+    mutating func parseDocument() throws -> Graph {
         let root = infoset.documentElement
         let scope = Scope(base: documentBase)
         if try iri(of: root) == Self.rdf + "RDF" {
@@ -131,7 +131,7 @@ struct RDFXMLParser {
         } else if let about = attributes.about {
             subject = .iri(try resolve(about, scope, at: element))
         } else {
-            subject = .blankNode(blankNodes.fresh())
+            subject = .blankNode(try blankNodes.fresh())
         }
 
         if elementIRI != Self.rdf + "Description" {
@@ -245,7 +245,7 @@ struct RDFXMLParser {
         } else if let nodeID = attributes.nodeID {
             object = .blankNode(try blankNode(nodeID, at: element))
         } else {
-            object = .blankNode(blankNodes.fresh())
+            object = .blankNode(try blankNodes.fresh())
         }
         try emitPropertyAttributes(attributes.properties, of: object, scope, at: element)
         try emitStatement(subject, predicate, object.object, attributes, scope, at: element)
@@ -259,7 +259,7 @@ struct RDFXMLParser {
         _ attributes: Attributes,
         _ scope: Scope
     ) throws {
-        let node = SubjectTerm.blankNode(blankNodes.fresh())
+        let node = SubjectTerm.blankNode(try blankNodes.fresh())
         try emitStatement(subject, predicate, node.object, attributes, scope, at: element)
         // The content is the propertyEltList of an rdf:Description whose
         // subject is the new blank node and that has no attributes.
@@ -278,7 +278,7 @@ struct RDFXMLParser {
         _ scope: Scope
     ) throws {
         let members = try parseNodeElementList(element, scope)
-        let cells = members.map { _ in SubjectTerm.blankNode(blankNodes.fresh()) }
+        let cells = try members.map { _ in SubjectTerm.blankNode(try blankNodes.fresh()) }
         try emitStatement(subject, predicate, cells.first?.object ?? .iri(Self.nilIRI), attributes, scope, at: element)
         for (index, cell) in cells.enumerated() {
             emit(cell, RDF.first.metadata.id, members[index].object)
@@ -313,7 +313,7 @@ struct RDFXMLParser {
         // A document that does not announce RDF 1.2 with rdf:version does
         // not produce triple terms.
         guard scope.announcesRDF12 else { return }
-        let term = TripleTermValue(subject: triple.subject, predicate: triple.predicate, object: triple.object)
+        let term = Graph.Element(subject: triple.subject, predicate: triple.predicate, object: triple.object)
         emit(subject, predicate, .tripleTerm(term))
     }
 
@@ -503,15 +503,15 @@ struct RDFXMLParser {
         guard Self.isNCName(id) else {
             throw error("the blank node identifier \"\(id)\" is not an XML NCName", at: element)
         }
-        return blankNodes.node(labelled: id)
+        return try blankNodes.node(labelled: id)
     }
 
     /// A literal without datatype (Literal Without Datatype Event): the in-scope language and base
     /// direction make it a language-tagged or directional string.
     func plainLiteral(_ value: String, _ scope: Scope, at element: XMLInfoset.Element) throws -> Literal {
         do {
-            guard !scope.language.isEmpty else { return try Literal(value) }
-            return try Literal(value, languageTag: scope.language, textDirection: TextDirection(rawValue: scope.direction))
+            guard !scope.language.isEmpty else { return Literal(value) }
+            return try Literal(value, languageTag: scope.language, baseDirection: BaseDirection(rawValue: scope.direction))
         } catch {
             throw self.error("\(error)", at: element)
         }
@@ -519,7 +519,7 @@ struct RDFXMLParser {
 
     /// A typed literal (Typed Literal Event).
     func makeLiteral(_ value: String, datatype: IRI, at element: XMLInfoset.Element) throws -> Literal {
-        guard let literal = Literal.typed(value, datatype: datatype) else {
+        guard let literal = try? Literal(value, datatype: datatype) else {
             throw error("<\(datatype)> cannot be the datatype of \"\(value)\"", at: element)
         }
         return literal
@@ -556,7 +556,7 @@ struct RDFXMLParser {
     // MARK: - Emitting
 
     mutating func emit(_ subject: SubjectTerm, _ predicate: IRI, _ object: ObjectTerm) {
-        triples.append(DecodedTriple(subject: subject, predicate: predicate, object: object))
+        triples.insert(Graph.Element(subject: subject, predicate: predicate, object: object))
     }
 
     /// Emits a property element's statement, then reifies it for `rdf:ID`
@@ -587,7 +587,7 @@ struct RDFXMLParser {
             reifier = nil
         }
         if let reifier {
-            emit(reifier, RDF.reifies.metadata.id, .tripleTerm(TripleTermValue(subject: subject, predicate: predicate, object: object)))
+            emit(reifier, RDF.reifies.metadata.id, .tripleTerm(Graph.Element(subject: subject, predicate: predicate, object: object)))
         }
     }
 

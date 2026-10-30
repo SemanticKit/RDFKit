@@ -42,7 +42,7 @@ struct LibraryTests {
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
         let input = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(ontology))
-        #expect(GraphIsomorphism(input, output).holds)
+        #expect(input.isIsomorphic(to: output))
     }
 
     /// Encoding only some individuals gives only their descriptions, with

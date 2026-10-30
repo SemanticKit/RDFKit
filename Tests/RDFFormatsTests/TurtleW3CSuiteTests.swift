@@ -30,6 +30,6 @@ struct TurtleW3CSuiteTests {
     func evaluation(_ test: W3CTestCase) throws {
         let decoded = try TurtleDecoder(base: test.action).decode(try test.readAction())
         let expected = try NTriplesDecoder().decode(try test.readResult())
-        #expect(GraphIsomorphism(decoded, expected).holds, "\(NTriplesEncoder().encode(decoded))")
+        #expect(decoded.isIsomorphic(to: expected), "\(NTriplesEncoder().encode(decoded))")
     }
 }

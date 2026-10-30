@@ -12,7 +12,7 @@ import RDFRuntime
 /// IRIs and literals").
 struct TripleEncoder {
     /// The triples describing the resources and the blank nodes they reach.
-    func encode(_ resources: [any RDFRuntime.Resource]) throws -> [DecodedTriple] {
+    func encode(_ resources: [any RDFRuntime.Resource]) throws -> Graph {
         let graph = EncodedGraph()
         for resource in resources {
             try graph.describe(resource)
@@ -27,7 +27,7 @@ struct TripleEncoder {
 
 /// The graph a ``TripleEncoder`` run writes.
 final class EncodedGraph {
-    var triples: [DecodedTriple] = []
+    var triples: Graph = []
     var undescribed: [any RDFRuntime.Resource] = []
     var error: (any Error)?
     private var described: Set<ObjectIdentifier> = []
@@ -42,7 +42,7 @@ final class EncodedGraph {
         if let iri = type(of: resource).iri { return .iri(iri) }
         let id = ObjectIdentifier(resource)
         if let node = blankNodes[id] { return .blankNode(node) }
-        let node = BlankNode(rawValue: "b\(blankNodes.count)")
+        let node = try! BlankNode("b\(blankNodes.count)")  // never empty
         blankNodes[id] = node
         return .blankNode(node)
     }
@@ -122,7 +122,7 @@ struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
                 debugDescription: "An object is a resource or a literal (RDF 1.2 Concepts §3.1)."
             ))
         }
-        graph.triples.append(DecodedTriple(subject: subject, predicate: predicate, object: object))
+        graph.triples.insert(Graph.Element(subject: subject, predicate: predicate, object: object))
     }
 
     mutating func encodeNil(forKey key: Key) throws {
