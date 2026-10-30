@@ -110,6 +110,13 @@ let package = Package(
             path: "Tests/ParallelTests/Fixtures/AliceProfile",
             plugins: ["RDFTranslatorPlugin"]
         ),
+        // SHACL 1.2's published vocabulary (shacl.ttl), on RDF and OWL.
+        .target(
+            name: "SHACL",
+            dependencies: ["OWL", "RDF"],
+            path: "Tests/SHACLTranslationTests/Fixtures/SHACL",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
 
         .testTarget(
             name: "RDFKitTests",
@@ -168,6 +175,17 @@ let package = Package(
                 "OWL"
             ],
             plugins: ["RDFTranslatorPlugin"]
+        ),
+        .testTarget(
+            name: "SHACLTranslationTests",
+            dependencies: [
+                "RDFCore",
+                "RDFFormats",
+                "RDF",
+                "SHACL",
+                .product(name: "IRIKit", package: "IRIKit")
+            ],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "ParallelTests",
