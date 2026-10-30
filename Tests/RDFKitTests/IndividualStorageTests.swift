@@ -33,8 +33,8 @@ struct IndividualStorageTests {
     func changeInPlaceReadsOtherProperties() {
         let carol = Club.MemberIndividual()
         carol.name = ["Carol"]
-        carol.joined.append(contentsOf: carol.name)
+        carol.firstName.append(contentsOf: carol.name)
         carol.knows.removeAll { _ in carol.name.isEmpty }
-        #expect(carol.joined == ["Carol"])
+        #expect(carol.firstName == ["Carol"])
     }
 }

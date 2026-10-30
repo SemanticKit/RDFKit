@@ -158,6 +158,7 @@ let package = Package(
                 "OWL",
                 "FOAF",
                 "AliceProfile",
+                "XSD",
                 .product(name: "IRIKit", package: "IRIKit")
             ],
             exclude: [

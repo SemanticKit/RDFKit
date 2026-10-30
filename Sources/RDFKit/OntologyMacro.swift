@@ -6,7 +6,11 @@ import RDFCore
 /// `var body: some Content`, as a SwiftUI view's `body` is `some View`.
 /// Annotations that relate a term to another term take the related type as
 /// their argument. The generated code uses `RDFCore`, `IRIKit` and the
-/// translated RDF vocabulary, `RDF`, so the file imports them:
+/// translated RDF vocabulary, `RDF`, so the file imports them. A property
+/// whose `Range` is an XSD datatype holds that datatype's Swift value type
+/// (`Range(XSD.gYear)` gives `[XSD.gYear]`), and `Deprecated()` writes
+/// `owl:deprecated` with the `xsd:boolean` value `true`, so a file that uses
+/// them imports `XSD`, and `OWL` for `Deprecated()`, too:
 ///
 ///     import IRIKit
 ///     import RDF
@@ -50,7 +54,8 @@ import RDFCore
 /// - the property term type `Fauna.hasHabitat`, and the value type and
 ///   storing protocol that keep its values on an individual.
 /// - DocC from each `Comment`, and `@available(*, deprecated)` on the
-///   declarations of a term marked `Deprecated()`.
+///   declarations of a term marked `Deprecated()`, whose description states
+///   `owl:deprecated true`.
 ///
 /// Terms refer to each other as types. Each term's IRI is computed from the
 /// namespace during expansion, for the boundary only.

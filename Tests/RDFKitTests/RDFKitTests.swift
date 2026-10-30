@@ -2,10 +2,12 @@ import Testing
 import IRIKit
 import AliceProfile
 import FOAF
+import OWL
 import RDF
 import RDFCore
 import RDFFormats
 import RDFKit
+import XSD
 
 /// A club whose members are FOAF people: a class declared in the DSL that
 /// refines a class translated from RDF.
@@ -21,7 +23,12 @@ struct Club: Ontology {
         }
         Property("joined") {
             Domain(Club.Member)
-            Range(RDF.Literal)
+            Range(XSD.gYear)
+        }
+        Property("nickname") {
+            Domain(Club.Member)
+            Range(XSD.string)
+            Deprecated()
         }
         Property("sponsor") {
             Type(RDF.Property)
@@ -79,12 +86,15 @@ struct RDFKitTests {
             """)
         let frank = ClubMembers().frank
         frank.name = ["Frank"]
-        // The typed literal comes from the document, decoded at the boundary.
-        frank.joined = expected.compactMap { triple in
+        // `Range(XSD.gYear)`: the values are `xsd:gYear` values, decoded
+        // from the document's literal at the boundary.
+        let joined: [XSD.gYear] = try expected.compactMap { triple in
             guard triple.predicate == IRI(Club.joined.key), case .literal(let literal) = triple.object else { return nil }
-            return literal
+            return try XSD.gYear(literal)
         }
+        frank.joined = joined
         #expect(frank.joined.count == 1)
+        #expect(frank.joined.first?.value.year?.int == 2026)
         let person = ClubMembers().erin
         person.name = ["Erin"]
         frank.knows = [person]
@@ -150,13 +160,16 @@ struct RDFKitTests {
         let expected = try TurtleDecoder().decode("""
             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            @prefix owl: <http://www.w3.org/2002/07/owl#> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
             @prefix foaf: <http://xmlns.com/foaf/0.1/> .
             @prefix club: <https://club.example.org/#> .
             club:Member a rdfs:Class ;
                 rdfs:subClassOf foaf:Person ;
                 rdfs:label "Member" ;
                 rdfs:comment "A person who belongs to the club." .
-            club:joined rdfs:domain club:Member ; rdfs:range rdfs:Literal .
+            club:joined rdfs:domain club:Member ; rdfs:range xsd:gYear .
+            club:nickname rdfs:domain club:Member ; rdfs:range xsd:string ; owl:deprecated true .
             club:sponsor a rdf:Property ;
                 rdfs:domain club:Member ;
                 rdfs:range foaf:Person ;

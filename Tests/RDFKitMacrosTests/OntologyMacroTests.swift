@@ -542,7 +542,7 @@ struct OntologyMacroTests {
                             }
                         }
                         try container.encode([SeeAlsoDocument0()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlsoValue.key))
-                        try container.encode([try RDFCore.Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
+                        try container.encode([true] as [XSD.boolean], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
                     }
                 }
 
