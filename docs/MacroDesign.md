@@ -13,7 +13,6 @@
 | `Type`, `SubClassOf`, `Label`, `Comment`, `SeeAlso`, `Deprecated` on a class | the triples the class's `encodeDescription(to:)` writes |
 | `Label`, `Comment` | DocC on the generated declaration |
 | `Deprecated()` | `@available(*, deprecated)` on the generated declaration |
-| `Individual("rex")` | an error: a named individual is a module-level value (see below) |
 
 ## Example
 
@@ -103,7 +102,7 @@ Its property values are typed Swift values in one `RDFCore.IndividualStorage`, t
 
 Individuals are `Sendable` as checked by the compiler: `IndividualStorage` is a mutex, and each read and each write of a property takes the lock.
 
-A named individual, `Individual("rex")`, is a module-level value, as `RDFTranslatorPlugin` writes `alice`: never a static member of the ontology type. A macro attached at module scope cannot declare names it chooses there ("'peer' macros are not allowed to introduce arbitrary names at global scope"), so `@Ontology` reports `Individual` as an error. A named individual comes from RDF data that the plugin translates, or is declared in Swift as an instance of its class.
+The DSL declares vocabulary, not data. A named individual comes from RDF that `RDFTranslatorPlugin` translates, as a module-level value such as `alice`, never a static member of the ontology type.
 
 ## Properties Are Many-Valued
 

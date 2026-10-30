@@ -59,6 +59,8 @@ struct OntologyMacroTests {
                     #sourceLocation()
                 }
 
+                /// Animal
+                ///
                 /// An animal.
                 public protocol Animal: RDF.Resource {
                     var name: [RDF.LiteralIndividual.Member] {
@@ -73,6 +75,8 @@ struct OntologyMacroTests {
                 public protocol AnimalStoring: Zoo.Animal, Zoo.nameStoring, RDF.ResourceStoring {
                 }
 
+                /// Animal
+                ///
                 /// An animal.
                 public final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
                     public static let iri: IRIKit.IRI? = "https://zoo.example.org/#Animal"
@@ -135,7 +139,7 @@ struct OntologyMacroTests {
                     }
                 }
 
-                public struct feeds: RDFCore.Entity, RDFCore.Description {
+                public struct feeds: RDFCore.PropertyTerm {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#feeds", name: "feeds")
 
                     /// The property's description, which ``Zoo/ontology`` lists.
@@ -170,7 +174,7 @@ struct OntologyMacroTests {
                     }
                 }
 
-                public struct name: RDFCore.Entity, RDFCore.Description {
+                public struct name: RDFCore.PropertyTerm {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#name", name: "name")
 
                     /// The property's description, which ``Zoo/ontology`` lists.
@@ -533,7 +537,7 @@ struct OntologyMacroTests {
                     }
                 }
 
-                struct code: RDFCore.Entity, RDFCore.Description {
+                struct code: RDFCore.PropertyTerm {
                     static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#code", name: "code")
 
                     /// The property's description, which ``Club/ontology`` lists.
@@ -568,7 +572,7 @@ struct OntologyMacroTests {
                     }
                 }
 
-                struct friend: RDFCore.Entity, RDFCore.Description {
+                struct friend: RDFCore.PropertyTerm {
                     static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#friend", name: "friend")
 
                     /// The property's description, which ``Club/ontology`` lists.
@@ -603,7 +607,7 @@ struct OntologyMacroTests {
                     }
                 }
 
-                struct note: RDFCore.Entity, RDFCore.Description {
+                struct note: RDFCore.PropertyTerm {
                     static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#note", name: "note")
 
                     /// The property's description, which ``Club/ontology`` lists.
@@ -662,7 +666,7 @@ struct OntologyMacroTests {
         )
     }
 
-    @Test("Mistakes are reported where they were written, and a named individual is a module-level value")
+    @Test("Mistakes are reported where they were written")
     func mistakesAreReportedAtTheAuthoredDeclaration() {
         assertExpansion(
             """
@@ -675,9 +679,6 @@ struct OntologyMacroTests {
                         SubClassOf(Zoo.Animl)
                     }
                     Class("AnimalIndividual")
-                    Individual("rex") {
-                        Type(Zoo.Keeper)
-                    }
                 }
             }
             """,
@@ -695,10 +696,6 @@ struct OntologyMacroTests {
                             }
                     #sourceLocation(file: "test.swift", line: 9)
                     RDFCore.Class("AnimalIndividual")
-                    #sourceLocation(file: "test.swift", line: 10)
-                    RDFCore.Individual("rex") {
-
-                            }
                     #sourceLocation()
                 }
 
@@ -784,7 +781,6 @@ struct OntologyMacroTests {
             diagnostics: [
                 DiagnosticSpec(message: "'Zoo.Animl' is not declared in Zoo", line: 7, column: 13),
                 DiagnosticSpec(message: "'AnimalIndividual' is declared in this ontology, so the individual type of 'Animal' cannot use that name", line: 5, column: 9),
-                DiagnosticSpec(message: "'rex' is a named individual, a module-level value; a macro cannot declare module-level names (peer macros may not introduce arbitrary names at global scope), so declare it in RDF data translated by RDFTranslatorPlugin or in Swift as an instance of its class", line: 10, column: 9),
             ]
         )
     }

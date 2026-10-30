@@ -1,5 +1,3 @@
-import IRIKit
-
 /// Declares an RDFS datatype. The `@Ontology` macro generates a value type for it.
 ///
 /// `rdfs:Datatype`
@@ -8,13 +6,6 @@ import IRIKit
 ///         SubClassOf(RDF.Literal)
 ///     }
 public struct Datatype: Declaration {
-    public static let metadata: any ContentMetadata = RDFMetadata(
-        id: "http://www.w3.org/2000/01/rdf-schema#Datatype",
-        name: "Datatype",
-        label: "Datatype",
-        comment: "The class of RDF datatypes."
-    )
-
     public let localName: String
     public let content: Entities
 

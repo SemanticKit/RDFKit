@@ -1,7 +1,7 @@
 import Foundation
 
 /// Builds ontology content: declarations (``Class``, ``Property``,
-/// ``Datatype``, ``Individual``), their annotations, prefixes and namespaces.
+/// ``Datatype``), their annotations, prefixes and namespaces.
 ///
 /// Every statement in a builder body is an ``Entity`` value. Each one is lifted
 /// into ``Entities`` by `buildExpression`, so `if`, `if`/`else`, `for` and

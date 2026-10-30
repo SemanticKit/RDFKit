@@ -14,7 +14,6 @@ Sources/RDFCore/
 │   ├── TermDeclaration.swift
 │   └── ...
 ├── RDF/
-│   ├── Individual.swift      # Protocol + DSL
 │   ├── Property.swift        # Protocol + DSL
 │   ├── Type.swift            # Protocol + Concrete Type + DSL
 │   └── ...

@@ -19,13 +19,14 @@ extension IRI {
 
     /// The namespace and local name of the IRI, split after its last `#`
     /// or `/`, when the local name can be written as a Turtle `PN_LOCAL`
-    /// without escapes.
-    var prefixableParts: (namespace: String, local: String)? {
+    /// without escapes and the namespace is an IRI.
+    var prefixableParts: (namespace: IRI, local: String)? {
         let scalars = Array(rawValue.unicodeScalars)
         guard let split = scalars.lastIndex(where: { $0 == "#" || $0 == "/" }) else { return nil }
         let local = Array(scalars[(split + 1)...])
-        guard Self.isPlainLocalName(local) else { return nil }
-        return (String(String.UnicodeScalarView(scalars[...split])), String(String.UnicodeScalarView(local)))
+        guard Self.isPlainLocalName(local),
+              let namespace = try? IRI(validating: String(String.UnicodeScalarView(scalars[...split]))) else { return nil }
+        return (namespace, String(String.UnicodeScalarView(local)))
     }
 
     /// `PN_LOCAL` without `PLX`: `(PN_CHARS_U | ':' | [0-9]) ((PN_CHARS | '.' | ':')* (PN_CHARS | ':'))?`,

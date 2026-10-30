@@ -1,13 +1,10 @@
-import IRIKit
-
-/// An ontology entity declared in the DSL.
+/// A statement of an ontology's DSL content: a declaration form (``Class``,
+/// ``Property``, ``Datatype``), an annotation, a ``Namespace`` or a
+/// ``Prefix``.
 ///
-/// The Swift type is the entity's identity inside the runtime. Types refer to
-/// each other as types, never through an IRI or a string. The entity's IRI
-/// lives only in ``metadata``, a static projection that the `@Ontology` macro
-/// computes from the ontology's namespace and that is read only at the
-/// boundary (serialization, translation into SPARQL or SHACL, dereferencing).
-public protocol Entity: Node {
-    /// The boundary projection of this entity: its IRI and documentation.
-    static var metadata: any ContentMetadata { get }
-}
+/// The forms are syntax that `@Ontology` reads and writes as the Swift they
+/// describe. They carry no RDF of their own: what `rdfs:Class` or
+/// `rdfs:label` is comes from the one translation of rdf.ttl, rdfs.ttl and
+/// owl.ttl, whose types the generated code names (`RDF.ClassIndividual`,
+/// `RDF.label`).
+public protocol Entity: Node {}

@@ -24,14 +24,6 @@ struct OntologyDiagnostic: DiagnosticMessage {
         id: "contentInBody"
     )
 
-    /// A named individual declared in an ontology's body.
-    static func individualIsModuleLevel(_ name: String) -> Self {
-        Self(
-            message: "'\(name)' is a named individual, a module-level value; a macro cannot declare module-level names (peer macros may not introduce arbitrary names at global scope), so declare it in RDF data translated by RDFTranslatorPlugin or in Swift as an instance of its class",
-            id: "individualIsModuleLevel"
-        )
-    }
-
     /// A generated individual type would have the name of a declared term.
     static func individualTypeCollides(name: String, className: String) -> Self {
         Self(

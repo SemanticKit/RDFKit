@@ -7,7 +7,6 @@ struct ParsedEntity {
         case `class` = "Class"
         case datatype = "Datatype"
         case property = "Property"
-        case individual = "Individual"
     }
 
     /// The local name, the spelling of the generated Swift type.

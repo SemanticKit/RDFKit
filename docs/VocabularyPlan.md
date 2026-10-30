@@ -17,7 +17,7 @@ The vocabularies follow the same rules as any translated vocabulary (see `Source
 
 An ontology written with the DSL names the translated vocabularies by type, `Type(RDF.Class)`, `Range(RDF.Literal)`, `SubClassOf(FOAF.Person)`, and `@Ontology` generates the same Swift the translator writes (see `MacroDesign.md`). The RDFKit vocabulary itself is declared this way, in `Sources/RDFKit/RDFKit.swift`.
 
-The declaration forms `Class`, `Property`, `Datatype` and `Individual`, and the annotations `Label`, `Comment`, `SeeAlso` and `Deprecated`, are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDF.Class` is the translated protocol for `rdfs:Class`, and `Class("Animal")` in a `var body` is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
+The declaration forms `Class`, `Property` and `Datatype`, and the annotations `Label`, `Comment`, `SeeAlso` and `Deprecated`, are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDF.Class` is the translated protocol for `rdfs:Class`, and `Class("Animal")` in a `var body` is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
 
 ## What Stays
 

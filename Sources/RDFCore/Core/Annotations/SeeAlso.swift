@@ -9,13 +9,6 @@ import IRIKit
 ///
 ///     SeeAlso("https://www.w3.org/TR/rdf12-interop/")
 public struct SeeAlso: Annotation {
-    public static let metadata: any ContentMetadata = RDFMetadata(
-        id: "http://www.w3.org/2000/01/rdf-schema#seeAlso",
-        name: "seeAlso",
-        label: "seeAlso",
-        comment: "Further information about the subject resource."
-    )
-
     /// The address of the document.
     public let document: IRI
 

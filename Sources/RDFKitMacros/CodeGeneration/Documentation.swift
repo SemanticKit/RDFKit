@@ -3,17 +3,17 @@ import Foundation
 /// DocC comments, `@available` attributes and metadata literals generated
 /// from `Label`, `Comment` and `Deprecated`.
 enum Documentation {
-    /// `/// ...` lines for a declaration's `Comment`, then
-    /// `@available(*, deprecated)` when it is `Deprecated()`, indented to
-    /// `indent`.
+    /// `/// ...` lines for a declaration's `Label` and `Comment`, one
+    /// paragraph each, as `RDFTranslatorPlugin` documents `rdfs:label` and
+    /// `rdfs:comment`, then `@available(*, deprecated)` when it is
+    /// `Deprecated()`, indented to `indent`.
     static func docComment(for declaration: ParsedEntity, indent: String = "") -> String {
-        var result = ""
-        if let comment = declaration.text("Comment") {
-            result = comment
-                .split(separator: "\n", omittingEmptySubsequences: false)
-                .map { "\(indent)/// \($0)\n" }
+        let paragraphs = (declaration.annotations("Label") + declaration.annotations("Comment")).compactMap(\.text).map { text in
+            text.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { $0.isEmpty ? "\(indent)///\n" : "\(indent)/// \($0)\n" }
                 .joined()
         }
+        var result = paragraphs.joined(separator: "\(indent)///\n")
         if let deprecated = declaration.annotations("Deprecated").first {
             if let message = deprecated.text {
                 result += "\(indent)@available(*, deprecated, message: \(literal(message)))\n"

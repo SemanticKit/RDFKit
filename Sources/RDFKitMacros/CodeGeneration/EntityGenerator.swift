@@ -23,8 +23,6 @@ import SwiftSyntaxMacros
 ///   values in an individual's ``RDFCore/IndividualStorage``.
 /// - The ontology type gets `ontology`, the descriptions of its terms, the
 ///   way back to RDF, as a translated module has.
-/// - A named individual is a module-level value (`alice`), which a macro
-///   attached at module scope cannot declare, so `Individual` is reported.
 ///
 /// Each generated type's IRI is computed here from the namespace and emitted
 /// as a literal, for the boundary only. Generated code never builds an
@@ -59,9 +57,6 @@ struct EntityGenerator {
             case .property:
                 sources = propertyDeclarations(declaration)
                 descriptions.append("\(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name))()")
-            case .individual:
-                context.diagnose(Diagnostic(node: declaration.syntax, message: OntologyDiagnostic.individualIsModuleLevel(declaration.name)))
-                sources = []
             }
             return sources.map { DeclSyntax(stringLiteral: $0) }
         }
@@ -217,7 +212,7 @@ struct EntityGenerator {
     private func propertyDeclarations(_ declaration: ParsedEntity) -> [String] {
         let name = SwiftIdentifier.escaped(declaration.name)
         let term = """
-        \(Documentation.docComment(for: declaration))\(access)struct \(name): RDFCore.Entity, RDFCore.Description {
+        \(Documentation.docComment(for: declaration))\(access)struct \(name): RDFCore.PropertyTerm {
             \(memberAccess)static let metadata: any RDFCore.ContentMetadata = \(Documentation.metadata(for: declaration, in: ontology))
 
             /// The property's description, which ``\(ontology.typeName)/ontology`` lists.

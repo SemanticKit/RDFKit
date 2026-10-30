@@ -1,6 +1,6 @@
 import IRIKit
 
-/// The boundary projection of an ``Entity``.
+/// The boundary projection of a ``PropertyTerm``.
 ///
 /// Metadata is read when a term leaves the runtime: its IRI for Turtle,
 /// N-Triples, SPARQL or SHACL, and its label and comment for documentation.

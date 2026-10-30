@@ -5,13 +5,6 @@ import IRIKit
 ///
 ///     Prefix("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
 public struct Prefix: Entity {
-    public static let metadata: any ContentMetadata = RDFMetadata(
-        id: "http://semantickit.io/o/2026/06/rdfkit#Prefix",
-        name: "Prefix",
-        label: "Prefix",
-        comment: "The prefix of the Ontology."
-    )
-
     /// The alias prefix.
     public let prefix: String
 
