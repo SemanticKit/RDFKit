@@ -41,7 +41,7 @@ import AliceProfile
     @Test func dataTranslatesBackToTheSameGraph() throws {
         let input = try TurtleDecoder().decode(try fixture("AliceProfile/alice.ttl"))
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([alice, bob]))
-        #expect(GraphIsomorphism(input, output).holds)
+        #expect(input.isIsomorphic(to: output))
     }
 
     /// The vocabulary translates back to a graph isomorphic to FOAF as published
@@ -49,7 +49,7 @@ import AliceProfile
     @Test func vocabularyTranslatesBackToTheSameGraph() throws {
         let input = try RDFXMLDecoder().decode(try fixture("FOAF/index.rdf"))
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(FOAF.ontology))
-        #expect(GraphIsomorphism(input, output).holds)
+        #expect(input.isIsomorphic(to: output))
     }
 
     private func fixture(_ path: String) throws -> String {
