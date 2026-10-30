@@ -21,4 +21,15 @@ extension Literal {
             self.init(lexicalForm: lexicalForm, datatype: datatype)
         }
     }
+
+    /// The literal's datatype IRI as RDF 1.2 Concepts §3.4 gives it:
+    /// `rdf:dirLangString` for a directional language-tagged string,
+    /// `rdf:langString` for any other language-tagged string, `xsd:string`
+    /// for a simple literal, and ``datatype`` otherwise.
+    public var datatypeIRI: IRI {
+        if languageTag != nil {
+            return baseDirection == nil ? RDF.langString.metadata.id : RDF.dirLangString.metadata.id
+        }
+        return datatype ?? XSD.string.metadata.id
+    }
 }

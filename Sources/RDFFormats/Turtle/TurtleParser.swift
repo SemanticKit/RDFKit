@@ -391,9 +391,9 @@ struct TurtleParser {
             let start = current.position
             try advance()
             if case .atWord(let word) = current.token {
-                let (language, direction) = try lexer.scanner.languageAndDirection(word, at: current.position)
+                let literal = try lexer.scanner.languageTaggedLiteral(lexicalForm, atWord: word, at: current.position)
                 try advance()
-                return try Literal(lexicalForm, languageTag: language, baseDirection: direction)
+                return literal
             }
             if isPunctuation("^^") {
                 try advance()

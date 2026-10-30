@@ -30,6 +30,19 @@ struct LiteralTests {
         }
     }
 
+    @Test("A language tag must be well-formed BCP 47", arguments: ["en us", "en-", "-en", "en--us", "--", "e", "en-a", "abcdefghi", "en-x", "x", "en-ÿ", "a-en"])
+    func malformedLanguageTag(_ tag: String) {
+        #expect(throws: TermError.malformedLanguageTag) {
+            try Literal("chat", languageTag: tag)
+        }
+    }
+
+    @Test("Well-formed BCP 47 tags are accepted", arguments: ["en", "en-US", "zh-Hant-TW", "sr-Latn-RS", "es-419", "de-CH-1996", "zh-yue-HK", "en-a-bbb-x-a-ccc", "x-whatever", "i-klingon", "art-lojban", "ABCDEFGH"])
+    func wellFormedLanguageTag(_ tag: String) throws {
+        let literal = try Literal("chat", languageTag: tag)
+        #expect(literal.languageTag == tag.lowercased())
+    }
+
     @Test("A literal typed xsd:string is the simple literal")
     func xsdString() throws {
         let typed = try Literal("a", datatype: XSD.string.metadata.id)
@@ -42,6 +55,14 @@ struct LiteralTests {
         #expect(throws: TermError.datatypeRequiresLanguageTag) {
             try Literal("a", datatype: datatype)
         }
+    }
+
+    @Test("Every literal has the datatype IRI RDF 1.2 gives it")
+    func datatypeIRI() throws {
+        #expect(Literal("a").datatypeIRI == XSD.string.metadata.id)
+        #expect(try Literal("a", languageTag: "en").datatypeIRI == RDF.langString.metadata.id)
+        #expect(try Literal("a", languageTag: "en", baseDirection: .rtl).datatypeIRI == RDF.dirLangString.metadata.id)
+        #expect(try Literal("1", datatype: XSD.integer.metadata.id).datatypeIRI == XSD.integer.metadata.id)
     }
 
     @Test("Typed literals compare lexical form and datatype IRI")

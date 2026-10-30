@@ -29,4 +29,42 @@ struct NTriplesDecoderTests {
             try NTriplesDecoder().decode("<s> <http://example/p> <http://example/o> .")
         }
     }
+
+    @Test("A malformed language tag is a syntax error at the '@'")
+    func malformedLanguageTag() {
+        #expect(throws: SyntaxError(line: 1, column: 42, message: "'en-a' is not a well-formed BCP 47 language tag")) {
+            try NTriplesDecoder().decode("<http://example/s> <http://example/p> \"o\"@en-a .")
+        }
+    }
+
+    @Test("Language-tagged literals encode and decode to the same graph")
+    func languageTagRoundTrip() throws {
+        let graph: Graph = [
+            Graph.Element(subject: .iri("http://example/s"), predicate: "http://example/p", object: .literal(try Literal("o", languageTag: "sr-Latn-RS", baseDirection: .rtl))),
+            Graph.Element(subject: .iri("http://example/s"), predicate: "http://example/p", object: .literal(try Literal("o", languageTag: "x-private")))
+        ]
+        #expect(try NTriplesDecoder().decode(NTriplesEncoder().encode(graph)) == graph)
+    }
+
+    @Test("Blank node identifiers that are not N-Triples labels encode under fresh labels")
+    func blankNodeRelabelling() throws {
+        let foreign = try BlankNode("nodeID://b1")
+        let other = try BlankNode("node id 2")
+        let b0 = try BlankNode("b0")
+        let inner = Graph.Element(subject: .blankNode(other), predicate: "http://example/p", object: .blankNode(foreign))
+        let graph: Graph = [
+            Graph.Element(subject: .blankNode(foreign), predicate: "http://example/p", object: .literal(Literal("o"))),
+            Graph.Element(subject: .blankNode(b0), predicate: "http://example/p", object: .blankNode(foreign)),
+            Graph.Element(subject: .blankNode(other), predicate: "http://example/q", object: .tripleTerm(inner))
+        ]
+        let document = NTriplesEncoder().encode(graph)
+        #expect(document == """
+            _:b1 <http://example/p> "o" .
+            _:b0 <http://example/p> _:b1 .
+            _:b2 <http://example/q> <<( _:b2 <http://example/p> _:b1 )>> .
+
+            """)
+        let decoded = try NTriplesDecoder().decode(document)
+        #expect(decoded.isIsomorphic(to: graph))
+    }
 }

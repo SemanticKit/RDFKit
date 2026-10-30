@@ -224,12 +224,12 @@ struct Scanner {
         return String(String.UnicodeScalarView(scalars[start..<index]))
     }
 
-    /// Splits the text after `@` into a language tag and an optional base
-    /// direction, rejecting a tag that is not a well-formed BCP 47 shape or a
-    /// direction other than `ltr` and `rtl`.
-    func languageAndDirection(_ word: String, at position: Int) throws -> (language: String, direction: BaseDirection?) {
+    /// The language-tagged string `lexicalForm@word`, where `word` is the
+    /// text after `@`: a language tag and an optional `--` base direction.
+    /// RDFCore's `Literal` decides whether the tag is well-formed BCP 47;
+    /// this reports its refusal at `position`.
+    func languageTaggedLiteral(_ lexicalForm: String, atWord word: String, at position: Int) throws -> Literal {
         let parts = word.components(separatedBy: "--")
-        let language = parts[0]
         var direction: BaseDirection?
         if parts.count == 2 {
             guard let value = BaseDirection(rawValue: parts[1]) else {
@@ -237,12 +237,11 @@ struct Scanner {
             }
             direction = value
         }
-        for subtag in language.split(separator: "-", omittingEmptySubsequences: false) {
-            guard (1...8).contains(subtag.unicodeScalars.count) else {
-                throw error("language subtag '\(subtag)' is not 1 to 8 characters long", at: position)
-            }
+        do {
+            return try Literal(lexicalForm, languageTag: parts[0], baseDirection: direction)
+        } catch {
+            throw self.error("'\(parts[0])' is not a well-formed BCP 47 language tag", at: position)
         }
-        return (language, direction)
     }
 
     // MARK: - Blank node labels

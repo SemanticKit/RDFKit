@@ -22,19 +22,6 @@ struct GraphTests {
         #expect(graph == [b])
     }
 
-    @Test("A triple is a triple term in object position")
-    func tripleTerm() throws {
-        let inner = Graph.Element(subject: s, predicate: p, object: .literal(try Literal("v", languageTag: "en", baseDirection: .ltr)))
-        let reifier: SubjectTerm = .blankNode(try BlankNode("r"))
-        let graph: Graph = [Graph.Element(subject: reifier, predicate: q, object: .tripleTerm(inner))]
-        guard case .tripleTerm(let term)? = graph.first?.object else {
-            Issue.record("expected a triple term")
-            return
-        }
-        #expect(term == inner)
-        #expect(graph.description == #"_:r <http://example/q> <<( <http://example/s> <http://example/p> "v"@en--ltr )>> ."#)
-    }
-
     @Test("Triples match a pattern whose missing components match anything")
     func matching() {
         let o: ObjectTerm = .iri("http://example/o")

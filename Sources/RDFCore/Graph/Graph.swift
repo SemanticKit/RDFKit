@@ -88,6 +88,8 @@ public struct Graph: SetAlgebra, RandomAccessCollection, Hashable, Sendable, Cus
         return result
     }
 
+    /// Removes `triple` from the graph. This is O(*n*) in the graph's size,
+    /// because the graph also keeps its triples' insertion order.
     @discardableResult
     public mutating func remove(_ triple: Element) -> Element? {
         guard let removed = members.remove(triple) else { return nil }

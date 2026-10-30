@@ -152,8 +152,7 @@ struct NTriplesParser {
         if scanner.peek(is: "@") {
             let position = scanner.index
             let word = try scanner.scanAtWord()
-            let (language, direction) = try scanner.languageAndDirection(word, at: position)
-            return try Literal(lexicalForm, languageTag: language, baseDirection: direction)
+            return try scanner.languageTaggedLiteral(lexicalForm, atWord: word, at: position)
         }
         return Literal(lexicalForm)
     }
