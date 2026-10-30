@@ -1,3 +1,5 @@
+import IRIKit
+import RDF
 import RDFCore
 import RDFKit
 
@@ -8,42 +10,42 @@ struct RDFTest: Ontology {
         Namespace("http://www.w3.org/ns/rdftest#")
 
         Class("TestNTriplesPositiveSyntax") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("N-Triples positive syntax test")
             Comment("A document a decoder accepts.")
         }
         Class("TestNTriplesNegativeSyntax") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("N-Triples negative syntax test")
             Comment("A document a decoder rejects.")
         }
         Class("TestNTriplesPositiveC14N") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("N-Triples canonicalization test")
             Comment("A document whose canonical N-Triples form is the result.")
         }
         Class("TestTurtlePositiveSyntax") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("Turtle positive syntax test")
             Comment("A document a decoder accepts.")
         }
         Class("TestTurtleNegativeSyntax") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("Turtle negative syntax test")
             Comment("A document a decoder rejects.")
         }
         Class("TestTurtleEval") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("Turtle evaluation test")
             Comment("A document whose graph is isomorphic to the result.")
         }
         Class("TestXMLEval") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("RDF/XML evaluation test")
             Comment("A document whose graph is isomorphic to the result.")
         }
         Class("TestXMLNegativeSyntax") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("RDF/XML negative syntax test")
             Comment("A document a decoder rejects.")
         }

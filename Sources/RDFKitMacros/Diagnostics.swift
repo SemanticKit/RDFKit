@@ -24,6 +24,14 @@ struct OntologyDiagnostic: DiagnosticMessage {
         id: "contentInBody"
     )
 
+    /// A named individual declared in an ontology's body.
+    static func individualIsModuleLevel(_ name: String) -> Self {
+        Self(
+            message: "'\(name)' is a named individual, a module-level value; a macro cannot declare module-level names (peer macros may not introduce arbitrary names at global scope), so declare it in RDF data translated by RDFTranslatorPlugin or in Swift as an instance of its class",
+            id: "individualIsModuleLevel"
+        )
+    }
+
     /// A generated individual type would have the name of a declared term.
     static func individualTypeCollides(name: String, className: String) -> Self {
         Self(
@@ -32,13 +40,6 @@ struct OntologyDiagnostic: DiagnosticMessage {
         )
     }
 
-    /// A functional property that would make a value type contain itself.
-    static func recursiveValue(property: String, type: String) -> Self {
-        Self(
-            message: "'\(property)' has at most one '\(type)', which would make the value type '\(type)' contain itself; make the property many-valued",
-            id: "recursiveValue"
-        )
-    }
 }
 
 /// A fix-it message.

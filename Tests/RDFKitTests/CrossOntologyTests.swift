@@ -1,4 +1,6 @@
 import Testing
+import IRIKit
+import RDF
 import RDFCore
 import RDFKit
 
@@ -8,25 +10,24 @@ struct ServiceDescription: Ontology {
     var body: some Content {
         Namespace("http://www.w3.org/ns/sparql-service-description#")
         Class("EntailmentRegime") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("Entailment Regime")
         }
         Property("name") {
             Domain(ServiceDescription.EntailmentRegime)
-            Range(RDFS.Literal)
+            Range(RDF.Literal)
         }
     }
 }
 
-/// A named individual typed with that class, declared in another ontology.
-@Ontology
-struct Entailment: Ontology {
-    var body: some Content {
-        Namespace("http://www.w3.org/ns/entailment/")
-        Individual("RDFS") {
-            Type(ServiceDescription.EntailmentRegime)
-            Label("RDFS entailment")
-        }
+/// An individual typed with that class, declared in another module's Swift:
+/// an instance of a class that conforms to the class's storing protocol.
+final class EntailmentRegime: ServiceDescription.EntailmentRegimeStoring {
+    let iri: IRI? = "http://www.w3.org/ns/entailment/RDFS"
+    let storage = IndividualStorage()
+
+    func encode(to encoder: any Encoder) throws {
+        try storage.encode(to: encoder)
     }
 }
 
@@ -34,10 +35,11 @@ struct Entailment: Ontology {
 struct CrossOntologyTests {
     @Test("is an instance of that class and stores its properties")
     func storesTheForeignClassesProperties() {
-        let regime: any ServiceDescription.EntailmentRegime = Entailment.RDFS
+        let rdfs = EntailmentRegime()
+        let regime: any ServiceDescription.EntailmentRegime = rdfs
         #expect(regime.name.isEmpty)
         regime.name = ["RDFS"]
-        #expect(Entailment.RDFS.name == ["RDFS"])
+        #expect(rdfs.name == ["RDFS"])
     }
 }
 
@@ -49,7 +51,7 @@ struct Agents: Ontology {
         Class("Agent")
         Property("name") {
             Domain(Agents.Agent)
-            Range(RDFS.Literal)
+            Range(RDF.Literal)
         }
     }
 }
@@ -64,7 +66,7 @@ struct People: Ontology {
         }
         Property("nickname") {
             Domain(People.Person)
-            Range(RDFS.Literal)
+            Range(RDF.Literal)
         }
     }
 }
@@ -79,23 +81,23 @@ struct Staff: Ontology {
         }
         Property("badge") {
             Domain(Staff.Employee)
-            Range(RDFS.Literal)
+            Range(RDF.Literal)
         }
     }
 }
 
-/// Individuals typed with those subclasses, in a fourth ontology.
-@Ontology
-struct Directory: Ontology {
-    var body: some Content {
-        Namespace("https://directory.example.org/#")
-        Individual("alice") {
-            Type(People.Person)
-        }
-        Individual("bob") {
-            Type(People.Person)
-            Type(Staff.Employee)
-        }
+/// An individual typed with both subclasses: one Swift class that conforms
+/// to the storing protocol of each.
+final class PersonAndEmployee: People.PersonStoring, Staff.EmployeeStoring {
+    let iri: IRI?
+    let storage = IndividualStorage()
+
+    init(iri: IRI? = nil) {
+        self.iri = iri
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        try storage.encode(to: encoder)
     }
 }
 
@@ -103,17 +105,18 @@ struct Directory: Ontology {
 struct ChainedOntologyTests {
     @Test("A class refining a third ontology's class stores the superclass's properties too")
     func storesThroughTheChain() {
-        let alice: any People.Person = Directory.alice
+        let individual = People.PersonIndividual()
+        let alice: any People.Person = individual
         alice.name = ["Alice"]
         alice.nickname = ["Al"]
-        let agent: any Agents.Agent = Directory.alice
+        let agent: any Agents.Agent = individual
         #expect(agent.name == ["Alice"])
-        #expect(Directory.alice.nickname == ["Al"])
+        #expect(individual.nickname == ["Al"])
     }
 
     @Test("Two classes that share a superclass share its property: it is one property")
     func sharedSuperclassPropertyIsOneProperty() {
-        let bob = Directory.bob
+        let bob = PersonAndEmployee()
         let person: any People.Person = bob
         let employee: any Staff.Employee = bob
         person.name = ["Bob"]
@@ -137,20 +140,18 @@ struct Teaching: Ontology {
         Property("office") {
             Domain(Teaching.Teacher)
             Domain(Teaching.Researcher)
-            Range(RDFS.Literal)
+            Range(RDF.Literal)
         }
     }
 }
 
-/// An individual in both domains, declared in another ontology.
-@Ontology
-struct Faculty: Ontology {
-    var body: some Content {
-        Namespace("https://faculty.example.org/#")
-        Individual("carol") {
-            Type(Teaching.Teacher)
-            Type(Teaching.Researcher)
-        }
+/// An individual in both domains.
+final class TeacherAndResearcher: Teaching.TeacherStoring, Teaching.ResearcherStoring {
+    let iri: IRI? = nil
+    let storage = IndividualStorage()
+
+    func encode(to encoder: any Encoder) throws {
+        try storage.encode(to: encoder)
     }
 }
 
@@ -158,8 +159,9 @@ struct Faculty: Ontology {
 struct TwoDomainTests {
     @Test("is one property of an individual in both domains")
     func isOnePropertyInBothDomains() {
-        let teacher: any Teaching.Teacher = Faculty.carol
-        let researcher: any Teaching.Researcher = Faculty.carol
+        let carol = TeacherAndResearcher()
+        let teacher: any Teaching.Teacher = carol
+        let researcher: any Teaching.Researcher = carol
         teacher.office = ["B12"]
         #expect(researcher.office == ["B12"])
         researcher.office.append("Lab 3")

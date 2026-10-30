@@ -3,60 +3,56 @@ import Testing
 
 @Suite("@Ontology member expansion", .tags(.generated))
 struct OntologyMacroTests {
-    @Test("Classes become protocols with individual types, a named individual a constant")
-    func classesAndIndividuals() {
+    @Test("A class becomes a protocol, a storing protocol and the Swift class of its members; a property its value and storing types")
+    func classesBecomeProtocolsAndClasses() {
         assertExpansion(
             """
             @Ontology
-            struct Zoo: Ontology {
-                var body: some Content {
+            public struct Zoo: Ontology {
+                public var body: some Content {
                     Namespace("https://zoo.example.org/#")
                     Class("Animal") {
+                        Type(RDF.Class)
+                        Label("Animal")
                         Comment("An animal.")
                     }
                     Class("Keeper") {
                         SubClassOf(Zoo.Animal)
-                    }
-                    Individual("rex") {
-                        Type(Zoo.Keeper)
                     }
                     Property("feeds") {
                         Domain(Zoo.Keeper)
                         Range(Zoo.Animal)
                     }
                     Property("name") {
-                        Type(OWL.FunctionalProperty)
                         Domain(Zoo.Animal)
-                        Range(RDFS.Literal)
+                        Range(RDF.Literal)
                     }
                 }
             }
             """,
             expandedSource: """
-            struct Zoo: Ontology {
-                var body: some Content {
+
+            public struct Zoo: Ontology {
+                public var body: some Content {
                     #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("https://zoo.example.org/#")
+                    RDFCore.Namespace("https://zoo.example.org/#")
                     #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Animal") {
-                                Comment("An animal.")
+
+                                RDFCore.Label("Animal")
+                                RDFCore.Comment("An animal.")
                             }
-                    #sourceLocation(file: "test.swift", line: 8)
+                    #sourceLocation(file: "test.swift", line: 10)
                     RDFCore.Class("Keeper") {
 
                             }
-                    #sourceLocation(file: "test.swift", line: 11)
-                    RDFCore.Individual("rex") {
-
-                            }
-                    #sourceLocation(file: "test.swift", line: 14)
+                    #sourceLocation(file: "test.swift", line: 13)
                     RDFCore.Property("feeds") {
 
 
                             }
-                    #sourceLocation(file: "test.swift", line: 18)
+                    #sourceLocation(file: "test.swift", line: 17)
                     RDFCore.Property("name") {
-
 
 
                             }
@@ -64,46 +60,47 @@ struct OntologyMacroTests {
                 }
 
                 /// An animal.
-                public protocol Animal: RDFCore.Resource {
-                    var name: String? {
+                public protocol Animal: RDF.Resource {
+                    var name: [RDF.LiteralIndividual.Member] {
                         get
                         set
                     }
                 }
 
-                /// An individual of ``Zoo/Animal``.
-                public final class AnimalIndividual: Zoo.Animal {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Animal", name: "Animal", comment: "An animal.")
-
-                    private struct Values: Sendable {
-                        var name: String?
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init(name: String? = nil) {
-                        storage = RDFCore.IndividualStorage(Values(name: name))
-                    }
-
-                    public var name: String? {
-                        get {
-                            storage.withLock {
-                                $0.name
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.name = newValue
-                            }
-                        }
-                    }
+                /// A member of ``Zoo/Animal`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                public protocol AnimalStoring: Zoo.Animal, Zoo.nameStoring, RDF.ResourceStoring {
                 }
 
-                /// An individual of ``Zoo/Animal`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal, Zoo.nameStoring, RDFCore.PropertyValueStoring {
+                /// An animal.
+                public final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
+                    public static let iri: IRIKit.IRI? = "https://zoo.example.org/#Animal"
+
+                    /// A member of the class as a property value.
+                    public typealias Member = any Zoo.Animal
+
+                    public let iri: IRIKit.IRI?
+
+                    public let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    public init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
+                    }
+
+                    public func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    public static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([RDF.ClassIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try container.encode([RDFCore.Literal("Animal")], for: RDFCore.PropertyKey(RDF.label))
+                        try container.encode([RDFCore.Literal("An animal.")], for: RDFCore.PropertyKey(RDF.comment))
+                    }
                 }
 
                 public protocol Keeper: Zoo.Animal {
@@ -113,94 +110,58 @@ struct OntologyMacroTests {
                     }
                 }
 
-                /// An individual of ``Zoo/Keeper``.
-                public final class KeeperIndividual: Zoo.Keeper {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Keeper", name: "Keeper")
-
-                    private struct Values: Sendable {
-                        var name: String?
-                        var feeds: [any Zoo.Animal]
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init(name: String? = nil, feeds: [any Zoo.Animal] = []) {
-                        storage = RDFCore.IndividualStorage(Values(name: name, feeds: feeds))
-                    }
-
-                    public var name: String? {
-                        get {
-                            storage.withLock {
-                                $0.name
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.name = newValue
-                            }
-                        }
-                    }
-
-                    public var feeds: [any Zoo.Animal] {
-                        get {
-                            storage.withLock {
-                                $0.feeds
-                            }
-                        }
-                        set {
-                            storage.withLock {
-                                $0.feeds = newValue
-                            }
-                        }
-                    }
-                }
-
-                /// An individual of ``Zoo/Keeper`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
+                /// A member of ``Zoo/Keeper`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
                 public protocol KeeperStoring: Zoo.Keeper, Zoo.feedsStoring, Zoo.AnimalStoring {
                 }
 
-                public static let rex: any Zoo.Keeper = _rexIndividual()
+                public final class KeeperIndividual: Zoo.KeeperStoring, RDFCore.ResourceClass {
+                    public static let iri: IRIKit.IRI? = "https://zoo.example.org/#Keeper"
 
-                private final class _rexIndividual: Zoo.KeeperStoring {
-                    fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#rex", name: "rex")
+                    /// A member of the class as a property value.
+                    public typealias Member = any Zoo.Keeper
 
-                    private let values = RDFCore.IndividualStorage(RDFCore.IndividualValues())
+                    public let iri: IRIKit.IRI?
 
-                    fileprivate init() {
+                    public let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    public init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
                     }
 
-                    /// Reads or changes this individual's value of one property under its lock.
-                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
-                        values.withLock {
-                            $0.withValue(body)
-                        }
+                    public func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.KeeperIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    public static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
                     }
                 }
 
                 public struct feeds: RDFCore.Entity {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#feeds", name: "feeds")
-
-                    /// The type this property applies to.
-                    public typealias Domain = any Zoo.Keeper
-
-                    /// The type of this property's values.
-                    public typealias Range = any Zoo.Animal
                 }
 
-                /// The values of ``Zoo/feeds`` that an individual stores.
+                /// The values an individual has for ``Zoo/feeds``.
                 public struct feedsValue: RDFCore.PropertyValue {
                     public var value: [any Zoo.Animal] = []
 
                     public init() {
                     }
+
+                    public func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Zoo.feeds.metadata))
+                    }
                 }
 
-                /// An individual that stores its value of ``Zoo/feeds`` in an
-                /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                protocol feedsStoring: RDFCore.PropertyValueStoring {
+                /// An individual that has ``Zoo/feeds``.
+                public protocol feedsStoring: RDFCore.PropertyValueStoring {
                     var feeds: [any Zoo.Animal] {
                         get
                         set
@@ -209,26 +170,24 @@ struct OntologyMacroTests {
 
                 public struct name: RDFCore.Entity {
                     public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#name", name: "name")
-
-                    /// The type this property applies to.
-                    public typealias Domain = any Zoo.Animal
-
-                    /// The type of this property's values.
-                    public typealias Range = String
                 }
 
-                /// The values of ``Zoo/name`` that an individual stores.
+                /// The values an individual has for ``Zoo/name``.
                 public struct nameValue: RDFCore.PropertyValue {
-                    public var value: String? = nil
+                    public var value: [RDF.LiteralIndividual.Member] = []
 
                     public init() {
                     }
+
+                    public func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Zoo.name.metadata))
+                    }
                 }
 
-                /// An individual that stores its value of ``Zoo/name`` in an
-                /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                protocol nameStoring: RDFCore.PropertyValueStoring {
-                    var name: String? {
+                /// An individual that has ``Zoo/name``.
+                public protocol nameStoring: RDFCore.PropertyValueStoring {
+                    var name: [RDF.LiteralIndividual.Member] {
                         get
                         set
                     }
@@ -236,7 +195,7 @@ struct OntologyMacroTests {
             }
 
             extension feedsStoring {
-                var feeds: [any Zoo.Animal] {
+                public var feeds: [any Zoo.Animal] {
                     get {
                         withPropertyValue { (stored: inout feedsValue) in
                             stored.value
@@ -251,7 +210,7 @@ struct OntologyMacroTests {
             }
 
             extension nameStoring {
-                var name: String? {
+                public var name: [RDF.LiteralIndividual.Member] {
                     get {
                         withPropertyValue { (stored: inout nameValue) in
                             stored.value
@@ -269,135 +228,143 @@ struct OntologyMacroTests {
     }
 
     @Test("Several superclasses become several refinements")
-    func multipleSuperclasses() {
+    func severalSuperclassesAreSeveralRefinements() {
         assertExpansion(
             """
             @Ontology
-            struct Zoo: Ontology {
+            struct Library: Ontology {
                 var body: some Content {
-                    Namespace("https://zoo.example.org/#")
-                    Class("Keeper")
-                    Class("Vet")
-                    Class("KeeperVet") {
-                        SubClassOf(Zoo.Keeper)
-                        SubClassOf(Zoo.Vet)
-                    }
-                    Individual("rex") {
-                        Type(Zoo.Keeper)
-                        Type(Zoo.Vet)
+                    Namespace("https://library.example/#")
+                    Class("Book")
+                    Class("Periodical")
+                    Class("Annual") {
+                        SubClassOf(Library.Book)
+                        SubClassOf(Library.Periodical)
                     }
                 }
             }
             """,
             expandedSource: """
-            struct Zoo: Ontology {
+
+            struct Library: Ontology {
                 var body: some Content {
                     #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("https://zoo.example.org/#")
+                    RDFCore.Namespace("https://library.example/#")
                     #sourceLocation(file: "test.swift", line: 5)
-                    RDFCore.Class("Keeper")
+                    RDFCore.Class("Book")
                     #sourceLocation(file: "test.swift", line: 6)
-                    RDFCore.Class("Vet")
+                    RDFCore.Class("Periodical")
                     #sourceLocation(file: "test.swift", line: 7)
-                    RDFCore.Class("KeeperVet") {
-
-
-                            }
-                    #sourceLocation(file: "test.swift", line: 11)
-                    RDFCore.Individual("rex") {
+                    RDFCore.Class("Annual") {
 
 
                             }
                     #sourceLocation()
                 }
 
-                public protocol Keeper: RDFCore.Resource {
+                protocol Book: RDF.Resource {
                 }
 
-                /// An individual of ``Zoo/Keeper``.
-                public final class KeeperIndividual: Zoo.Keeper {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Keeper", name: "Keeper")
+                /// A member of ``Library/Book`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol BookStoring: Library.Book, RDF.ResourceStoring {
+                }
 
-                    private struct Values: Sendable {
+                final class BookIndividual: Library.BookStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://library.example/#Book"
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Library.Book
+
+                    let iri: IRIKit.IRI?
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
                     }
 
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
-                    }
-                }
-
-                /// An individual of ``Zoo/Keeper`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol KeeperStoring: Zoo.Keeper, RDFCore.PropertyValueStoring {
-                }
-
-                public protocol Vet: RDFCore.Resource {
-                }
-
-                /// An individual of ``Zoo/Vet``.
-                public final class VetIndividual: Zoo.Vet {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Vet", name: "Vet")
-
-                    private struct Values: Sendable {
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Library.BookIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
                     }
 
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                     }
                 }
 
-                /// An individual of ``Zoo/Vet`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol VetStoring: Zoo.Vet, RDFCore.PropertyValueStoring {
+                protocol Periodical: RDF.Resource {
                 }
 
-                public protocol KeeperVet: Zoo.Keeper, Zoo.Vet {
+                /// A member of ``Library/Periodical`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol PeriodicalStoring: Library.Periodical, RDF.ResourceStoring {
                 }
 
-                /// An individual of ``Zoo/KeeperVet``.
-                public final class KeeperVetIndividual: Zoo.KeeperVet {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#KeeperVet", name: "KeeperVet")
+                final class PeriodicalIndividual: Library.PeriodicalStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://library.example/#Periodical"
 
-                    private struct Values: Sendable {
+                    /// A member of the class as a property value.
+                    typealias Member = any Library.Periodical
+
+                    let iri: IRIKit.IRI?
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
                     }
 
-                    private let storage: RDFCore.IndividualStorage<Values>
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Library.PeriodicalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
 
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                     }
                 }
 
-                /// An individual of ``Zoo/KeeperVet`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol KeeperVetStoring: Zoo.KeeperVet, Zoo.KeeperStoring, Zoo.VetStoring {
+                protocol Annual: Library.Book, Library.Periodical {
                 }
 
-                public static let rex: any Zoo.Keeper & Zoo.Vet = _rexIndividual()
+                /// A member of ``Library/Annual`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol AnnualStoring: Library.Annual, Library.BookStoring, Library.PeriodicalStoring {
+                }
 
-                private final class _rexIndividual: Zoo.KeeperStoring, Zoo.VetStoring {
-                    fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#rex", name: "rex")
+                final class AnnualIndividual: Library.AnnualStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://library.example/#Annual"
 
-                    private let values = RDFCore.IndividualStorage(RDFCore.IndividualValues())
+                    /// A member of the class as a property value.
+                    typealias Member = any Library.Annual
 
-                    fileprivate init() {
+                    let iri: IRIKit.IRI?
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
                     }
 
-                    /// Reads or changes this individual's value of one property under its lock.
-                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
-                        values.withLock {
-                            $0.withValue(body)
-                        }
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Library.AnnualIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Library.BookIndividual.self, Library.PeriodicalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
                     }
                 }
             }
@@ -405,107 +372,229 @@ struct OntologyMacroTests {
         )
     }
 
-    @Test("Datatypes stay value types; a class refining another ontology's class is a protocol only")
-    func datatypesAndForeignSuperclasses() {
+    @Test("A class or range of another module is resolved through its generated types; a datatype's members are literals")
+    func classesOfOtherModulesResolveThroughTheirTypes() {
         assertExpansion(
             """
             @Ontology
-            public struct Units: Ontology {
+            struct Club: Ontology {
                 var body: some Content {
-                    Namespace("https://units.example.org/#")
-                    Datatype("Kilograms") {
-                        SubClassOf(RDFS.Literal)
+                    Namespace("https://club.example.org/#")
+                    Datatype("Code") {
+                        SubClassOf(RDF.Literal)
                     }
-                    Class("Animal") {
-                        SubClassOf(OWL.Thing)
+                    Class("Member") {
+                        SubClassOf(FOAF.Person)
+                        SeeAlso("https://club.example.org/rules")
+                        Deprecated()
                     }
-                    Property("weight") {
-                        Type(OWL.FunctionalProperty)
-                        Domain(Units.Animal)
-                        Range(Units.Kilograms)
+                    Property("code") {
+                        Domain(Club.Member)
+                        Range(Club.Code)
                     }
+                    Property("friend") {
+                        Domain(Club.Member)
+                        Range(FOAF.Person)
+                    }
+                    Property("note")
                 }
             }
             """,
             expandedSource: """
-            public struct Units: Ontology {
+
+            struct Club: Ontology {
                 var body: some Content {
                     #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("https://units.example.org/#")
+                    RDFCore.Namespace("https://club.example.org/#")
                     #sourceLocation(file: "test.swift", line: 5)
-                    RDFCore.Datatype("Kilograms") {
+                    RDFCore.Datatype("Code") {
 
                             }
                     #sourceLocation(file: "test.swift", line: 8)
-                    RDFCore.Class("Animal") {
+                    RDFCore.Class("Member") {
+
+                                RDFCore.SeeAlso("https://club.example.org/rules")
+                                RDFCore.Deprecated()
+                            }
+                    #sourceLocation(file: "test.swift", line: 13)
+                    RDFCore.Property("code") {
+
 
                             }
-                    #sourceLocation(file: "test.swift", line: 11)
-                    RDFCore.Property("weight") {
-
+                    #sourceLocation(file: "test.swift", line: 17)
+                    RDFCore.Property("friend") {
 
 
                             }
+                    #sourceLocation(file: "test.swift", line: 21)
+                    RDFCore.Property("note")
                     #sourceLocation()
                 }
 
-                public struct Kilograms: RDFCore.Entity {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://units.example.org/#Kilograms", name: "Kilograms")
+                protocol Code: RDF.Literal {
+                }
 
-                    public init() {
+                /// A member of ``Club/Code`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol CodeStoring: Club.Code, RDF.LiteralStoring {
+                }
+
+                final class CodeIndividual: Club.CodeStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://club.example.org/#Code"
+
+                    /// A member of the class as a property value.
+                    typealias Member = RDFCore.Literal
+
+                    let iri: IRIKit.IRI?
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Club.CodeIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([RDF.LiteralIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
                     }
                 }
 
-                public protocol Animal: OWL.Thing {
-                    var weight: Units.Kilograms? {
+                @available(*, deprecated)
+                protocol Member: FOAF.Person {
+                    var code: [RDFCore.Literal] {
+                        get
+                        set
+                    }
+
+                    var friend: [FOAF.PersonIndividual.Member] {
                         get
                         set
                     }
                 }
 
-                /// An individual of ``Units/Animal`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Units.Animal, Units.weightStoring, OWL.ThingStoring {
+                /// A member of ``Club/Member`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol MemberStoring: Club.Member, Club.codeStoring, Club.friendStoring, FOAF.PersonStoring {
                 }
 
-                public struct weight: RDFCore.Entity {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://units.example.org/#weight", name: "weight")
+                @available(*, deprecated)
+                final class MemberIndividual: Club.MemberStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://club.example.org/#Member"
 
-                    /// The type this property applies to.
-                    public typealias Domain = any Units.Animal
+                    /// A member of the class as a property value.
+                    typealias Member = any Club.Member
 
-                    /// The type of this property's values.
-                    public typealias Range = Units.Kilograms
-                }
+                    let iri: IRIKit.IRI?
 
-                /// The values of ``Units/weight`` that an individual stores.
-                public struct weightValue: RDFCore.PropertyValue {
-                    public var value: Units.Kilograms? = nil
+                    let storage = RDFCore.IndividualStorage()
 
-                    public init() {
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Club.MemberIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([FOAF.PersonIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
+                        try container.encode([RDF.ResourceIndividual(iri: "https://club.example.org/rules")] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso))
+                        try container.encode([try RDFCore.Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")], for: RDFCore.PropertyKey(OWL.deprecated))
                     }
                 }
 
-                /// An individual that stores its value of ``Units/weight`` in an
-                /// ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``.
-                public protocol weightStoring: RDFCore.PropertyValueStoring {
-                    var weight: Units.Kilograms? {
+                struct code: RDFCore.Entity {
+                    static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#code", name: "code")
+                }
+
+                /// The values an individual has for ``Club/code``.
+                struct codeValue: RDFCore.PropertyValue {
+                    var value: [RDFCore.Literal] = []
+
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Club.code.metadata))
+                    }
+                }
+
+                /// An individual that has ``Club/code``.
+                protocol codeStoring: RDFCore.PropertyValueStoring {
+                    var code: [RDFCore.Literal] {
                         get
                         set
                     }
+                }
+
+                struct friend: RDFCore.Entity {
+                    static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#friend", name: "friend")
+                }
+
+                /// The values an individual has for ``Club/friend``.
+                struct friendValue: RDFCore.PropertyValue {
+                    var value: [FOAF.PersonIndividual.Member] = []
+
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Club.friend.metadata))
+                    }
+                }
+
+                /// An individual that has ``Club/friend``.
+                protocol friendStoring: RDFCore.PropertyValueStoring {
+                    var friend: [FOAF.PersonIndividual.Member] {
+                        get
+                        set
+                    }
+                }
+
+                struct note: RDFCore.Entity {
+                    static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://club.example.org/#note", name: "note")
                 }
             }
 
-            extension weightStoring {
-                public var weight: Units.Kilograms? {
+            extension codeStoring {
+                var code: [RDFCore.Literal] {
                     get {
-                        withPropertyValue { (stored: inout weightValue) in
+                        withPropertyValue { (stored: inout codeValue) in
                             stored.value
                         }
                     }
                     set {
-                        withPropertyValue { (stored: inout weightValue) in
+                        withPropertyValue { (stored: inout codeValue) in
+                            stored.value = newValue
+                        }
+                    }
+                }
+            }
+
+            extension friendStoring {
+                var friend: [FOAF.PersonIndividual.Member] {
+                    get {
+                        withPropertyValue { (stored: inout friendValue) in
+                            stored.value
+                        }
+                    }
+                    set {
+                        withPropertyValue { (stored: inout friendValue) in
                             stored.value = newValue
                         }
                     }
@@ -515,74 +604,8 @@ struct OntologyMacroTests {
         )
     }
 
-    @Test("owl:Nothing has no individual type")
-    func nothingHasNoIndividuals() {
-        assertExpansion(
-            """
-            @Ontology
-            struct OWL: Ontology {
-                var body: some Content {
-                    Namespace("http://www.w3.org/2002/07/owl#")
-                    Class("Thing")
-                    Class("Nothing") {
-                        SubClassOf(OWL.Thing)
-                    }
-                }
-            }
-            """,
-            expandedSource: """
-            struct OWL: Ontology {
-                var body: some Content {
-                    #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("http://www.w3.org/2002/07/owl#")
-                    #sourceLocation(file: "test.swift", line: 5)
-                    RDFCore.Class("Thing")
-                    #sourceLocation(file: "test.swift", line: 6)
-                    RDFCore.Class("Nothing") {
-
-                            }
-                    #sourceLocation()
-                }
-
-                public protocol Thing: RDFCore.Resource {
-                }
-
-                /// An individual of ``OWL/Thing``.
-                public final class ThingIndividual: OWL.Thing {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/2002/07/owl#Thing", name: "Thing")
-
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
-                    }
-                }
-
-                /// An individual of ``OWL/Thing`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol ThingStoring: OWL.Thing, RDFCore.PropertyValueStoring {
-                }
-
-                public protocol Nothing: OWL.Thing {
-                }
-
-                /// An individual of ``OWL/Nothing`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol NothingStoring: OWL.Nothing, OWL.ThingStoring {
-                }
-            }
-            """
-        )
-    }
-
-    @Test("Term mistakes are reported at the authored annotation")
-    func diagnostics() {
+    @Test("Mistakes are reported where they were written, and a named individual is a module-level value")
+    func mistakesAreReportedAtTheAuthoredDeclaration() {
         assertExpansion(
             """
             @Ontology
@@ -595,22 +618,17 @@ struct OntologyMacroTests {
                     }
                     Class("AnimalIndividual")
                     Individual("rex") {
-                        Type(OWL.Thing)
-                    }
-                    Datatype("Weight")
-                    Property("heavier") {
-                        Type(OWL.FunctionalProperty)
-                        Domain(Zoo.Weight)
-                        Range(Zoo.Weight)
+                        Type(Zoo.Keeper)
                     }
                 }
             }
             """,
             expandedSource: """
+
             struct Zoo: Ontology {
                 var body: some Content {
                     #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("https://zoo.example.org/#")
+                    RDFCore.Namespace("https://zoo.example.org/#")
                     #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Animal")
                     #sourceLocation(file: "test.swift", line: 6)
@@ -623,153 +641,89 @@ struct OntologyMacroTests {
                     RDFCore.Individual("rex") {
 
                             }
-                    #sourceLocation(file: "test.swift", line: 13)
-                    RDFCore.Datatype("Weight")
-                    #sourceLocation(file: "test.swift", line: 14)
-                    RDFCore.Property("heavier") {
-
-
-
-                            }
                     #sourceLocation()
                 }
 
-                public protocol Animal: RDFCore.Resource {
+                protocol Animal: RDF.Resource {
                 }
 
-                /// An individual of ``Zoo/Animal`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal, RDFCore.PropertyValueStoring {
+                protocol Keeper: RDF.Resource {
                 }
 
-                public protocol Keeper: RDFCore.Resource {
+                /// A member of ``Zoo/Keeper`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol KeeperStoring: Zoo.Keeper, RDF.ResourceStoring {
                 }
 
-                /// An individual of ``Zoo/Keeper`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol KeeperStoring: Zoo.Keeper, RDFCore.PropertyValueStoring {
-                }
+                final class KeeperIndividual: Zoo.KeeperStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://zoo.example.org/#Keeper"
 
-                public protocol AnimalIndividual: RDFCore.Resource {
-                }
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.Keeper
 
-                /// An individual of ``Zoo/AnimalIndividual``.
-                public final class AnimalIndividualIndividual: Zoo.AnimalIndividual {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#AnimalIndividual", name: "AnimalIndividual")
+                    let iri: IRIKit.IRI?
 
-                    private struct Values: Sendable {
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
                     }
 
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
-                    }
-                }
-
-                /// An individual of ``Zoo/AnimalIndividual`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol AnimalIndividualStoring: Zoo.AnimalIndividual, RDFCore.PropertyValueStoring {
-                }
-
-                public static let rex: any OWL.Thing = _rexIndividual()
-
-                private final class _rexIndividual: OWL.ThingStoring {
-                    fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#rex", name: "rex")
-
-                    private let values = RDFCore.IndividualStorage(RDFCore.IndividualValues())
-
-                    fileprivate init() {
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.KeeperIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
                     }
 
-                    /// Reads or changes this individual's value of one property under its lock.
-                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
-                        values.withLock {
-                            $0.withValue(body)
-                        }
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimlIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf))
                     }
                 }
 
-                public struct Weight: RDFCore.Entity {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Weight", name: "Weight")
-
-                    public var heavier: Zoo.Weight?
-
-                    public init(heavier: Zoo.Weight? = nil) {
-                        self.heavier = heavier
-                    }
+                protocol AnimalIndividual: RDF.Resource {
                 }
 
-                public struct heavier: RDFCore.Entity {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#heavier", name: "heavier")
+                /// A member of ``Zoo/AnimalIndividual`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol AnimalIndividualStoring: Zoo.AnimalIndividual, RDF.ResourceStoring {
+                }
 
-                    /// The type this property applies to.
-                    public typealias Domain = Zoo.Weight
+                final class AnimalIndividualIndividual: Zoo.AnimalIndividualStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://zoo.example.org/#AnimalIndividual"
 
-                    /// The type of this property's values.
-                    public typealias Range = Zoo.Weight
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.AnimalIndividual
+
+                    let iri: IRIKit.IRI?
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimalIndividualIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                    }
                 }
             }
             """,
             diagnostics: [
                 DiagnosticSpec(message: "'Zoo.Animl' is not declared in Zoo", line: 7, column: 13),
                 DiagnosticSpec(message: "'AnimalIndividual' is declared in this ontology, so the individual type of 'Animal' cannot use that name", line: 5, column: 9),
-                DiagnosticSpec(message: "'heavier' has at most one 'Weight', which would make the value type 'Weight' contain itself; make the property many-valued", line: 14, column: 9),
+                DiagnosticSpec(message: "'rex' is a named individual, a module-level value; a macro cannot declare module-level names (peer macros may not introduce arbitrary names at global scope), so declare it in RDF data translated by RDFTranslatorPlugin or in Swift as an instance of its class", line: 10, column: 9),
             ]
-        )
-    }
-
-    @Test("A named individual may be typed with another ontology's class")
-    func individualOfAnotherOntologysClass() {
-        assertExpansion(
-            """
-            @Ontology
-            struct Entailment: Ontology {
-                var body: some Content {
-                    Namespace("http://www.w3.org/ns/entailment/")
-                    Individual("RDFS") {
-                        Type(ServiceDescription.EntailmentRegime)
-                        Label("RDFS entailment")
-                    }
-                }
-            }
-            """,
-            expandedSource: """
-            struct Entailment: Ontology {
-                var body: some Content {
-                    #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("http://www.w3.org/ns/entailment/")
-                    #sourceLocation(file: "test.swift", line: 5)
-                    RDFCore.Individual("RDFS") {
-
-                                Label("RDFS entailment")
-                            }
-                    #sourceLocation()
-                }
-
-                public static let RDFS: any ServiceDescription.EntailmentRegime = _RDFSIndividual()
-
-                private final class _RDFSIndividual: ServiceDescription.EntailmentRegimeStoring {
-                    fileprivate static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "http://www.w3.org/ns/entailment/RDFS", name: "RDFS", label: "RDFS entailment")
-
-                    private let values = RDFCore.IndividualStorage(RDFCore.IndividualValues())
-
-                    fileprivate init() {
-                    }
-
-                    /// Reads or changes this individual's value of one property under its lock.
-                    fileprivate func withPropertyValue<Value: RDFCore.PropertyValue, Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
-                        values.withLock {
-                            $0.withValue(body)
-                        }
-                    }
-                }
-            }
-            """
         )
     }
 

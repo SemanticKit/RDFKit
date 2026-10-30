@@ -1,51 +1,45 @@
 /// What each declared term becomes, and how classes, properties and
 /// individuals relate in the generated code.
 ///
-/// - A `Class` becomes a protocol. Its requirements are the properties whose
-///   `Domain` is the class, and each `SubClassOf` becomes a refinement, so an
-///   individual can belong to several classes. `rdfs:Literal` and its
-///   subclasses are the exception: literals have no identity, so they are
-///   value types.
-/// - A `Datatype` becomes a value type.
-/// - An `Individual` becomes the one instance of a final class that conforms
-///   to the protocols of its classes.
-/// - A `Property` becomes a term type that names its `Domain` and `Range`.
+/// The model reads only the DSL's own forms and the types the annotations
+/// name. What a term named from another module is, a class of individuals
+/// or of literals, is resolved by the compiler through that module's
+/// generated types (`RDF.LiteralIndividual.Member` for `Range(RDF.Literal)`),
+/// never by a table of spellings or IRIs.
+///
+/// - A `Class` becomes a protocol, a storing protocol and a final class
+///   whose instances are its members; a `Datatype` too, whose members are
+///   literals. Each `SubClassOf` becomes a refinement, so an individual can
+///   belong to several classes.
+/// - A `Property` becomes a term type, and, when its `Domain` is a class of
+///   this ontology, a value type that holds its values on an individual and
+///   a storing protocol that gives the individual its accessor.
+/// - An `Individual` is a module-level value, which the macro cannot
+///   declare (see ``OntologyDiagnostic/individualIsModuleLevel(_:)``).
 struct OntologyModel {
     enum Shape: Equatable {
-        /// A term RDFCore already provides.
-        case alias(form: String)
-        /// A class of individuals: a protocol.
-        case classProtocol
-        /// A datatype or literal class: a value type.
-        case value
+        /// A class: its members are individuals.
+        case `class`
+        /// A datatype: its members are literals.
+        case datatype
         /// A property term type.
-        case propertyTerm
+        case property
         /// A named individual.
         case individual
     }
 
-    /// A property as a requirement of a class protocol or a stored property
-    /// of a value type.
+    /// A property as a requirement of a class protocol.
     struct PropertyRequirement {
         /// The property declaration.
         let declaration: ParsedEntity
-        /// The Swift type of one value: the range's generated type, or the
-        /// Swift value type of a literal range.
-        let valueType: String
-        /// Whether the property is an `owl:FunctionalProperty`: at most one value.
-        let isFunctional: Bool
+        /// The Swift type of one value, by the property's range.
+        let memberType: String
 
         /// The property name as a Swift identifier.
         var name: String { SwiftIdentifier.escaped(declaration.name) }
 
-        /// Many values by default, at most one for a functional property.
-        var declaredType: String {
-            guard isFunctional else { return "[\(valueType)]" }
-            return valueType.hasPrefix("any ") ? "(\(valueType))?" : "\(valueType)?"
-        }
-
-        /// No values.
-        var emptyValue: String { isFunctional ? "nil" : "[]" }
+        /// The values: a property has any number of them.
+        var declaredType: String { "[\(memberType)]" }
     }
 
     let ontology: ParsedOntology
@@ -54,43 +48,39 @@ struct OntologyModel {
     init(ontology: ParsedOntology) {
         self.ontology = ontology
         for declaration in ontology.declarations where shapes[declaration.name] == nil {
-            shapes[declaration.name] = shape(computing: declaration)
+            shapes[declaration.name] = switch declaration.kind {
+            case .class: .class
+            case .datatype: .datatype
+            case .property: .property
+            case .individual: .individual
+            }
         }
     }
 
     func shape(of name: String) -> Shape? { shapes[name] }
 
+    /// Whether a local name is a class or datatype of this ontology.
+    func isClass(_ name: String) -> Bool {
+        shapes[name] == .class || shapes[name] == .datatype
+    }
+
     // MARK: - Classes
 
-    /// The protocols a class protocol refines: its local and foreign
-    /// superclasses, or ``RDFCore/Resource`` when it declares none.
+    /// The protocols a class protocol refines: those of its superclasses,
+    /// here or in other modules, or `RDF.Resource` when it names none, since
+    /// every resource is an `rdfs:Resource` (RDF 1.2 Semantics, rdfs4).
     func refinements(of className: String) -> [String] {
         var result: [String] = []
         for spelling in superclassSpellings(of: className) where !result.contains(spelling) {
             result.append(spelling)
         }
-        return result.isEmpty ? ["RDFCore.Resource"] : result
+        return result.isEmpty ? [ClassNames.resource] : result
     }
 
-    /// Whether every class a class refines, transitively, is declared in this
-    /// ontology or is `rdfs:Resource`, so that the macro knows every
-    /// requirement an individual of the class must store. `owl:Nothing` and
-    /// its subclasses have no individuals, so they have no individual type.
-    func knowsAllRequirements(of className: String) -> Bool {
-        var visited: Set<String> = []
-        var pending = [className]
-        while let current = pending.popLast() {
-            guard visited.insert(current).inserted, let declaration = ontology.declaration(named: current) else { continue }
-            if BootstrapTerm.isNothing("\(ontology.typeName).\(current)") { return false }
-            for spelling in declaration.terms("SubClassOf") {
-                let canonical = ontology.canonical(spelling)
-                if BootstrapTerm.isResource(canonical) { continue }
-                if BootstrapTerm.isNothing(canonical) { return false }
-                guard let name = ontology.resolve(spelling).localName, shapes[name] == .classProtocol else { return false }
-                pending.append(name)
-            }
-        }
-        return true
+    /// The storing protocols a class's storing protocol refines for its
+    /// superclasses.
+    func superclassStoring(of className: String) -> [String] {
+        refinements(of: className).map { ClassNames(qualifiedClass: $0).qualifiedStoring }
     }
 
     /// The properties whose `Domain` is this class, in declaration order.
@@ -102,22 +92,9 @@ struct OntologyModel {
         }
     }
 
-    /// Every requirement an individual of all these classes stores: theirs
-    /// and their local superclasses', each once, superclasses first.
-    func storedRequirements(ofClasses classNames: [String]) -> [PropertyRequirement] {
-        var order: [String] = []
-        var visited: Set<String> = []
-        func visit(_ name: String) {
-            guard visited.insert(name).inserted, let declaration = ontology.declaration(named: name) else { return }
-            for spelling in declaration.terms("SubClassOf") {
-                if let local = ontology.resolve(spelling).localName, shapes[local] == .classProtocol { visit(local) }
-            }
-            order.append(name)
-        }
-        classNames.forEach(visit)
-
-        var seen: Set<String> = []
-        return order.flatMap(ownRequirements(of:)).filter { seen.insert($0.declaration.name).inserted }
+    /// The Swift type of a member of a class of this ontology as a value.
+    func memberType(ofClass name: String) -> String {
+        shapes[name] == .datatype ? "RDFCore.Literal" : "any \(ontology.spelling(of: .local(name)))"
     }
 
     // MARK: - Properties
@@ -125,79 +102,28 @@ struct OntologyModel {
     func requirement(for property: ParsedEntity) -> PropertyRequirement {
         PropertyRequirement(
             declaration: property,
-            valueType: property.term("Range").map(valueType(ofRange:)) ?? "any RDFCore.Resource",
-            isFunctional: isFunctional(property)
+            memberType: property.term("Range").map(memberType(ofRange:)) ?? "RDFCore.Value"
         )
     }
 
-    /// The Swift type of one value of a range.
-    func valueType(ofRange spelling: String) -> String {
-        if let literal = BootstrapTerm.literalValueType(forRange: ontology.canonical(spelling)) {
-            return literal
-        }
+    /// The Swift type of one value of a range: a member of the range class.
+    /// A class of another module is resolved through the `Member` of its
+    /// generated Swift class, so `Range(RDF.Literal)` is `RDFCore.Literal`
+    /// and `Range(FOAF.Person)` is `any FOAF.Person`.
+    func memberType(ofRange spelling: String) -> String {
         let reference = ontology.resolve(spelling)
-        if let name = reference.localName, shapes[name] == .classProtocol {
-            return "any " + ontology.spelling(of: reference)
+        if let name = reference.localName, isClass(name) {
+            return memberType(ofClass: name)
         }
-        return ontology.spelling(of: reference)
+        return ClassNames(qualifiedClass: ontology.spelling(of: reference)).qualifiedIndividual + ".Member"
     }
 
-    /// Whether a property is typed `owl:FunctionalProperty`, or is a
-    /// subproperty of a local functional property.
-    func isFunctional(_ property: ParsedEntity, visited: Set<String> = []) -> Bool {
-        if property.terms("Type").contains(where: { BootstrapTerm.isFunctionalProperty(ontology.canonical($0)) }) {
-            return true
-        }
-        let visited = visited.union([property.name])
-        return property.terms("SubPropertyOf").contains { spelling in
-            guard let name = ontology.resolve(spelling).localName, !visited.contains(name),
-                  let parent = ontology.declaration(named: name), parent.kind == .property else { return false }
-            return isFunctional(parent, visited: visited)
-        }
-    }
-
-    /// The local value type a functional property of a value type holds, if
-    /// holding it would make that value type contain itself.
-    func recursiveValueType(of typeName: String) -> (property: ParsedEntity, type: String)? {
-        var visited: Set<String> = []
-        var pending: [(name: String, first: ParsedEntity?)] = [(typeName, nil)]
-        while let next = pending.popLast() {
-            let (current, first) = next
-            for requirement in ownRequirements(of: current) where requirement.isFunctional {
-                guard let range = requirement.declaration.term("Range"),
-                      let name = ontology.resolve(range).localName, shapes[name] == .value else { continue }
-                let origin = first ?? requirement.declaration
-                if name == typeName { return (origin, typeName) }
-                if visited.insert(name).inserted { pending.append((name, origin)) }
-            }
-        }
-        return nil
-    }
-
-    // MARK: - Shapes
-
-    private func shape(computing declaration: ParsedEntity) -> Shape {
-        if let form = BootstrapTerm.form(namespace: ontology.namespace, name: declaration.name) {
-            return .alias(form: form)
-        }
-        switch declaration.kind {
-        case .class: return isLiteralClass(declaration.name) ? .value : .classProtocol
-        case .datatype: return .value
-        case .property: return .propertyTerm
-        case .individual: return .individual
-        }
-    }
-
-    /// Whether a class is `rdfs:Literal` or one of its subclasses.
-    private func isLiteralClass(_ name: String, visited: Set<String> = []) -> Bool {
-        if BootstrapTerm.isLiteral("\(ontology.typeName).\(name)") { return true }
-        guard let declaration = ontology.declaration(named: name) else { return false }
-        let visited = visited.union([name])
-        return declaration.terms("SubClassOf").contains { spelling in
-            if BootstrapTerm.isLiteral(ontology.canonical(spelling)) { return true }
-            guard let local = ontology.resolve(spelling).localName, !visited.contains(local),
-                  ontology.declaration(named: local)?.kind == .class else { return false }
-            return isLiteralClass(local, visited: visited)
+    /// Whether a property has a `Domain` that is a class of this ontology,
+    /// so it is stored on that class's members.
+    func isStored(_ property: ParsedEntity) -> Bool {
+        property.terms("Domain").contains { spelling in
+            guard let name = ontology.resolve(spelling).localName else { return false }
+            return isClass(name)
         }
     }
 
@@ -206,14 +132,44 @@ struct OntologyModel {
         guard let declaration = ontology.declaration(named: className) else { return [] }
         return declaration.terms("SubClassOf").compactMap { spelling in
             let reference = ontology.resolve(spelling)
-            if let local = reference.localName {
-                switch shapes[local] {
-                case .classProtocol: return ontology.spelling(of: reference)
-                case .alias where BootstrapTerm.isResource(ontology.canonical(spelling)): return ontology.spelling(of: reference)
-                default: return nil
-                }
-            }
-            return spelling
+            if let local = reference.localName, !isClass(local) { return nil }
+            return ontology.spelling(of: reference)
         }
+    }
+}
+
+/// The names `@Ontology` and `RDFTranslatorPlugin` give the Swift of a
+/// class, `Animal`: its storing protocol `AnimalStoring` and its Swift class
+/// `AnimalIndividual`; and of a property, `hasHabitat`: its value type
+/// `hasHabitatValue` and storing protocol `hasHabitatStoring`.
+struct ClassNames {
+    /// The protocol of `rdfs:Resource`, which every class refines.
+    static let resource = "RDF.Resource"
+
+    /// The qualified class, `Fauna`, when it is named from another ontology.
+    let qualifier: String?
+    let className: String
+
+    init(className: String) {
+        qualifier = nil
+        self.className = className
+    }
+
+    /// The names for a class spelled `Fauna.Animal`.
+    init(qualifiedClass: String) {
+        let components = qualifiedClass.split(separator: ".").map { $0.trimmingCharacters(in: ["`"]) }
+        qualifier = components.dropLast().joined(separator: ".")
+        className = SwiftIdentifier.sanitized(components.last ?? qualifiedClass)
+    }
+
+    var value: String { className + "Value" }
+    var storing: String { className + "Storing" }
+    var individual: String { className + "Individual" }
+    var qualifiedStoring: String { qualified(storing) }
+    var qualifiedIndividual: String { qualified(individual) }
+
+    private func qualified(_ name: String) -> String {
+        guard let qualifier, !qualifier.isEmpty else { return name }
+        return qualifier + "." + name
     }
 }

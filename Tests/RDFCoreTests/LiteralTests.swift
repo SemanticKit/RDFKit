@@ -1,10 +1,16 @@
 import IRIKit
 import RDFCore
-import RDFKit
 import Testing
 
 @Suite("Literal", .tags(.term))
 struct LiteralTests {
+    /// Datatype IRIs, as a document writes them.
+    static let xsdString: IRI = "http://www.w3.org/2001/XMLSchema#string"
+    static let xsdInteger: IRI = "http://www.w3.org/2001/XMLSchema#integer"
+    static let xsdDecimal: IRI = "http://www.w3.org/2001/XMLSchema#decimal"
+    static let rdfLangString: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
+    static let rdfDirLangString: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"
+
     @Test("Language tags compare case-insensitively")
     func languageTagCase() throws {
         let upper = try Literal("chat", languageTag: "FR-ca")
@@ -59,12 +65,12 @@ struct LiteralTests {
 
     @Test("A literal typed xsd:string is the simple literal")
     func xsdString() throws {
-        let typed = try Literal("a", datatype: XSD.string.metadata.id)
+        let typed = try Literal("a", datatype: Self.xsdString)
         #expect(typed == Literal("a"))
         #expect(typed.datatype == nil)
     }
 
-    @Test("rdf:langString and rdf:dirLangString need a language tag", arguments: [RDF.langString.metadata.id, RDF.dirLangString.metadata.id])
+    @Test("rdf:langString and rdf:dirLangString need a language tag", arguments: [LiteralTests.rdfLangString, LiteralTests.rdfDirLangString])
     func languageStringDatatypes(_ datatype: IRI) {
         #expect(throws: TermError.datatypeRequiresLanguageTag) {
             try Literal("a", datatype: datatype)
@@ -73,18 +79,18 @@ struct LiteralTests {
 
     @Test("Every literal has the datatype IRI RDF 1.2 gives it")
     func datatypeIRI() throws {
-        #expect(Literal("a").datatypeIRI == XSD.string.metadata.id)
-        #expect(try Literal("a", languageTag: "en").datatypeIRI == RDF.langString.metadata.id)
-        #expect(try Literal("a", languageTag: "en", baseDirection: .rtl).datatypeIRI == RDF.dirLangString.metadata.id)
-        #expect(try Literal("1", datatype: XSD.integer.metadata.id).datatypeIRI == XSD.integer.metadata.id)
+        #expect(Literal("a").datatypeIRI == Self.xsdString)
+        #expect(try Literal("a", languageTag: "en").datatypeIRI == Self.rdfLangString)
+        #expect(try Literal("a", languageTag: "en", baseDirection: .rtl).datatypeIRI == Self.rdfDirLangString)
+        #expect(try Literal("1", datatype: Self.xsdInteger).datatypeIRI == Self.xsdInteger)
     }
 
     @Test("Typed literals compare lexical form and datatype IRI")
     func typedEquality() throws {
-        let one = try Literal("1", datatype: XSD.integer.metadata.id)
-        #expect(one == (try Literal("1", datatype: XSD.integer.metadata.id)))
-        #expect(one != (try Literal("01", datatype: XSD.integer.metadata.id)))
-        #expect(one != (try Literal("1", datatype: XSD.decimal.metadata.id)))
+        let one = try Literal("1", datatype: Self.xsdInteger)
+        #expect(one == (try Literal("1", datatype: Self.xsdInteger)))
+        #expect(one != (try Literal("01", datatype: Self.xsdInteger)))
+        #expect(one != (try Literal("1", datatype: Self.xsdDecimal)))
         #expect(one != Literal("1"))
     }
 }

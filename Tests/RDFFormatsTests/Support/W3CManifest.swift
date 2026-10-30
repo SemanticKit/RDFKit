@@ -1,5 +1,6 @@
 import Foundation
 import IRIKit
+import RDF
 import RDFCore
 import RDFFormats
 import RDFKit
@@ -56,8 +57,8 @@ struct W3CManifest {
         let text = try String(contentsOf: try file(for: iri), encoding: .utf8)
         let graph = try TurtleDecoder(base: iri).decode(text)
         guard let manifest = graph.subjects(
-            RDF.type.metadata.id,
-            TestManifest.ManifestIndividual.metadata.id
+            RDF.type.iri!,
+            TestManifest.ManifestIndividual.iri!
         ).first else {
             throw W3CManifestError.malformed(iri, "no mf:Manifest")
         }
@@ -79,7 +80,7 @@ struct W3CManifest {
 
     func test(_ entry: SubjectTerm, in graph: Graph, manifest: IRI) throws -> W3CTestCase {
         guard case .iri(let id) = entry else { throw W3CManifestError.malformed(manifest, "a test without an IRI") }
-        guard case .iri(let type)? = graph.object(entry, RDF.type.metadata.id),
+        guard case .iri(let type)? = graph.object(entry, RDF.type.iri!),
               let kind = Self.kind(of: type) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
         }
@@ -102,18 +103,18 @@ struct W3CManifest {
     }
 
     static func kind(of type: IRI) -> W3CTestCase.Kind? {
-        switch type {
-        case RDFTest.TestNTriplesPositiveSyntaxIndividual.metadata.id,
-             RDFTest.TestTurtlePositiveSyntaxIndividual.metadata.id:
+        switch Optional(type) {
+        case RDFTest.TestNTriplesPositiveSyntaxIndividual.iri,
+             RDFTest.TestTurtlePositiveSyntaxIndividual.iri:
             .positiveSyntax
-        case RDFTest.TestNTriplesNegativeSyntaxIndividual.metadata.id,
-             RDFTest.TestTurtleNegativeSyntaxIndividual.metadata.id,
-             RDFTest.TestXMLNegativeSyntaxIndividual.metadata.id:
+        case RDFTest.TestNTriplesNegativeSyntaxIndividual.iri,
+             RDFTest.TestTurtleNegativeSyntaxIndividual.iri,
+             RDFTest.TestXMLNegativeSyntaxIndividual.iri:
             .negativeSyntax
-        case RDFTest.TestTurtleEvalIndividual.metadata.id,
-             RDFTest.TestXMLEvalIndividual.metadata.id:
+        case RDFTest.TestTurtleEvalIndividual.iri,
+             RDFTest.TestXMLEvalIndividual.iri:
             .evaluation
-        case RDFTest.TestNTriplesPositiveC14NIndividual.metadata.id:
+        case RDFTest.TestNTriplesPositiveC14NIndividual.iri:
             .canonicalization
         default:
             nil
@@ -135,13 +136,13 @@ extension Graph {
     func list(_ head: ObjectTerm?) throws -> [ObjectTerm] {
         var members: [ObjectTerm] = []
         var node = head
-        while let current = node, current != .iri(type(of: RDF.nil).metadata.id) {
+        while let current = node, current != .iri(RDF.nil.iri!) {
             guard let cell = current.subject,
-                  let first = object(cell, RDF.first.metadata.id) else {
-                throw W3CManifestError.malformed(type(of: RDF.nil).metadata.id, "a broken list")
+                  let first = object(cell, RDF.first.iri!) else {
+                throw W3CManifestError.malformed(RDF.nil.iri!, "a broken list")
             }
             members.append(first)
-            node = object(cell, RDF.rest.metadata.id)
+            node = object(cell, RDF.rest.iri!)
         }
         return members
     }

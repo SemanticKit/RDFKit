@@ -1,3 +1,5 @@
+import IRIKit
+import RDF
 import RDFCore
 import RDFKit
 
@@ -8,7 +10,7 @@ struct TestManifest: Ontology {
         Namespace("http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#")
 
         Class("Manifest") {
-            Type(RDFS.Class)
+            Type(RDF.Class)
             Label("Manifest")
             Comment("A set of tests.")
         }

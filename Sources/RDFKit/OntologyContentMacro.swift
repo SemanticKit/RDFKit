@@ -11,8 +11,7 @@ public macro OntologyContent(file: String = "", line: Int = 0) = #externalMacro(
 
 /// Gives the storing protocol `@Ontology` generates for a property,
 /// `Fauna.hasHabitatStoring`, the property's accessors, backed by the
-/// property's value in the individual's ``RDFCore/IndividualStorage`` of
-/// ``RDFCore/IndividualValues``.
+/// property's value in the individual's ``RDFCore/IndividualStorage``.
 ///
 /// The storing protocol of each domain of the property refines it, and an
 /// individual declared in another ontology or module that is typed with a

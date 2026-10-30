@@ -47,16 +47,11 @@ let package = Package(
         .target(
             name: "RDFKit",
             dependencies: [
+                "IRIKit",
                 "RDFCore",
                 "RDF",
                 "OWL",
                 "RDFKitMacros"
-            ],
-            exclude: [
-                "DSL_INVARIANTS.md",
-                "OWL/AGENTS.md",
-                "RDF/AGENTS.md",
-                "RDFS/AGENTS.md"
             ]
         ),
         .macro(
@@ -118,7 +113,15 @@ let package = Package(
 
         .testTarget(
             name: "RDFKitTests",
-            dependencies: ["RDFKit"],
+            dependencies: [
+                "RDFKit",
+                "RDFCore",
+                "RDFFormats",
+                "RDF",
+                "OWL",
+                "FOAF",
+                .product(name: "IRIKit", package: "IRIKit")
+            ],
             exclude: [
                 "Data/shacl.rdf",
                 "Data/shacl.ttl",
@@ -130,6 +133,7 @@ let package = Package(
             dependencies: [
                 "RDFFormats",
                 "RDFCore",
+                "RDF",
                 "RDFKit",
                 .product(name: "IRIKit", package: "IRIKit")
             ],
@@ -144,7 +148,6 @@ let package = Package(
             name: "RDFCoreTests",
             dependencies: [
                 "RDFCore",
-                "RDFKit",
                 .product(name: "IRIKit", package: "IRIKit")
             ]
         ),

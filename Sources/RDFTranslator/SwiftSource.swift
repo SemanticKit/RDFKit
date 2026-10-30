@@ -170,7 +170,7 @@ struct SwiftSource {
         let types = stated.compactMap(classDeclaration).map { "\($0.classReference).self" }
         if !types.isEmpty {
             text += "        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)\n"
-            text += "        try container.encode([\(types.joined(separator: ", "))] as [any RDFCore.ResourceClass.Type], for: \(reference(.iri(.rdfType))))\n"
+            text += "        try container.encode([\(types.joined(separator: ", "))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(reference(.iri(.rdfType)))))\n"
         }
         text += "        try storage.encode(to: encoder)\n"
         return text + "    }\n"
@@ -187,7 +187,7 @@ struct SwiftSource {
         text += "    public init() {}\n\n"
         text += "    public func encode(to encoder: any Encoder) throws {\n"
         text += "        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)\n"
-        text += "        try container.encode(value, for: \(reference(property.node)))\n"
+        text += "        try container.encode(value, for: RDFCore.PropertyKey(\(reference(property.node))))\n"
         text += "    }\n}\n"
         return text
     }
@@ -223,7 +223,7 @@ struct SwiftSource {
         }
         for predicate in predicates {
             let values = objects[predicate]!.map { expression($0, as: .values) }
-            text += "\(indent)try container.encode([\(values.joined(separator: ", "))] as [RDFCore.Value], for: \(reference(.iri(predicate))))\n"
+            text += "\(indent)try container.encode([\(values.joined(separator: ", "))] as [RDFCore.Value], for: RDFCore.PropertyKey(\(reference(.iri(predicate)))))\n"
         }
         return text
     }

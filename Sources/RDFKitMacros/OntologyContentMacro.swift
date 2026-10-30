@@ -119,11 +119,17 @@ private final class ContentRewriter: SyntaxRewriter {
         return ExprSyntax(closure)
     }
 
+    /// The DSL forms RDFCore declares. An ontology may declare a term of the
+    /// same name (`Class`, `Label`), whose generated type would otherwise
+    /// shadow the form inside the ontology.
+    static let forms: Set<String> = Set(ParsedEntity.Kind.allCases.map(\.rawValue))
+        .union(["Namespace", "Prefix", "Label", "Comment", "SeeAlso", "Deprecated"])
+
     override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
         let visited = super.visit(node)
         guard let call = visited.as(FunctionCallExprSyntax.self),
               let reference = call.calledExpression.as(DeclReferenceExprSyntax.self),
-              ParsedEntity.Kind(rawValue: reference.baseName.text) != nil else { return visited }
+              Self.forms.contains(reference.baseName.text) else { return visited }
         let qualified: ExprSyntax = "RDFCore.\(raw: reference.baseName.text)"
         return ExprSyntax(call.with(\.calledExpression, qualified.with(\.leadingTrivia, reference.leadingTrivia)))
     }

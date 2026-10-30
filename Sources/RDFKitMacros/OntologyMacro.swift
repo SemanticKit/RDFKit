@@ -26,7 +26,7 @@ public struct OntologyMacro: MemberMacro, MemberAttributeMacro {
             spellings.walk(statements)
             spellings.diagnostics.forEach(context.diagnose)
         }
-        return EntityGenerator.generate(ontology: ontology, in: context)
+        return EntityGenerator(ontology: ontology, context: context).members()
     }
 
     public static func expansion(

@@ -15,7 +15,7 @@ struct OntologyContentMacroTests {
             var body: some Content {
                 Namespace("https://zoo.example.org/#")
                 Class("Animal") {
-                    Type(RDFS.Class)
+                    Type(RDF.Class)
                     Label("Animal")
                     Endangered(Zoo.Animal)
                 }
@@ -33,15 +33,15 @@ struct OntologyContentMacroTests {
             """,
             expandedSource: """
             var body: some Content {
-                Namespace("https://zoo.example.org/#")
+                RDFCore.Namespace("https://zoo.example.org/#")
                 RDFCore.Class("Animal") {
 
-                        Label("Animal")
+                        RDFCore.Label("Animal")
 
                     }
                 RDFCore.Class("Keeper") {
 
-                        Label(keeperLabel)
+                        RDFCore.Label(keeperLabel)
                     }
                 if includeVets {
                         RDFCore.Property("treats") {
@@ -77,7 +77,7 @@ struct OntologyContentMacroTests {
             struct Zoo: Ontology {
                 var body: some Content {
                     #sourceLocation(file: "test.swift", line: 4)
-                    Namespace("https://zoo.example.org/#")
+                    RDFCore.Namespace("https://zoo.example.org/#")
                     #sourceLocation(file: "test.swift", line: 5)
                     RDFCore.Class("Animal") {
 
@@ -86,28 +86,39 @@ struct OntologyContentMacroTests {
                     #sourceLocation()
                 }
 
-                public protocol Animal: RDFCore.Resource {
+                protocol Animal: RDF.Resource {
                 }
 
-                /// An individual of ``Zoo/Animal``.
-                public final class AnimalIndividual: Zoo.Animal {
-                    public static let metadata: any RDFCore.ContentMetadata = RDFCore.RDFMetadata(id: "https://zoo.example.org/#Animal", name: "Animal")
-
-                    private struct Values: Sendable {
-                    }
-
-                    private let storage: RDFCore.IndividualStorage<Values>
-
-                    /// Creates an individual with these property values.
-                    public init() {
-                        storage = RDFCore.IndividualStorage(Values())
-                    }
+                /// A member of ``Zoo/Animal`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol AnimalStoring: Zoo.Animal, RDF.ResourceStoring {
                 }
 
-                /// An individual of ``Zoo/Animal`` that stores its property values in
-                /// an ``RDFCore/IndividualStorage`` of ``RDFCore/IndividualValues``. An
-                /// individual of another ontology typed with the class conforms to it.
-                public protocol AnimalStoring: Zoo.Animal, RDFCore.PropertyValueStoring {
+                final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
+                    static let iri: IRIKit.IRI? = "https://zoo.example.org/#Animal"
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.Animal
+
+                    let iri: IRIKit.IRI?
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
+                    init(iri: IRIKit.IRI? = nil) {
+                        self.iri = iri
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type))
+                        try storage.encode(to: encoder)
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                    }
                 }
             }
             """,
@@ -148,7 +159,7 @@ struct OntologyContentMacroTests {
                     Namespace("https://zoo.example.org/#")
 
                     Class("Animal") {
-                        Type(RDFS.Class)
+                        Type(RDF.Class)
                         Label(missingLabel)
                     }
                 }
@@ -176,12 +187,12 @@ struct OntologyContentMacroTests {
 
         #expect(body.map(\.trimmedDescription) == [
             #"#sourceLocation(file: "/Zoo/Zoo.swift", line: 4)"#,
-            #"Namespace("https://zoo.example.org/#")"#,
+            #"RDFCore.Namespace("https://zoo.example.org/#")"#,
             #"#sourceLocation(file: "/Zoo/Zoo.swift", line: 6)"#,
             """
             RDFCore.Class("Animal") {
 
-                        Label(missingLabel)
+                        RDFCore.Label(missingLabel)
                     }
             """,
             "#sourceLocation()",
