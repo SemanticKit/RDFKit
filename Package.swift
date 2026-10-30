@@ -110,6 +110,14 @@ let package = Package(
             path: "Tests/ParallelTests/Fixtures/AliceProfile",
             plugins: ["RDFTranslatorPlugin"]
         ),
+        // The entailment regime vocabulary, whose ent:RDF is named like the
+        // RDF module it builds on.
+        .target(
+            name: "EntailmentRegimes",
+            dependencies: ["OWL", "RDF"],
+            path: "Tests/EntailmentTranslationTests/Fixtures/EntailmentRegimes",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
 
         .testTarget(
             name: "RDFKitTests",
@@ -168,6 +176,16 @@ let package = Package(
                 "OWL"
             ],
             plugins: ["RDFTranslatorPlugin"]
+        ),
+        .testTarget(
+            name: "EntailmentTranslationTests",
+            dependencies: [
+                "RDFCore",
+                "RDFFormats",
+                "RDF",
+                "EntailmentRegimes"
+            ],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "ParallelTests",

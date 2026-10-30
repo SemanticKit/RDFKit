@@ -10,7 +10,7 @@ import RDFCore
 ///   the range's classes for individuals, and ``RDFCore/Value`` for a range
 ///   that admits any resource. When the documents give the property a value
 ///   that type cannot hold, such as a blank node as the value of
-///   `rdfs:comment`, its values are typed `[RDFCore.Value]`.
+///   `rdfs:comment`, its values are typed `[RDFCore::Value]`.
 /// - A class's storing protocol refines the storing protocols of the classes
 ///   it conforms to and of every property this module declares that a
 ///   member of it can have: one whose domain is the class or a superclass,
@@ -295,7 +295,7 @@ struct Planner {
     /// `any A & B` of the public protocols among `protocols`.
     func existential(_ protocols: [SubjectTerm]) -> String {
         let names = protocols.compactMap { classDeclaration($0) }.filter(\.isPublic).map(\.protocolReference)
-        return "any " + (names.isEmpty ? "RDFCore.Resource" : names.joined(separator: " & "))
+        return "any " + (names.isEmpty ? "RDFCore::Resource" : names.joined(separator: " & "))
     }
 
     /// The name of a combination class: its stated classes, and the classes

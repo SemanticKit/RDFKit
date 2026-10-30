@@ -13,6 +13,12 @@ import RDFCore
 ///   included (`:alice foaf:knows :bob . :bob foaf:knows :alice .`).
 /// - `ontology` is every description the documents give, the way back to
 ///   RDF.
+/// - Every declaration of another module, and every public one of this
+///   module, is named with a module selector (SE-0491), `RDF::Property`,
+///   which looks only in that module. A module may name a resource like a
+///   module it imports: the entailment regimes' `ent:RDF` is the constant
+///   `RDF` in a module that imports `RDF`, and would hide that module from
+///   `RDF.Property`.
 ///
 /// The generated Swift keeps every individual's values in its
 /// ``RDFCore/IndividualStorage``, the storage `@Ontology` uses too, so a
@@ -61,7 +67,7 @@ struct SwiftSource {
             guard let individual = declarations.individuals[node] else { continue }
             source += "private let \(handle(node)) = \(classReference(individual.instanceOf))(iri: \(node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil"))\n"
         }
-        source += "\n/// Sets the values the documents give the individuals, once.\nprivate let described: Void = {\n"
+        source += "\n/// Sets the values the documents give the individuals, once.\nprivate let described: Swift::Void = {\n"
         for node in declarations.order where declarations.individuals[node] != nil {
             for (property, objects) in values(of: node) {
                 let declaration = propertyDeclaration(property)!
@@ -84,7 +90,7 @@ struct SwiftSource {
         var entries: [String] = []
         for node in declarations.order where subjects.contains(node) {
             if let declaration = declarations.classes[node] {
-                entries.append("RDFCore.ClassDescription(\(declaration.classReference).self)")
+                entries.append("RDFCore::ClassDescription(\(declaration.classReference).self)")
             } else {
                 entries.append(handle(node))
             }
@@ -98,7 +104,7 @@ struct SwiftSource {
             /// Encoding them gives back the documents' graph:
             ///
             ///     let document = try NTriplesEncoder().encode(ontology)
-            public let ontology: [any RDFCore.Description] = { _ = described; return [
+            public let ontology: [any RDFCore::Description] = { _ = described; return [
             """
         source += entries.map { "\n    \($0)," }.joined()
         source += entries.isEmpty ? "] }()\n" : "\n] }()\n"
@@ -114,7 +120,7 @@ struct SwiftSource {
     private func classProtocol(_ declaration: ClassDeclaration) -> String {
         let refined = (declarations.refinements[declaration.node] ?? []).compactMap(classDeclaration).map(\.protocolReference)
         var text = docComment(declaration.node) + deprecation(declaration.node)
-        text += "\(access(declaration.isPublic))protocol \(declaration.protocolName.swiftIdentifier): \(refined.isEmpty ? "RDFCore.Resource" : refined.joined(separator: ", ")) {"
+        text += "\(access(declaration.isPublic))protocol \(declaration.protocolName.swiftIdentifier): \(refined.isEmpty ? "RDFCore::Resource" : refined.joined(separator: ", ")) {"
         let requirements = (declarations.requirements[declaration.node] ?? []).compactMap(propertyDeclaration)
         if requirements.isEmpty { return text + "}\n" }
         text += "\n"
@@ -141,12 +147,12 @@ struct SwiftSource {
     private func individualClass(of declaration: ClassDeclaration) -> String {
         let access = self.access(declaration.isPublic)
         var text = docComment(declaration.node) + deprecation(declaration.node)
-        text += "\(access)final class \(declaration.className.swiftIdentifier): \(declaration.storingReference), RDFCore.ResourceClass {\n"
-        text += "    public static let iri: IRIKit.IRI? = \(declaration.node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil")\n\n"
+        text += "\(access)final class \(declaration.className.swiftIdentifier): \(declaration.storingReference), RDFCore::ResourceClass {\n"
+        text += "    public static let iri: IRIKit::IRI? = \(declaration.node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil")\n\n"
         text += "    /// A member of the class as a property value.\n"
         text += "    public typealias Member = \(memberType(of: declaration.member))\n\n"
         text += individual(stated: [declaration.node])
-        text += "\n    public static func encodeDescription(to encoder: any Encoder) throws {\n"
+        text += "\n    public static func encodeDescription(to encoder: any Swift::Encoder) throws {\n"
         text += description(of: declaration.node, indent: "        ")
         text += "    }\n}\n"
         return text
@@ -155,7 +161,7 @@ struct SwiftSource {
     private func combinationClass(_ combination: Combination) -> String {
         let conformances = combination.storing.map(reference)
         var text = "/// An individual that is a member of \(combination.stated.isEmpty ? "no stated class" : "several classes"), or has properties its class's members cannot have.\n"
-        text += "private final class \(combination.name.swiftIdentifier): \(conformances.isEmpty ? "RDFCore.PropertyValueStoring" : (conformances + ["RDFCore.PropertyValueStoring"]).joined(separator: ", ")) {\n"
+        text += "private final class \(combination.name.swiftIdentifier): \(conformances.isEmpty ? "RDFCore::PropertyValueStoring" : (conformances + ["RDFCore::PropertyValueStoring"]).joined(separator: ", ")) {\n"
         text += individual(stated: combination.stated)
         return text + "}\n"
     }
@@ -165,11 +171,11 @@ struct SwiftSource {
     /// which writes the classes as `rdf:type`.
     private func individual(stated: [SubjectTerm]) -> String {
         let types = stated.compactMap(classDeclaration).map { "\($0.classReference).self" }
-        var text = "    public static let classes: [any RDFCore.ResourceClass.Type] = [\(types.joined(separator: ", "))]\n\n"
-        text += "    public let iri: IRIKit.IRI?\n\n"
-        text += "    public let storage = RDFCore.IndividualStorage()\n\n"
+        var text = "    public static let classes: [any RDFCore::ResourceClass.Type] = [\(types.joined(separator: ", "))]\n\n"
+        text += "    public let iri: IRIKit::IRI?\n\n"
+        text += "    public let storage = RDFCore::IndividualStorage()\n\n"
         text += "    /// An individual, denoted by `iri`, or a blank node when it is `nil`.\n"
-        text += "    public init(iri: IRIKit.IRI? = nil) {\n        self.iri = iri\n    }\n"
+        text += "    public init(iri: IRIKit::IRI? = nil) {\n        self.iri = iri\n    }\n"
         return text
     }
 
@@ -179,12 +185,12 @@ struct SwiftSource {
     private func propertyValue(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
         var text = "/// The values an individual has for \(property.isPublic ? "``\(property.name)``" : "the property").\n"
-        text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore.PropertyValue {\n"
+        text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore::PropertyValue {\n"
         text += "    public var value: \(type(of: property.kind)) = []\n\n"
         text += "    public init() {}\n\n"
-        text += "    public func encode(to encoder: any Encoder) throws {\n"
-        text += "        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)\n"
-        text += "        try container.encode(value, for: RDFCore.PropertyKey(\(reference(property.node))))\n"
+        text += "    public func encode(to encoder: any Swift::Encoder) throws {\n"
+        text += "        var container = encoder.container(keyedBy: RDFCore::PropertyKey.self)\n"
+        text += "        try container.encode(value, for: RDFCore::PropertyKey(\(reference(property.node))))\n"
         text += "    }\n}\n"
         return text
     }
@@ -195,7 +201,7 @@ struct SwiftSource {
         let member = property.member.swiftIdentifier
         let value = property.valueName.swiftIdentifier
         var text = "/// An individual that has \(property.isPublic ? "``\(property.name)``" : "the property").\n"
-        text += "\(access)protocol \(property.storingName.swiftIdentifier): RDFCore.PropertyValueStoring {}\n\n"
+        text += "\(access)protocol \(property.storingName.swiftIdentifier): RDFCore::PropertyValueStoring {}\n\n"
         text += "extension \(property.storingName.swiftIdentifier) {\n"
         text += docComment(property.node, indent: "    ")
         text += "    \(property.isPublic ? "public " : "")var \(member): \(type(of: property.kind)) {\n"
@@ -210,7 +216,7 @@ struct SwiftSource {
     /// container of `encoder`.
     private func description(of node: SubjectTerm, indent: String) -> String {
         let triples = layer.graph.filter { $0.subject == node }
-        let container = "encoder.container(keyedBy: RDFCore.PropertyKey.self)"
+        let container = "encoder.container(keyedBy: RDFCore::PropertyKey.self)"
         guard !triples.isEmpty else { return "\(indent)_ = \(container)\n" }
         var text = "\(indent)var container = \(container)\n"
         var predicates: [IRI] = []
@@ -221,7 +227,7 @@ struct SwiftSource {
         }
         for predicate in predicates {
             let values = objects[predicate]!.map { expression($0, as: .values) }
-            text += "\(indent)try container.encode([\(values.joined(separator: ", "))] as [RDFCore.Value], for: RDFCore.PropertyKey(\(reference(.iri(predicate)))))\n"
+            text += "\(indent)try container.encode([\(values.joined(separator: ", "))] as [RDFCore::Value], for: RDFCore::PropertyKey(\(reference(.iri(predicate)))))\n"
         }
         return text
     }
@@ -230,9 +236,9 @@ struct SwiftSource {
     private func addition(_ node: SubjectTerm, index: Int) -> String {
         let subject = lower.class(node).map { ".class(\($0.classReference).self)" } ?? ".individual(\(lower.individual(node)!.reference))"
         var text = "/// What \(layer.documents.joined(separator: " and ")) state\(layer.documents.count == 1 ? "s" : "") about \(node.iri?.rawValue ?? "a resource"), which a module below declares.\n"
-        text += "private struct \(additionName(index)): RDFCore.Addition {\n"
-        text += "    var resource: RDFCore.Value { \(subject) }\n\n"
-        text += "    func encode(to encoder: any Encoder) throws {\n"
+        text += "private struct \(additionName(index)): RDFCore::Addition {\n"
+        text += "    var resource: RDFCore::Value { \(subject) }\n\n"
+        text += "    func encode(to encoder: any Swift::Encoder) throws {\n"
         text += description(of: node, indent: "        ")
         text += "    }\n}\n"
         return text
@@ -298,11 +304,11 @@ struct SwiftSource {
 
     private func memberType(of kind: ValueKind) -> String {
         switch kind {
-        case .literals: "RDFCore.Literal"
-        case .classes: "any RDFCore.ResourceClass.Type"
-        case .values: "RDFCore.Value"
+        case .literals: "RDFCore::Literal"
+        case .classes: "any RDFCore::ResourceClass.Type"
+        case .values: "RDFCore::Value"
         case .individuals(let protocols):
-            "any " + (protocols.isEmpty ? "RDFCore.Resource" : protocols.compactMap(classDeclaration).map(\.protocolReference).joined(separator: " & "))
+            "any " + (protocols.isEmpty ? "RDFCore::Resource" : protocols.compactMap(classDeclaration).map(\.protocolReference).joined(separator: " & "))
         }
     }
 
@@ -346,12 +352,12 @@ struct SwiftSource {
     static func expression(_ literal: Literal) -> String {
         let lexical = literal.lexicalForm.swiftStringLiteral
         if literal.languageTag == nil, literal.datatype == nil {
-            return "RDFCore.Literal(\(lexical))"
+            return "RDFCore::Literal(\(lexical))"
         }
         var arguments = [lexical]
         if let language = literal.languageTag { arguments.append("languageTag: \(language.swiftStringLiteral)") }
         if let direction = literal.baseDirection { arguments.append("baseDirection: .\(direction.rawValue)") }
         if let datatype = literal.datatype { arguments.append("datatype: \(datatype.rawValue.swiftStringLiteral)") }
-        return "try! RDFCore.Literal(\(arguments.joined(separator: ", ")))"
+        return "try! RDFCore::Literal(\(arguments.joined(separator: ", ")))"
     }
 }

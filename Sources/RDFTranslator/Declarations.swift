@@ -126,6 +126,7 @@ struct Declarations {
         }
 
         refine(vocabulary, lower: lower)
+        separateMembers()
 
         var planner = Planner(declarations: self, lower: lower, vocabulary: vocabulary, layer: layer)
         try planner.plan()
@@ -159,6 +160,22 @@ struct Declarations {
                         && !vocabulary.superclassClosure(of: superclass).contains(other)
                 }
             }.sorted(by: SubjectTerm.inIRIOrder)
+        }
+    }
+
+    /// Gives each property of this module an accessor of its own name. A
+    /// private property's accessor is named by its local name, and two
+    /// properties can have one: the entailment regime documents state both
+    /// `dc:title` and `foaf:title`, and neither has a domain there, so every
+    /// individual has both, and a Swift type has one member of a name. A
+    /// public property keeps its name; of private ones, the first in
+    /// document order keeps it, and the others are named by their handle.
+    private mutating func separateMembers() {
+        let properties = order.compactMap { self.properties[$0] }
+        var taken = Set(properties.filter(\.isPublic).map(\.member))
+        for property in properties where !property.isPublic {
+            if taken.insert(property.member).inserted { continue }
+            self.properties[property.node] = PropertyDeclaration(node: property.node, module: module, isPublic: false, name: property.name, member: property.name)
         }
     }
 }
@@ -199,7 +216,7 @@ struct ClassDeclaration {
     var storingReference: String { reference(storingName) }
 
     private func reference(_ name: String) -> String {
-        isPublic ? "\(module).\(name.swiftIdentifier)" : name.swiftIdentifier
+        isPublic ? "\(module)::\(name.swiftIdentifier)" : name.swiftIdentifier
     }
 }
 
@@ -224,7 +241,7 @@ struct PropertyDeclaration {
     var storingReference: String { reference(storingName) }
 
     private func reference(_ name: String) -> String {
-        isPublic ? "\(module).\(name.swiftIdentifier)" : name.swiftIdentifier
+        isPublic ? "\(module)::\(name.swiftIdentifier)" : name.swiftIdentifier
     }
 }
 
@@ -250,11 +267,11 @@ struct IndividualDeclaration {
     var conformances: Set<SubjectTerm> = []
 
     /// The Swift type of the public constant.
-    var publicType = "any RDFCore.Resource"
+    var publicType = "any RDFCore::Resource"
 
     /// The individual, as Swift refers to it from any module.
     var reference: String {
-        isPublic ? "\(module).\(name.swiftIdentifier)" : name.swiftIdentifier
+        isPublic ? "\(module)::\(name.swiftIdentifier)" : name.swiftIdentifier
     }
 }
 
@@ -281,13 +298,13 @@ struct Combination {
 
 /// The Swift type of a property's values.
 enum ValueKind: Hashable {
-    /// `[RDFCore.Literal]`: the range is a literal class or datatype.
+    /// `[RDFCore::Literal]`: the range is a literal class or datatype.
     case literals
-    /// `[any RDFCore.ResourceClass.Type]`: the range is a class of classes.
+    /// `[any RDFCore::ResourceClass.Type]`: the range is a class of classes.
     case classes
     /// `[any A & B]`: the range is classes of individuals.
     case individuals([SubjectTerm])
-    /// `[RDFCore.Value]`: the range admits any resource.
+    /// `[RDFCore::Value]`: the range admits any resource.
     case values
 }
 
