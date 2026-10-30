@@ -180,12 +180,15 @@ let package = Package(
                 .copy("W3C/rdf-tests")
             ]
         ),
+        // RDFCore's terms and graphs, read from fixtures by the format
+        // decoders.
         .testTarget(
             name: "RDFCoreTests",
             dependencies: [
                 "RDFCore",
-                .product(name: "IRIKit", package: "IRIKit")
-            ]
+                "RDFFormats"
+            ],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "RDFKitMacrosTests",

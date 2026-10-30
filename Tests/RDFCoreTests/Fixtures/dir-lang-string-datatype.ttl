@@ -1,0 +1,6 @@
+PREFIX : <http://example/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# rdf:dirLangString needs a language tag, so this is not a literal.
+:s :p "a"^^rdf:dirLangString .

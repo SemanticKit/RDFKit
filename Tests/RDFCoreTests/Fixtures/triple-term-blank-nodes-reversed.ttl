@@ -1,0 +1,7 @@
+PREFIX : <http://example/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# triple-term-blank-nodes.ttl with the triple term's nodes swapped.
+_:y :p <<( _:y :p _:x )>> .
+_:x :p "1" .

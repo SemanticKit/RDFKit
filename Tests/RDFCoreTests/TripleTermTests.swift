@@ -1,32 +1,22 @@
-import IRIKit
 import RDFCore
 import Testing
 
 @Suite("TripleTerm", .tags(.term))
 struct TripleTermTests {
-    let s: SubjectTerm = .iri("http://example/s")
-    let p: IRI = "http://example/p"
-    let q: IRI = "http://example/q"
-
-    @Test("A triple is a triple term in object position")
+    @Test("A triple is a triple term in object position, equal when its components are")
     func objectPosition() throws {
-        let inner = Graph.Element(subject: s, predicate: p, object: .literal(try Literal("v", languageTag: "en", baseDirection: .ltr)))
-        let reifier: SubjectTerm = .blankNode(try BlankNode("r"))
-        let graph: Graph = [Graph.Element(subject: reifier, predicate: q, object: .tripleTerm(inner))]
-        guard case .tripleTerm(let term)? = graph.first?.object else {
-            Issue.record("expected a triple term")
+        // The first two triples state the same triple term; the third's
+        // has another predicate.
+        let graph = try Graph(fixture: "triple-term.ttl")
+        #expect(graph.count == 2)
+        guard case .tripleTerm(let first) = graph[0].object, case .tripleTerm(let second) = graph[1].object else {
+            Issue.record("expected triple terms")
             return
         }
-        #expect(term == inner)
-        #expect(graph.description == #"_:r <http://example/q> <<( <http://example/s> <http://example/p> "v"@en--ltr )>> ."#)
-    }
-
-    @Test("Triple terms are equal when their components are equal")
-    func equality() throws {
-        let one = ObjectTerm.tripleTerm(Graph.Element(subject: s, predicate: p, object: .literal(Literal("v"))))
-        let same = ObjectTerm.tripleTerm(Graph.Element(subject: s, predicate: p, object: .literal(Literal("v"))))
-        let other = ObjectTerm.tripleTerm(Graph.Element(subject: s, predicate: q, object: .literal(Literal("v"))))
-        #expect(one == same)
-        #expect(one != other)
+        #expect(first.subject == second.subject)
+        #expect(first.object == second.object)
+        #expect(first != second)
+        #expect(first.object.description.hasSuffix("@en--ltr"))
+        #expect(graph.isIsomorphic(to: try graph.roundTripped()))
     }
 }

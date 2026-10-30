@@ -1,0 +1,10 @@
+PREFIX : <http://example/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Typed literals compare lexical form and datatype IRI: four triples.
+:s :p "1"^^xsd:integer .
+:s :p "1"^^xsd:integer .
+:s :p "01"^^xsd:integer .
+:s :p "1"^^xsd:decimal .
+:s :p "1" .

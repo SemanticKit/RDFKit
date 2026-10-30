@@ -1,14 +1,21 @@
-import IRIKit
 import RDFCore
 import Testing
 
 @Suite("Dataset", .tags(.graph))
 struct DatasetTests {
-    let triple = Graph.Element(subject: .iri("http://example/s"), predicate: "http://example/p", object: .literal(Literal("o")))
+    /// The triple the graphs hold, and the IRI that names a graph, from
+    /// `dataset.ttl`.
+    let triple: Graph.Element
+    let iriName: SubjectTerm
+
+    init() throws {
+        let document = try Graph(fixture: "dataset.ttl")
+        triple = document[0]
+        iriName = document[1].subject
+    }
 
     @Test("A dataset has one default graph and graphs named by an IRI or a blank node")
     func graphs() throws {
-        let iriName: SubjectTerm = .iri("http://example/g")
         let blankName: SubjectTerm = .blankNode(try BlankNode("g"))
         var dataset = Dataset()
         #expect(dataset[nil].isEmpty)
@@ -19,15 +26,15 @@ struct DatasetTests {
 
         #expect(dataset.defaultGraph == [triple])
         #expect(dataset.namedGraphs == [iriName: [triple], blankName: [triple]])
-        #expect(dataset[.iri("http://example/missing")].isEmpty)
+        // The predicate's IRI names no graph.
+        #expect(dataset[.iri(triple.predicate)].isEmpty)
     }
 
     @Test("Graph names are unique: setting a name's graph replaces it")
     func uniqueNames() {
-        let name: SubjectTerm = .iri("http://example/g")
-        var dataset = Dataset(namedGraphs: [name: [triple]])
-        dataset[name] = []
+        var dataset = Dataset(namedGraphs: [iriName: [triple]])
+        dataset[iriName] = []
         #expect(dataset.namedGraphs.count == 1)
-        #expect(dataset[name].isEmpty)
+        #expect(dataset[iriName].isEmpty)
     }
 }

@@ -1,0 +1,11 @@
+PREFIX : <http://example/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# U+00E9 composed and e U+0301 decomposed are different lexical forms;
+# the language tag of the third and fourth differs only in case.
+:s :composed "\u00E9" .
+:s :decomposed "e\u0301" .
+:s :tagged "\u00E9"@fr .
+:s :tagged "\u00E9"@FR .
+:s :tagged "e\u0301"@fr .

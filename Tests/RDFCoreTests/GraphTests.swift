@@ -1,61 +1,81 @@
-import IRIKit
 import RDFCore
 import Testing
 
 @Suite("Graph", .tags(.graph))
 struct GraphTests {
-    let s: SubjectTerm = .iri("http://example/s")
-    let p: IRI = "http://example/p"
-    let q: IRI = "http://example/q"
-
     @Test("A graph is a set: it holds a triple once, and its order is not part of its value")
     func setSemantics() throws {
-        let a = Graph.Element(subject: s, predicate: p, object: .literal(Literal("a")))
-        let b = Graph.Element(subject: s, predicate: p, object: .literal(Literal("b")))
-        var graph: Graph = [a, b]
-        #expect(graph.insert(a).inserted == false)
-        #expect(graph.count == 2)
-        #expect(graph == [b, a])
-        #expect(Array(graph) == [a, b])
-        #expect(graph.symmetricDifference([b, Graph.Element(subject: s, predicate: q, object: .literal(Literal("c")))]).count == 2)
-        #expect(graph.remove(a) == a)
-        #expect(graph == [b])
+        let graph = try Graph(fixture: "graph-set.ttl")
+        #expect(graph.count == 3)
+        let (a, b, c) = (graph[0], graph[1], graph[2])
+        var copy = graph
+        #expect(copy.insert(a).inserted == false)
+        #expect(copy == Graph([c, b, a]))
+        #expect(Array(copy) == [a, b, c])
+        #expect(copy.symmetricDifference([b]) == [a, c])
+        #expect(copy.remove(a) == a)
+        #expect(copy == [b, c])
     }
 
     @Test("Triples match a pattern whose missing components match anything")
-    func matching() {
-        let o: ObjectTerm = .iri("http://example/o")
-        let first = Graph.Element(subject: s, predicate: p, object: o)
-        let second = Graph.Element(subject: s, predicate: q, object: o)
-        let graph: Graph = [first, second]
-        #expect(graph.triples(predicate: q) == [second])
-        #expect(graph.triples(subject: s, object: o) == graph)
-        #expect(graph.triples(subject: .iri("http://example/other")).isEmpty)
+    func matching() throws {
+        let graph = try Graph(fixture: "graph-set.ttl")
+        let other = graph[2]
+        #expect(graph.triples(predicate: other.predicate) == [other])
+        #expect(graph.triples(subject: other.subject, object: other.object) == [other])
+        #expect(graph.triples(subject: other.subject) == graph)
+        // The predicate's IRI is the subject of no triple.
+        #expect(graph.triples(subject: .iri(other.predicate)).isEmpty)
     }
 
     @Test("Graphs that differ only in blank node identifiers are isomorphic, not equal")
     func isomorphism() throws {
-        func chain(_ first: String, _ second: String) throws -> Graph {
-            let x = SubjectTerm.blankNode(try BlankNode(first))
-            let y = SubjectTerm.blankNode(try BlankNode(second))
-            return [
-                Graph.Element(subject: s, predicate: p, object: x.object),
-                Graph.Element(subject: x, predicate: p, object: y.object),
-                Graph.Element(subject: y, predicate: q, object: .literal(Literal("end"))),
-            ]
-        }
-        let left = try chain("a", "b")
-        let right = try chain("b", "c")
-        #expect(left != right)
-        #expect(left.isIsomorphic(to: right))
+        let chain = try Graph(fixture: "chain.ttl")
+        let relabelled = try Graph(fixture: "chain-relabelled.ttl")
+        #expect(chain != relabelled)
+        #expect(chain.isIsomorphic(to: relabelled))
+        #expect(!chain.isIsomorphic(to: try Graph(fixture: "chain-longer.ttl")))
+        #expect(!chain.isIsomorphic(to: try Graph(fixture: "chain-swapped.ttl")))
+        #expect(chain.isIsomorphic(to: try chain.roundTripped()))
+    }
 
-        var other = right
-        other.insert(Graph.Element(subject: .blankNode(try BlankNode("c")), predicate: q, object: .literal(Literal("more"))))
-        #expect(!left.isIsomorphic(to: other))
+    @Test("Blank nodes inside triple terms are mapped with the rest")
+    func tripleTermIsomorphism() throws {
+        let graph = try Graph(fixture: "triple-term-blank-nodes.ttl")
+        #expect(graph.isIsomorphic(to: try Graph(fixture: "triple-term-blank-nodes-relabelled.ttl")))
+        #expect(!graph.isIsomorphic(to: try Graph(fixture: "triple-term-blank-nodes-reversed.ttl")))
+    }
 
-        let swapped = try chain("a", "b").map { triple in
-            Graph.Element(subject: triple.subject, predicate: triple.predicate == p ? q : p, object: triple.object)
+    /// A 200-node chain of blank nodes against the same chain with shuffled
+    /// labels and triples: every node looks alike until colours are refined
+    /// to the end of the chain.
+    @Test("A long blank node chain is isomorphic to itself relabelled, in bounded time", .timeLimit(.minutes(1)))
+    func longChain() throws {
+        let chain = try Graph(fixture: "blank-chain.nt")
+        let shuffled = try Graph(fixture: "blank-chain-shuffled.nt")
+        #expect(chain.count == 200)
+        let elapsed = ContinuousClock().measure {
+            #expect(chain.isIsomorphic(to: shuffled))
+            #expect(shuffled.isIsomorphic(to: chain))
         }
-        #expect(!left.isIsomorphic(to: Graph(swapped)))
+        #expect(elapsed < .seconds(10))
+    }
+
+    /// One 48-node blank cycle against two 24-node cycles: the same number
+    /// of nodes and triples, every node of either with one triple in and one
+    /// out, and no bijection.
+    @Test("One blank node cycle is not two, decided in bounded time", .timeLimit(.minutes(1)))
+    func cycles() throws {
+        let one = try Graph(fixture: "blank-cycle.nt")
+        let two = try Graph(fixture: "blank-two-cycles.nt")
+        #expect(one.count == two.count)
+        let elapsed = ContinuousClock().measure {
+            #expect(!one.isIsomorphic(to: two))
+            #expect(!two.isIsomorphic(to: one))
+            #expect(one.isIsomorphic(to: one))
+            #expect(two.isIsomorphic(to: two))
+        }
+        #expect(elapsed < .seconds(10))
+        #expect(two.isIsomorphic(to: try two.roundTripped()))
     }
 }

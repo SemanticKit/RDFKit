@@ -1,0 +1,6 @@
+<http://example/s> <http://example/p> "e"@e .
+<http://example/s> <http://example/p> "en-a"@en-a .
+<http://example/s> <http://example/p> "abcdefghi"@abcdefghi .
+<http://example/s> <http://example/p> "en-x"@en-x .
+<http://example/s> <http://example/p> "x"@x .
+<http://example/s> <http://example/p> "a-en"@a-en .

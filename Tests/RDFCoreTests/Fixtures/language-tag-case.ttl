@@ -1,0 +1,7 @@
+PREFIX : <http://example/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# The same literal, its language tag written in two cases.
+:s :p "chat"@FR-ca .
+:s :p "chat"@fr-CA .
