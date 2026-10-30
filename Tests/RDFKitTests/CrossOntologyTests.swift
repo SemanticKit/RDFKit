@@ -7,15 +7,15 @@ import RDFKit
 
 /// A class with a property in its domain, declared in one ontology.
 @Ontology
-struct ServiceDescription: Ontology {
+struct Regimes: Ontology {
     var body: some Content {
-        Namespace("http://www.w3.org/ns/sparql-service-description#")
-        Class("EntailmentRegime") {
+        Namespace("https://regimes.example.org/#")
+        Class("Regime") {
             Type(RDF.Class)
-            Label("Entailment Regime")
+            Label("Regime")
         }
         Property("name") {
-            Domain(ServiceDescription.EntailmentRegime)
+            Domain(Regimes.Regime)
             Range(RDF.Literal)
         }
     }
@@ -24,8 +24,8 @@ struct ServiceDescription: Ontology {
 /// An individual typed with that class, made in another module's Swift: an
 /// instance of a class that conforms to the class's storing protocol. No
 /// declaration names it, so it is a blank node at the boundary.
-final class EntailmentRegime: ServiceDescription.EntailmentRegimeStoring {
-    static let classes: [any ResourceClass.Type] = [ServiceDescription.EntailmentRegimeIndividual.self]
+final class LocalRegime: Regimes.RegimeStoring {
+    static let classes: [any ResourceClass.Type] = [Regimes.RegimeIndividual.self]
     let storage = IndividualStorage()
 }
 
@@ -33,11 +33,11 @@ final class EntailmentRegime: ServiceDescription.EntailmentRegimeStoring {
 struct CrossOntologyTests {
     @Test("is an instance of that class and stores its properties")
     func storesTheForeignClassesProperties() {
-        let rdfs = EntailmentRegime()
-        let regime: any ServiceDescription.EntailmentRegime = rdfs
+        let local = LocalRegime()
+        let regime: any Regimes.Regime = local
         #expect(regime.name.isEmpty)
-        regime.name = ["RDFS"]
-        #expect(rdfs.name == ["RDFS"])
+        regime.name = ["Local"]
+        #expect(local.name == ["Local"])
     }
 }
 
