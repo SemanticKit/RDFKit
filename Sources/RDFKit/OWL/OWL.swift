@@ -5,7 +5,7 @@ import RDFCore
 /// The OWL ontology.
 @Ontology
 public struct OWL: Ontology {
-    public var body: some Content {
+    public func content() -> Content {
         Prefix("dc", "http://purl.org/dc/elements/1.1/")
         Prefix("grddl", "http://www.w3.org/2003/g/data-view#")
         Prefix("owl", "http://www.w3.org/2002/07/owl#")

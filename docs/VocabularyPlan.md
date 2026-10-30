@@ -7,7 +7,7 @@ RDF, RDFS, OWL, XSD and the RDFKit vocabulary are declared with the DSL in `Sour
 ```swift
 @Ontology
 public struct OWL: Ontology {
-    public var body: some Content {
+    public func content() -> Content {
         Namespace("http://www.w3.org/2002/07/owl#")
 
         Class("Thing") {
@@ -47,14 +47,14 @@ Some terms are the DSL itself. RDFCore provides them, and when a vocabulary decl
 | `rdfs:label`, `rdfs:comment`, `rdfs:seeAlso`, `owl:deprecated` | `Label`, `Comment`, `SeeAlso`, `Deprecated` |
 | `rdfkit:Namespace`, `rdfkit:Prefix` | `Namespace`, `Prefix` |
 
-The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `var body` is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
+The declaration forms `Class`, `Property`, `Datatype` and `Individual` are RDFCore structs that the DSL calls. They are not aliases of the vocabulary's classes: `RDFS.Class` is the generated protocol for `rdfs:Class`, and `Class("Animal")` in a `content()` body is the declaration form, which the body macro writes as `RDFCore.Class("Animal")`.
 
 The macro also recognises the meaning of a few vocabulary terms by their qualified spelling, because they change what it generates: `RDFS.Literal` and `XSD.nonNegativeInteger` map to the Swift value types `String` and `UInt`, `RDFS.Literal` makes its subclasses value types, `RDFS.Resource` is the root class, `OWL.Nothing` has no individual type, and `OWL.FunctionalProperty` makes a property single-valued.
 
 ## What Stays
 
-- The DSL syntax: `Class("Animal") { Domain(Fauna.Animal) }` inside `var body: some Content`.
-- The result builder (`ContentBuilder`) and the content tree that `body` returns.
+- The DSL syntax: `Class("Animal") { Domain(Fauna.Animal) }` inside `func content()`.
+- The result builder (`ContentBuilder`) and the content tree that `content()` returns.
 - IRIs as boundary values only: each term's IRI is in its static `metadata`, computed from the namespace when the macro expands.
 
 ## Testing Approach

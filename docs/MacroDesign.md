@@ -2,7 +2,7 @@
 
 ## What It Does
 
-`@Ontology` reads an ontology's DSL content from its `var body: some Content` and generates the Swift model of the ontology inside the ontology struct. RDF, RDFS and OWL model a graph of individuals: class membership is multiple and open, identity is shared, the graph has cycles, and properties have many values unless they are functional. The generated model has the same shape:
+`@Ontology` reads an ontology's DSL content from its `func content()` and generates the Swift model of the ontology inside the ontology struct. RDF, RDFS and OWL model a graph of individuals: class membership is multiple and open, identity is shared, the graph has cycles, and properties have many values unless they are functional. The generated model has the same shape:
 
 | DSL | Generated |
 |---|---|
@@ -20,7 +20,7 @@
 ```swift
 @Ontology
 public struct Fauna: Ontology {
-    public var body: some Content {
+    public func content() -> Content {
         Namespace("https://fauna.example.org/ontology#")
 
         Class("Animal") {
@@ -146,18 +146,16 @@ Literals have no identity, so `Datatype(...)` declarations, `rdfs:Literal` and t
 
 Related terms are written with their type as the argument: `Domain(Fauna.Animal)`, `Type(RDFS.Class)`. The macro reads them as syntax. Each term's IRI is computed during expansion from the namespace and the local name, and emitted as a literal in the term's static `metadata`. It is read only at the boundary: serialization, translation into SPARQL or SHACL, dereferencing. Generated code never builds an identity at runtime.
 
-## Owning var body
+## The content() Body
 
-`@Ontology` attaches the body macro `@OntologyContent` to `var body`, so authors write only `@Ontology` on the type, as in SwiftUI. Swift cannot evaluate `Domain(Fauna.Animal)` as an expression, so the body macro owns the body and returns the same statements with:
+`@Ontology` attaches the body macro `@OntologyContent` to `func content()`. Swift cannot evaluate `Domain(Fauna.Animal)` as an expression, so the body macro owns the body and returns the same statements with:
 
 - each term annotation written as the annotation type for that term: `Domain(Fauna.Animal)` becomes `Domain<Fauna.Animal>()`;
 - each declaration form qualified by its module: `Class("Animal")` becomes `RDFCore.Class("Animal")`, because an ontology may declare a term with the same name (`RDFS.Class`, `RDF.Property`).
 
 Which annotations relate terms is read from how they are written, not from a list of annotation names. An annotation whose only argument is a type path (`Fauna.Animal`, or the bare name of a term the ontology declares) relates the declared term to that type. Annotations that carry text take a string literal, which the macro reads at compile time for DocC.
 
-Each returned statement is preceded by `#sourceLocation(file:line:)` for the line it was authored on, so the compiler reports an error in the content (an unknown type in `Type(RDFS.Clas)`) at the authored line. A body macro on a computed property is given a getter built outside the authored file, so `@Ontology` attaches it as `@OntologyContent(file:line:)` with the file and line of the opening brace of `var body`, and the line of each statement is counted from there.
-
-`@Ontology` reports, with a fix-it, an ontology that writes its content as a `content()` function (the fix-it rewrites it as `var body: some Content` with the same statements) and an ontology with no `var body` (the fix-it adds an empty one). The macros also report at the authored annotation:
+Each returned statement is preceded by `#sourceLocation(file:line:)` for the line it was authored on, so the compiler reports an error in the content (an unknown type in `Type(RDFS.Clas)`) at the authored line. The macros also report at the authored annotation:
 
 - `Domain<Fauna.Animal>()` and `Domain(Fauna.Animal.self)`, with a fix-it to `Domain(Fauna.Animal)`;
 - a related term written as a term of this ontology that it does not declare (`Fauna.Habitatt`);
@@ -167,4 +165,4 @@ Each returned statement is preceded by `#sourceLocation(file:line:)` for the lin
 
 ## Testing
 
-`Tests/RDFKitMacrosTests` pins the member expansion, the `var body` rewrite, the `#sourceLocation` lines and the diagnostics with `SwiftSyntaxMacrosGenericTestSupport`. `Tests/FaunaTests` uses the generated Fauna model as ordinary Swift.
+`Tests/RDFKitMacrosTests` pins the member expansion, the `content()` rewrite, the `#sourceLocation` lines and the diagnostics with `SwiftSyntaxMacrosGenericTestSupport`. `Tests/FaunaTests` uses the generated Fauna model as ordinary Swift.

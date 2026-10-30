@@ -19,9 +19,9 @@ public struct Individual: Declaration {
     )
 
     public let localName: String
-    public let content: Entities
+    public let content: Content
 
-    public init(_ localName: String, @ContentBuilder _ content: () -> Entities) {
+    public init(_ localName: String, @ContentBuilder _ content: () -> Content) {
         self.localName = localName
         self.content = content()
     }

@@ -3,8 +3,7 @@ import RDFCore
 /// Generates the Swift model of the terms declared in an ontology's content.
 ///
 /// Attach it to an ``Ontology`` struct and write the content in
-/// `var body: some Content`, as a SwiftUI view's `body` is `some View`.
-/// Annotations that relate a term to another
+/// `func content() -> Content`. Annotations that relate a term to another
 /// term take the related type as their argument. The file must import
 /// `RDFCore`, whose DSL forms the generated code uses.
 ///
@@ -13,7 +12,7 @@ import RDFCore
 ///
 ///     @Ontology
 ///     public struct Fauna: Ontology {
-///         public var body: some Content {
+///         public func content() -> Content {
 ///             Namespace("https://fauna.example.org/ontology#")
 ///             Class("Animal") {
 ///                 Type(RDFS.Class)
@@ -52,9 +51,9 @@ import RDFCore
 /// namespace during expansion and kept in its static `metadata`, for the
 /// boundary only.
 ///
-/// `@Ontology` also attaches ``OntologyContent()`` to `var body`. That body
+/// `@Ontology` also attaches ``OntologyContent()`` to `content()`. That body
 /// macro owns the authored body, so `Domain(Fauna.Animal)` is read as syntax
-/// and `body` returns the same declarations built from the generated
+/// and `content()` returns the same declarations built from the generated
 /// types.
 @attached(member, names: arbitrary)
 @attached(memberAttribute)

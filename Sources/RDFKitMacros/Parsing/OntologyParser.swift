@@ -1,13 +1,13 @@
 import SwiftSyntax
 
-/// Reads the ontology DSL from the `var body` of an `@Ontology` struct.
+/// Reads the ontology DSL from the `content()` function of an `@Ontology` struct.
 struct OntologyParser {
     static func parse(declaration: some DeclGroupSyntax) throws -> ParsedOntology {
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw MacroError("@Ontology can only be applied to structs")
         }
-        guard let statements = bodyProperty(in: declaration).flatMap(bodyStatements(of:)) else {
-            throw MacroError("@Ontology requires a 'var body: some Content' with a body")
+        guard let statements = contentFunction(in: declaration)?.body?.statements else {
+            throw MacroError("@Ontology requires a 'func content() -> Content' with a body")
         }
 
         let declaredNames = Self.declaredNames(in: statements)
@@ -60,40 +60,21 @@ struct OntologyParser {
         return names
     }
 
-    /// The ontology's `var body: some Content`, whose body is the DSL.
+    /// The ontology's `func content() -> Content`, whose body is the DSL.
     ///
     /// The body is read as syntax. `@Ontology` attaches the body macro
-    /// `@OntologyContent` to this property, so the compiler never type-checks
+    /// `@OntologyContent` to this function, so the compiler never type-checks
     /// the authored statements themselves: `Domain(Fauna.Animal)` is read
     /// here, and the body macro emits the content built from the generated
     /// types.
-    static func bodyProperty(in declaration: some DeclGroupSyntax) -> VariableDeclSyntax? {
-        declaration.memberBlock.members.lazy
-            .compactMap { $0.decl.as(VariableDeclSyntax.self) }
-            .first { isBodyProperty($0) }
-    }
-
-    /// A `content()` function member: ontology content written as a function,
-    /// which `@Ontology` reports with a fix-it to `var body`.
     static func contentFunction(in declaration: some DeclGroupSyntax) -> FunctionDeclSyntax? {
         declaration.memberBlock.members.lazy
             .compactMap { $0.decl.as(FunctionDeclSyntax.self) }
-            .first { $0.name.text == "content" && $0.signature.parameterClause.parameters.isEmpty }
+            .first { isContentFunction($0) }
     }
 
-    /// Whether a member is the get-only computed property `var body { ... }`,
-    /// the form a body macro can own.
-    static func isBodyProperty(_ variable: VariableDeclSyntax) -> Bool {
-        guard variable.bindingSpecifier.tokenKind == .keyword(.var),
-              variable.bindings.count == 1,
-              let binding = variable.bindings.first,
-              binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "body" else { return false }
-        return bodyStatements(of: variable) != nil
-    }
-
-    /// The statements of the getter of `var body`.
-    static func bodyStatements(of variable: VariableDeclSyntax) -> CodeBlockItemListSyntax? {
-        guard case .getter(let statements) = variable.bindings.first?.accessorBlock?.accessors else { return nil }
-        return statements
+    /// Whether a member is `func content()` with no parameters.
+    static func isContentFunction(_ function: FunctionDeclSyntax) -> Bool {
+        function.name.text == "content" && function.signature.parameterClause.parameters.isEmpty
     }
 }

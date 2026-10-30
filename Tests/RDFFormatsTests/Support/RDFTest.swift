@@ -4,7 +4,7 @@ import RDFKit
 /// The RDF test vocabulary, which names the kinds of test in the RDF suites.
 @Ontology
 struct RDFTest: Ontology {
-    var body: some Content {
+    func content() -> Content {
         Namespace("http://www.w3.org/ns/rdftest#")
 
         Class("TestNTriplesPositiveSyntax") {

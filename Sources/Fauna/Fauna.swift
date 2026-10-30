@@ -16,7 +16,7 @@ import RDFKit
 /// both ways, so the graph of individuals has cycles.
 @Ontology
 public struct Fauna: Ontology {
-    public var body: some Content {
+    public func content() -> Content {
         Namespace("https://fauna.example.org/ontology#")
 
         Class("Animal") {

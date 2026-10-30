@@ -4,7 +4,7 @@ import RDFKit
 /// The W3C test manifest vocabulary the RDF test suites are written in.
 @Ontology
 struct TestManifest: Ontology {
-    var body: some Content {
+    func content() -> Content {
         Namespace("http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#")
 
         Class("Manifest") {

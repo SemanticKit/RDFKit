@@ -142,9 +142,9 @@ struct FaunaTests {
         #expect(Fauna.preysOn.metadata.label == "preys on")
     }
 
-    @Test("body returns the authored declarations", .tags(.ontology))
+    @Test("content() returns the authored declarations", .tags(.ontology))
     func contentReturnsDeclarations() {
-        let content = Fauna().body.entities
+        let content = Fauna().content()
         #expect(content.filter { $0 is RDFCore.Class }.count == 6)
         #expect(content.filter { $0 is RDFCore.Property }.count == 7)
         #expect(content.filter { $0 is RDFCore.Individual }.count == 3)
