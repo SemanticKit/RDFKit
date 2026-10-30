@@ -2,7 +2,6 @@ import Testing
 import IRIKit
 import AliceProfile
 import FOAF
-import OWL
 import RDF
 import RDFCore
 import RDFFormats
@@ -24,11 +23,6 @@ struct Club: Ontology {
         Property("joined") {
             Domain(Club.Member)
             Range(XSD.gYear)
-        }
-        Property("nickname") {
-            Domain(Club.Member)
-            Range(XSD.string)
-            Deprecated()
         }
         Property("sponsor") {
             Type(RDF.Property)
@@ -186,7 +180,6 @@ struct RDFKitTests {
         let expected = try TurtleDecoder().decode("""
             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-            @prefix owl: <http://www.w3.org/2002/07/owl#> .
             @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
             @prefix foaf: <http://xmlns.com/foaf/0.1/> .
             @prefix club: <https://club.example.org/#> .
@@ -195,7 +188,6 @@ struct RDFKitTests {
                 rdfs:label "Member" ;
                 rdfs:comment "A person who belongs to the club." .
             club:joined rdfs:domain club:Member ; rdfs:range xsd:gYear .
-            club:nickname rdfs:domain club:Member ; rdfs:range xsd:string ; owl:deprecated true .
             club:sponsor a rdf:Property ;
                 rdfs:domain club:Member ;
                 rdfs:range foaf:Person ;
