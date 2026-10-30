@@ -71,4 +71,34 @@ struct TurtleEncoderTests {
         #expect(document.contains("<http://example.org/#a.>"))
         #expect(try TurtleDecoder().decode(document) == graph, "\(document)")
     }
+
+    /// A second prefix given for a label already declared for another
+    /// namespace is not declared: a second `PREFIX` for the label would
+    /// redefine it (RDF 1.2 Turtle §6.3), and the names written with the
+    /// first would read back as IRIs in the second namespace.
+    @Test func declaresEachLabelOnce() throws {
+        let graph = try TurtleDecoder().decode("<http://a.example/x> <http://b.example/y> <http://a.example/z> .")
+        let document = TurtleEncoder(prefixes: [Prefix("ex", "http://a.example/"), Prefix("ex", "http://b.example/")]).encode(graph)
+        #expect(document.components(separatedBy: "PREFIX ex:").count == 2, "\(document)")
+        #expect(try TurtleDecoder().decode(document) == graph, "\(document)")
+    }
+
+    /// A given prefix whose label is not a `PN_PREFIX` is not declared,
+    /// since `PNAME_NS ::= PN_PREFIX? ':'` cannot write it.
+    @Test func skipsALabelThatIsNotAPrefixName() throws {
+        let graph = try TurtleDecoder().decode("<http://a.example/x> <http://a.example/y> <http://a.example/z> .")
+        for label in ["my ex", "1ex", "ex.", "_ex"] {
+            let document = TurtleEncoder(prefixes: [Prefix(label, "http://a.example/")]).encode(graph)
+            #expect(!document.contains("PREFIX \(label):"), "\(document)")
+            #expect(try TurtleDecoder().decode(document) == graph, "\(document)")
+        }
+    }
+
+    /// The empty label is a `PNAME_NS` of its own.
+    @Test func declaresTheEmptyLabel() throws {
+        let graph = try TurtleDecoder().decode("<http://a.example/x> <http://a.example/y> <http://a.example/z> .")
+        let document = TurtleEncoder(prefixes: [Prefix("", "http://a.example/")]).encode(graph)
+        #expect(document == "PREFIX : <http://a.example/>\n\n:x :y :z .\n")
+        #expect(try TurtleDecoder().decode(document) == graph, "\(document)")
+    }
 }
