@@ -48,6 +48,30 @@ struct ClubMembers: Ontology {
     }
 }
 
+/// A venue vocabulary whose statements about a term are split over several
+/// declarations of it, and whose hall points to a document for further
+/// reading.
+@Ontology
+struct Venue: Ontology {
+    var body: some Content {
+        Namespace("https://venue.example.org/#")
+        Class("Place")
+        Class("Hall")
+        Property("capacity") {
+            Domain(Venue.Hall)
+        }
+        Class("Hall") {
+            SubClassOf(Venue.Place)
+            Label("Hall")
+            SeeAlso("https://venue.example.org/halls")
+        }
+        Property("capacity") {
+            Domain(Venue.Hall)
+            Label("capacity")
+        }
+    }
+}
+
 @Suite("One runtime for the DSL and the translator", .tags(.ontology, .generated))
 struct RDFKitTests {
     /// `Club.Member rdfs:subClassOf foaf:Person`: a member of the DSL class is
@@ -188,6 +212,30 @@ struct RDFKitTests {
                 rdfs:range foaf:Person ;
                 rdfs:label "sponsor" ;
                 rdfs:comment "The person who sponsored the member." .
+            """)
+        #expect(output.isIsomorphic(to: expected), "\(turtle)")
+    }
+
+    /// Statements about one term split over several declarations are
+    /// stated about that one term, as an RDF graph is a set of triples (RDF
+    /// 1.2 Concepts, RDF Graphs): the hall refines the place a later
+    /// declaration gives, has the property both declarations give once, and
+    /// the vocabulary encodes every statement, the `rdfs:seeAlso` document
+    /// among them.
+    @Test func splitDeclarationsStateOneTerm() throws {
+        let hall = Venue.HallIndividual()
+        #expect((hall as AnyObject) is any Venue.Place)
+        #expect(hall.capacity.isEmpty)
+
+        let turtle = try TurtleEncoder().encode(Venue().ontology)
+        let output = try TurtleDecoder().decode(turtle)
+        let expected = try TurtleDecoder().decode("""
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            @prefix venue: <https://venue.example.org/#> .
+            venue:Hall rdfs:subClassOf venue:Place ;
+                rdfs:label "Hall" ;
+                rdfs:seeAlso <https://venue.example.org/halls> .
+            venue:capacity rdfs:domain venue:Hall ; rdfs:label "capacity" .
             """)
         #expect(output.isIsomorphic(to: expected), "\(turtle)")
     }
