@@ -28,8 +28,8 @@ struct SHACLTranslationTests {
 
         // Each accessor writes its own property.
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([result]))
-        let rdfValue = try iri(of: RDF.value)
-        let shaclValue = try iri(of: SHACL.value)
+        let rdfValue = try #require(IRI(RDF.value.key))
+        let shaclValue = try #require(IRI(SHACL.value.key))
         #expect(rdfValue != shaclValue)
         #expect(output.contains { $0.predicate == rdfValue && $0.object == .literal(focus) })
         #expect(output.contains { $0.predicate == shaclValue && $0.object.subject != nil })
@@ -43,16 +43,4 @@ struct SHACLTranslationTests {
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(SHACL.ontology))
         #expect(input.isIsomorphic(to: output))
     }
-
-    /// The IRI a translated property is written with: the subject of its
-    /// own description.
-    private func iri(of property: any RDFCore.Resource) throws -> IRI {
-        let description = try NTriplesDecoder().decode(try NTriplesEncoder().encode([property]))
-        for triple in description {
-            if case .iri(let iri) = triple.subject { return iri }
-        }
-        throw DescriptionError()
-    }
-
-    private struct DescriptionError: Error {}
 }

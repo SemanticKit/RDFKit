@@ -57,7 +57,7 @@ struct W3CManifest {
         let text = try String(contentsOf: try file(for: iri), encoding: .utf8)
         let graph = try TurtleDecoder(base: iri).decode(text)
         guard let manifest = graph.subjects(
-            IRI(of: RDF.type)!,
+            IRI(RDF.type.key)!,
             IRI(of: TestManifest.ManifestIndividual.self)!
         ).first else {
             throw W3CManifestError.malformed(iri, "no mf:Manifest")
@@ -80,7 +80,7 @@ struct W3CManifest {
 
     func test(_ entry: SubjectTerm, in graph: Graph, manifest: IRI) throws -> W3CTestCase {
         guard case .iri(let id) = entry else { throw W3CManifestError.malformed(manifest, "a test without an IRI") }
-        guard case .iri(let type)? = graph.object(entry, IRI(of: RDF.type)!),
+        guard case .iri(let type)? = graph.object(entry, IRI(RDF.type.key)!),
               let kind = Self.kind(of: type) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
         }
@@ -138,11 +138,11 @@ extension Graph {
         var node = head
         while let current = node, current != .iri(IRI(of: RDF.nil)!) {
             guard let cell = current.subject,
-                  let first = object(cell, IRI(of: RDF.first)!) else {
+                  let first = object(cell, IRI(RDF.first.key)!) else {
                 throw W3CManifestError.malformed(IRI(of: RDF.nil)!, "a broken list")
             }
             members.append(first)
-            node = object(cell, IRI(of: RDF.rest)!)
+            node = object(cell, IRI(RDF.rest.key)!)
         }
         return members
     }

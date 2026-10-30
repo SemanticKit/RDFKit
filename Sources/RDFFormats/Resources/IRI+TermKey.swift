@@ -21,4 +21,9 @@ extension IRI {
         guard let key = `class`.classKey else { return nil }
         self.init(key)
     }
+
+    /// The IRI of a property: the one its term type's declared key gives.
+    public init?(of property: any PropertyTerm.Type) {
+        self.init(property.key)
+    }
 }

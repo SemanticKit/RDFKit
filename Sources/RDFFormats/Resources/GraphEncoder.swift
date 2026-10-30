@@ -61,13 +61,13 @@ final class EncodedGraph {
             guard described.insert(ObjectIdentifier(description.class)).inserted else { return }
             subject = try term(description.class.classKey, ObjectIdentifier(description.class))
         } else if let term = description as? any PropertyTerm {
-            // A term type `@Ontology` declares, such as a property, describes
-            // the term it names.
+            // A property's term type describes the property.
             subject = try self.term(type(of: term).key)
         } else if let addition = description as? any Addition {
             switch addition.resource {
             case .individual(let individual): subject = try term(type(of: individual).key, ObjectIdentifier(individual))
             case .class(let type): subject = try term(type.classKey, ObjectIdentifier(type))
+            case .property(let property): subject = try term(property.key)
             case .literal(let literal):
                 throw EncodingError.invalidValue(literal, EncodingError.Context(
                     codingPath: [],
@@ -126,6 +126,8 @@ final class EncodedGraph {
             let identity = ObjectIdentifier(type)
             if type.classKey == nil, !described.contains(identity) { undescribed.append(ClassDescription(type)) }
             return try term(type.classKey, identity).object
+        case .property(let property):
+            return try term(property.key).object
         }
     }
 }

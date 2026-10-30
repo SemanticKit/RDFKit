@@ -209,6 +209,6 @@ private final class Referrer: RDFCore.Resource {
     init(value: any RDFCore.Resource) { self.value = value }
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: PropertyKey.self)
-        try container.encode([value], for: PropertyKey(FOAF.knowsValue.key))
+        try container.encode([value], for: PropertyKey(FOAF.knows.key))
     }
 }

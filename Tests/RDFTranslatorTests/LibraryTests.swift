@@ -29,7 +29,7 @@ struct LibraryTests {
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode([reprint]))
         #expect(output.count == 3)
         #expect(output.allSatisfy { if case .blankNode = $0.subject { true } else { false } })
-        #expect(output.contains { $0.predicate == IRI(RDF.typeValue.key) && $0.object == .iri(IRI(of: BookIndividual.self)!) })
+        #expect(output.contains { $0.predicate == IRI(RDF.type.key) && $0.object == .iri(IRI(of: BookIndividual.self)!) })
         #expect(output.contains { $0.object == .iri(IRI(of: almanac)!) })
     }
 
@@ -52,7 +52,7 @@ struct LibraryTests {
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
         let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
         let pages: [RDFCore.Literal] = document.compactMap { triple in
-            guard triple.subject == .iri(IRI(of: almanac)!), triple.predicate == IRI(pagesValue.key),
+            guard triple.subject == .iri(IRI(of: almanac)!), triple.predicate == IRI(pages.key),
                   case .literal(let literal) = triple.object else { return nil }
             return literal
         }

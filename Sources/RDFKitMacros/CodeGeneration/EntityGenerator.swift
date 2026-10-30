@@ -192,15 +192,15 @@ struct EntityGenerator {
             }.joined(separator: ", ")
         }
         if !declaration.terms("Type").isEmpty {
-            lines.append("try container.encode([\(classes("Type"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.typeValue.key))")
+            lines.append("try container.encode([\(classes("Type"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type.key))")
         }
         for (form, property) in [("SubClassOf", "RDF.subClassOf"), ("Domain", "RDF.domain"), ("Range", "RDF.range")] where !declaration.terms(form).isEmpty {
-            lines.append("try container.encode([\(classes(form))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(property)Value.key))")
+            lines.append("try container.encode([\(classes(form))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(property).key))")
         }
         for (form, property) in [("Label", "RDF.label"), ("Comment", "RDF.comment")] {
             let texts = declaration.annotations(form).compactMap(\.text)
             if !texts.isEmpty {
-                lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property)Value.key))")
+                lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property).key))")
             }
         }
         // A document `SeeAlso` names is a resource outside the runtime,
@@ -221,7 +221,7 @@ struct EntityGenerator {
                 "    }",
                 "}",
             ]
-            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlsoValue.key))")
+            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso.key))")
         }
         if !declaration.annotations("Deprecated").isEmpty {
             lines.append("try container.encode([try RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")

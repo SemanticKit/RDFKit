@@ -11,6 +11,9 @@ import RDFCore
 /// - Each individual's values are set once, the first time any individual
 ///   of the module is read, since individuals refer to each other, cycles
 ///   included (`:alice foaf:knows :bob . :bob foaf:knows :alice .`).
+/// - A property's term type writes what the documents state about the
+///   property, as a class's Swift class writes its class's description; a
+///   property is never a module-level value.
 /// - `ontology` is every description the documents give, the way back to
 ///   RDF.
 /// - Every declaration of another module, and every public one of this
@@ -53,6 +56,7 @@ struct SwiftSource {
                 source += "\n" + individualClass(of: declaration)
             }
             if let property = declarations.properties[node] {
+                source += "\n" + propertyTerm(property)
                 source += "\n" + propertyValue(property)
                 source += "\n" + propertyStoring(property)
             }
@@ -92,10 +96,10 @@ struct SwiftSource {
         // `rdf:type` is the property every member of `rdfs:Resource` writes
         // its classes with, so the module that declares `rdfs:Resource`
         // gives it to the class's storing protocol.
-        if let resource = declarations.classes[.iri(.rdfsResource)], propertyDeclaration(.iri(.rdfType)) != nil || declarations.individuals[.iri(.rdfType)] != nil {
+        if let resource = declarations.classes[.iri(.rdfsResource)], let type = propertyDeclaration(.iri(.rdfType)) {
             source += "\n/// `rdf:type`, the property a member of `rdfs:Resource` writes its classes with.\n"
             source += "extension \(resource.storingReference) {\n"
-            source += "    public static var typeProperty: RDFCore::TermKey? { \(propertyDeclaration(.iri(.rdfType)).map { "\($0.valueReference).key" } ?? key(.iri(.rdfType))) }\n}\n"
+            source += "    public static var typeProperty: RDFCore::TermKey? { \(type.termReference).key }\n}\n"
         }
 
         for (index, node) in declarations.additions.enumerated() {
@@ -107,6 +111,8 @@ struct SwiftSource {
         for node in declarations.order where subjects.contains(node) {
             if let declaration = declarations.classes[node] {
                 entries.append("RDFCore::ClassDescription(\(declaration.classReference).self)")
+            } else if let property = declarations.properties[node] {
+                entries.append("\(property.termReference)()")
             } else {
                 entries.append(handle(node))
             }
@@ -254,13 +260,28 @@ struct SwiftSource {
 
     // MARK: - Properties
 
+    /// The term type of a property, which carries its declared key and
+    /// writes the triples the documents state about it.
+    private func propertyTerm(_ property: PropertyDeclaration) -> String {
+        var text = docComment(property.node) + deprecation(property.node)
+        text += "\(access(property.isPublic))struct \(property.termName.swiftIdentifier): RDFCore::PropertyTerm {\n"
+        text += "    /// The declared key of the property, from which an encoder derives its IRI.\n"
+        text += "    public static let key = \(key(property.node))\n\n"
+        text += "    /// The property's description.\n"
+        text += "    public init() {}\n\n"
+        text += "    public func encode(to encoder: any Swift::Encoder) throws {\n"
+        text += description(of: property.node, indent: "        ")
+        text += "    }\n}\n"
+        return text
+    }
+
     /// The value type that holds a property's values on an individual.
     private func propertyValue(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
         var text = "/// The values an individual has for \(property.isPublic ? "``\(property.name)``" : "the property").\n"
         text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore::PropertyValue {\n"
         text += "    /// The declared key of the property, from which an encoder derives its IRI.\n"
-        text += "    public static let key = \(key(property.node))\n\n"
+        text += "    public static var key: RDFCore::TermKey { \(property.termReference).key }\n\n"
         text += "    public var value: \(type(of: property.kind)) = []\n\n"
         text += "    public init() {}\n\n"
         text += "    public func encode(to encoder: any Swift::Encoder) throws {\n"
@@ -311,14 +332,16 @@ struct SwiftSource {
     /// property, which its value type carries.
     private func propertyKey(_ predicate: IRI) -> String {
         if let declaration = propertyDeclaration(.iri(predicate)) {
-            return "RDFCore::PropertyKey(\(declaration.valueReference).key)"
+            return "RDFCore::PropertyKey(\(declaration.termReference).key)"
         }
         return "RDFCore::PropertyKey(\(key(.iri(predicate))))"
     }
 
     /// What these documents state about a resource a lower module declares.
     private func addition(_ node: SubjectTerm, index: Int) -> String {
-        let subject = lower.class(node).map { ".class(\($0.classReference).self)" } ?? ".individual(\(lower.individual(node)!.reference))"
+        let subject = lower.class(node).map { ".class(\($0.classReference).self)" }
+            ?? lower.property(node).map { ".property(\($0.termReference).self)" }
+            ?? ".individual(\(lower.individual(node)!.reference))"
         var text = "/// What \(layer.documents.joined(separator: " and ")) state\(layer.documents.count == 1 ? "s" : "") about \(node.iri?.rawValue ?? "a resource"), which a module below declares.\n"
         text += "private struct \(additionName(index)): RDFCore::Addition {\n"
         text += "    var resource: RDFCore::Value { \(subject) }\n\n"
@@ -378,6 +401,9 @@ struct SwiftSource {
             if let declaration = classDeclaration(node) {
                 return kind == .values ? ".class(\(declaration.classReference).self)" : "\(declaration.classReference).self"
             }
+            if let declaration = propertyDeclaration(node) {
+                return kind == .values ? ".property(\(declaration.termReference).self)" : "\(declaration.termReference).self"
+            }
             return kind == .values ? ".individual(\(reference(node)))" : reference(node)
         }
     }
@@ -390,6 +416,7 @@ struct SwiftSource {
         switch kind {
         case .literals: "RDFCore::Literal"
         case .classes: "any RDFCore::ResourceClass.Type"
+        case .properties: "any RDFCore::PropertyTerm.Type"
         case .values: "RDFCore::Value"
         case .individuals(let protocols):
             "any " + (protocols.isEmpty ? "RDFCore::Resource" : protocols.compactMap(classDeclaration).map(\.protocolReference).joined(separator: " & "))

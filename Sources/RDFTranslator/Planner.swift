@@ -6,7 +6,8 @@ import RDFCore
 /// module declares.
 ///
 /// - A property's values are typed by its range: literals for a literal
-///   class or datatype, classes for a class of classes, the protocols of
+///   class or datatype, classes for a class of classes, the term types of
+///   properties for a class of properties, the protocols of
 ///   the range's classes for individuals, and ``RDFCore/Value`` for a range
 ///   that admits any resource. When the documents give the property a value
 ///   that type cannot hold, such as a blank node as the value of
@@ -110,6 +111,7 @@ struct Planner {
     func kind(ofRanges ranges: [SubjectTerm]) -> ValueKind {
         if ranges.contains(where: vocabulary.isLiteralClass) { return .literals }
         if ranges.contains(where: vocabulary.isMetaclass) { return .classes }
+        if ranges.contains(where: vocabulary.isPropertyClass) { return .properties }
         if ranges.isEmpty || ranges.contains(.iri(.rdfsResource)) { return .values }
         let protocols = Set(ranges.filter { classDeclaration($0)?.isPublic == true })
         return .individuals(minimal(protocols))
@@ -123,8 +125,9 @@ struct Planner {
         case (_, .literal), (_, .tripleTerm): return false
         case (.literals, _): return false
         case (.classes, _): return value.node.flatMap(classDeclaration) != nil
+        case (.properties, _): return value.node.flatMap(propertyDeclaration) != nil
         case (.individuals(let protocols), _):
-            guard let node = value.node, classDeclaration(node) == nil else { return false }
+            guard let node = value.node, classDeclaration(node) == nil, propertyDeclaration(node) == nil else { return false }
             let conformances = self.conformances[node] ?? lower.individual(node)?.conformances ?? []
             return Set(protocols).isSubset(of: conformances)
         }
