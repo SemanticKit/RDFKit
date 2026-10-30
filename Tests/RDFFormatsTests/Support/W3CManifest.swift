@@ -67,14 +67,14 @@ struct W3CManifest {
             throw W3CManifestError.malformed(iri, "no mf:Manifest")
         }
         var tests: [W3CTestCase] = []
-        for include in try manifest.include.flatMap(Self.members) {
+        for include in try manifest.include.flatMap { try $0.members() } {
             guard case .individual(let included) = include, let included = context.iri(of: included) else {
                 throw W3CManifestError.malformed(iri, "mf:include names a non-IRI")
             }
             tests += try self.tests(inManifest: included)
         }
         var entries: [(entry: any RDFCore.Resource, id: IRI)] = []
-        for member in try manifest.entries.flatMap(Self.members) {
+        for member in try manifest.entries.flatMap { try $0.members() } {
             guard case .individual(let entry) = member, let id = context.iri(of: entry) else {
                 throw W3CManifestError.malformed(iri, "a test without an IRI")
             }
@@ -109,7 +109,7 @@ struct W3CManifest {
         if case .individual(let result)? = description.result.first, let resultIRI = context.iri(of: result) {
             resultFile = try file(for: resultIRI)
         }
-        guard let kind = Self.kind(of: entry, hasResult: resultFile != nil) else {
+        guard let kind = W3CTestCase.Kind(entry, hasResult: resultFile != nil) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
         }
         return W3CTestCase(
@@ -135,7 +135,9 @@ struct W3CManifest {
         RDFTest.XMLEvalIndividual.self,
         RDFTest.TestXMLNegativeSyntaxIndividual.self,
     ]
+}
 
+extension W3CTestCase.Kind {
     /// The kind of test an entry is, by the Swift type of its class.
     ///
     /// The RDF/XML manifests state their evaluation tests are members of
@@ -143,8 +145,8 @@ struct W3CManifest {
     /// declare (it declares `rdft:XMLEval`, "A positive RDF/XML evaluation
     /// test"), so those entries decode with no class of it. Of the RDF/XML
     /// entries, only evaluation tests name an expected outcome (`mf:result`).
-    static func kind(of entry: any RDFCore.Resource, hasResult: Bool) -> W3CTestCase.Kind? {
-        switch entry {
+    init?(_ entry: any RDFCore.Resource, hasResult: Bool) {
+        let kind: Self? = switch entry {
         case is any RDFTest.TestNTriplesPositiveSyntax, is any RDFTest.TestTurtlePositiveSyntax:
             .positiveSyntax
         case is any RDFTest.TestNTriplesNegativeSyntax, is any RDFTest.TestTurtleNegativeSyntax, is any RDFTest.TestXMLNegativeSyntax:
@@ -158,12 +160,16 @@ struct W3CManifest {
         default:
             hasResult ? .evaluation : nil
         }
+        guard let kind else { return nil }
+        self = kind
     }
+}
 
-    /// The members of an `rdf:List`, in order, up to `rdf:nil`.
-    static func members(of list: any RDF.List) throws -> [RDFCore.Value] {
+extension RDF.List {
+    /// The members of the list, in order, up to `rdf:nil`.
+    func members() throws -> [RDFCore.Value] {
         var members: [RDFCore.Value] = []
-        var cell = list
+        var cell: any RDF.List = self
         while cell !== RDF.nil {
             guard let first = cell.first.first, let rest = cell.rest.first else {
                 throw W3CManifestError.malformed(IRI(of: RDF.nil)!, "a broken list")
