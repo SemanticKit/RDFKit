@@ -1,0 +1,473 @@
+# Literals of the XSD datatypes, decoded at the boundary into the Swift
+# value types of the XSD module, for the XSD tests.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix samples: <https://xsd.example/samples#> .
+@prefix : <https://xsd.example/mappings#> .
+
+:Mapping a owl:Class ;
+    rdfs:comment "A literal of an XSD datatype and the literal of its value's canonical representation (XML Schema 1.1 Part 2, the canonical mapping)." .
+:lexical a rdf:Property ;
+    rdfs:domain :Mapping .
+:canonical a rdf:Property ;
+    rdfs:domain :Mapping .
+
+:Equal a owl:Class ;
+    rdfs:comment "Two literals of an XSD datatype whose values are equal." .
+:left a rdf:Property ;
+    rdfs:domain :Equal .
+:right a rdf:Property ;
+    rdfs:domain :Equal .
+
+:IllTyped a owl:Class ;
+    rdfs:comment "A literal of an XSD datatype whose lexical form is not in the datatype's lexical space (RDF 1.2 Concepts §3.4)." .
+:literal a rdf:Property ;
+    rdfs:domain :IllTyped .
+
+# Lexical forms and the canonical forms of their values.
+
+:string-whitespace a :Mapping ;
+    :lexical " a\tb "^^xsd:string ;
+    :canonical " a\tb "^^xsd:string .
+
+:boolean-one a :Mapping ;
+    :lexical "1"^^xsd:boolean ;
+    :canonical "true"^^xsd:boolean .
+
+:boolean-zero a :Mapping ;
+    :lexical "0"^^xsd:boolean ;
+    :canonical "false"^^xsd:boolean .
+
+:decimal-signs-and-zeros a :Mapping ;
+    :lexical "+01.50"^^xsd:decimal ;
+    :canonical "1.5"^^xsd:decimal .
+
+:decimal-negative-zero a :Mapping ;
+    :lexical "-.0"^^xsd:decimal ;
+    :canonical "0"^^xsd:decimal .
+
+:decimal-integral a :Mapping ;
+    :lexical "10.0"^^xsd:decimal ;
+    :canonical "10"^^xsd:decimal .
+
+:integer-leading-zeros a :Mapping ;
+    :lexical "+007"^^xsd:integer ;
+    :canonical "7"^^xsd:integer .
+
+:integer-negative-zero a :Mapping ;
+    :lexical "-0"^^xsd:integer ;
+    :canonical "0"^^xsd:integer .
+
+:double-exponent a :Mapping ;
+    :lexical "1e2"^^xsd:double ;
+    :canonical "1.0E2"^^xsd:double .
+
+:double-negative-zero a :Mapping ;
+    :lexical "-0"^^xsd:double ;
+    :canonical "-0.0E0"^^xsd:double .
+
+:double-infinity a :Mapping ;
+    :lexical "+INF"^^xsd:double ;
+    :canonical "INF"^^xsd:double .
+
+:double-tenth a :Mapping ;
+    :lexical "0.1"^^xsd:double ;
+    :canonical "1.0E-1"^^xsd:double .
+
+:double-largest a :Mapping ;
+    :lexical "1.7976931348623157e308"^^xsd:double ;
+    :canonical "1.7976931348623157E308"^^xsd:double .
+
+:double-not-a-number a :Mapping ;
+    :lexical "NaN"^^xsd:double ;
+    :canonical "NaN"^^xsd:double .
+
+:float-rounded a :Mapping ;
+    :lexical "16777217"^^xsd:float ;
+    :canonical "1.6777216E7"^^xsd:float .
+
+:float-smallest a :Mapping ;
+    :lexical "1e-45"^^xsd:float ;
+    :canonical "1.0E-45"^^xsd:float .
+
+:date-utc a :Mapping ;
+    :lexical "2010-05-03+00:00"^^xsd:date ;
+    :canonical "2010-05-03Z"^^xsd:date .
+
+:time-end-of-day a :Mapping ;
+    :lexical "24:00:00"^^xsd:time ;
+    :canonical "00:00:00"^^xsd:time .
+
+:time-fraction a :Mapping ;
+    :lexical "13:20:00.500"^^xsd:time ;
+    :canonical "13:20:00.5"^^xsd:time .
+
+:dateTime-end-of-day a :Mapping ;
+    :lexical "2026-10-30T24:00:00.000-05:00"^^xsd:dateTime ;
+    :canonical "2026-10-31T00:00:00-05:00"^^xsd:dateTime .
+
+:dateTime-leap-day a :Mapping ;
+    :lexical "2024-02-29T23:59:59.9"^^xsd:dateTime ;
+    :canonical "2024-02-29T23:59:59.9"^^xsd:dateTime .
+
+:dateTime-year-zero a :Mapping ;
+    :lexical "0000-01-01T00:00:00Z"^^xsd:dateTime ;
+    :canonical "0000-01-01T00:00:00Z"^^xsd:dateTime .
+
+:dateTime-five-digit-year a :Mapping ;
+    :lexical "12026-01-01T00:00:00"^^xsd:dateTime ;
+    :canonical "12026-01-01T00:00:00"^^xsd:dateTime .
+
+:dateTimeStamp-utc a :Mapping ;
+    :lexical "2026-10-30T12:00:00.0+00:00"^^xsd:dateTimeStamp ;
+    :canonical "2026-10-30T12:00:00Z"^^xsd:dateTimeStamp .
+
+:gYear-negative a :Mapping ;
+    :lexical "-0044"^^xsd:gYear ;
+    :canonical "-0044"^^xsd:gYear .
+
+:gYear-utc a :Mapping ;
+    :lexical "2026+00:00"^^xsd:gYear ;
+    :canonical "2026Z"^^xsd:gYear .
+
+:gMonth-utc a :Mapping ;
+    :lexical "--02-00:00"^^xsd:gMonth ;
+    :canonical "--02Z"^^xsd:gMonth .
+
+:gDay-utc a :Mapping ;
+    :lexical "---31+00:00"^^xsd:gDay ;
+    :canonical "---31Z"^^xsd:gDay .
+
+:gYearMonth-utc a :Mapping ;
+    :lexical "2026-10+00:00"^^xsd:gYearMonth ;
+    :canonical "2026-10Z"^^xsd:gYearMonth .
+
+:gMonthDay-leap-day a :Mapping ;
+    :lexical "--02-29"^^xsd:gMonthDay ;
+    :canonical "--02-29"^^xsd:gMonthDay .
+
+:duration-months a :Mapping ;
+    :lexical "P12M"^^xsd:duration ;
+    :canonical "P1Y"^^xsd:duration .
+
+:duration-hours a :Mapping ;
+    :lexical "PT36H"^^xsd:duration ;
+    :canonical "P1DT12H"^^xsd:duration .
+
+:duration-zero a :Mapping ;
+    :lexical "P0D"^^xsd:duration ;
+    :canonical "PT0S"^^xsd:duration .
+
+:duration-negative-minutes a :Mapping ;
+    :lexical "-PT90M"^^xsd:duration ;
+    :canonical "-PT1H30M"^^xsd:duration .
+
+:yearMonthDuration-zero a :Mapping ;
+    :lexical "P0Y"^^xsd:yearMonthDuration ;
+    :canonical "P0M"^^xsd:yearMonthDuration .
+
+:yearMonthDuration-months a :Mapping ;
+    :lexical "P18M"^^xsd:yearMonthDuration ;
+    :canonical "P1Y6M"^^xsd:yearMonthDuration .
+
+:dayTimeDuration-hours a :Mapping ;
+    :lexical "PT24H"^^xsd:dayTimeDuration ;
+    :canonical "P1D"^^xsd:dayTimeDuration .
+
+:dayTimeDuration-fraction a :Mapping ;
+    :lexical "PT0.50S"^^xsd:dayTimeDuration ;
+    :canonical "PT0.5S"^^xsd:dayTimeDuration .
+
+:byte-largest a :Mapping ;
+    :lexical "+0127"^^xsd:byte ;
+    :canonical "127"^^xsd:byte .
+
+:short-smallest a :Mapping ;
+    :lexical "-032768"^^xsd:short ;
+    :canonical "-32768"^^xsd:short .
+
+:int-largest a :Mapping ;
+    :lexical "+2147483647"^^xsd:int ;
+    :canonical "2147483647"^^xsd:int .
+
+:long-smallest a :Mapping ;
+    :lexical "-09223372036854775808"^^xsd:long ;
+    :canonical "-9223372036854775808"^^xsd:long .
+
+:unsignedByte-largest a :Mapping ;
+    :lexical "0255"^^xsd:unsignedByte ;
+    :canonical "255"^^xsd:unsignedByte .
+
+:unsignedShort-largest a :Mapping ;
+    :lexical "065535"^^xsd:unsignedShort ;
+    :canonical "65535"^^xsd:unsignedShort .
+
+:unsignedInt-largest a :Mapping ;
+    :lexical "+4294967295"^^xsd:unsignedInt ;
+    :canonical "4294967295"^^xsd:unsignedInt .
+
+:unsignedLong-largest a :Mapping ;
+    :lexical "018446744073709551615"^^xsd:unsignedLong ;
+    :canonical "18446744073709551615"^^xsd:unsignedLong .
+
+:positiveInteger-one a :Mapping ;
+    :lexical "+1"^^xsd:positiveInteger ;
+    :canonical "1"^^xsd:positiveInteger .
+
+:nonNegativeInteger-zero a :Mapping ;
+    :lexical "-0"^^xsd:nonNegativeInteger ;
+    :canonical "0"^^xsd:nonNegativeInteger .
+
+:negativeInteger-one a :Mapping ;
+    :lexical "-01"^^xsd:negativeInteger ;
+    :canonical "-1"^^xsd:negativeInteger .
+
+:nonPositiveInteger-zero a :Mapping ;
+    :lexical "+0"^^xsd:nonPositiveInteger ;
+    :canonical "0"^^xsd:nonPositiveInteger .
+
+:hexBinary-lower-case a :Mapping ;
+    :lexical "0fb7"^^xsd:hexBinary ;
+    :canonical "0FB7"^^xsd:hexBinary .
+
+:base64Binary-spaces a :Mapping ;
+    :lexical "SG Vs bG8="^^xsd:base64Binary ;
+    :canonical "SGVsbG8="^^xsd:base64Binary .
+
+:anyURI-reference a :Mapping ;
+    :lexical "../people/ren\u00E9e#summary"^^xsd:anyURI ;
+    :canonical "../people/ren\u00E9e#summary"^^xsd:anyURI .
+
+:language-region a :Mapping ;
+    :lexical "en-GB"^^xsd:language ;
+    :canonical "en-GB"^^xsd:language .
+
+:normalizedString-spaces a :Mapping ;
+    :lexical "a  b"^^xsd:normalizedString ;
+    :canonical "a  b"^^xsd:normalizedString .
+
+:token-words a :Mapping ;
+    :lexical "a b"^^xsd:token ;
+    :canonical "a b"^^xsd:token .
+
+:NMTOKEN-hyphen a :Mapping ;
+    :lexical "-x"^^xsd:NMTOKEN ;
+    :canonical "-x"^^xsd:NMTOKEN .
+
+:Name-colon a :Mapping ;
+    :lexical ":x"^^xsd:Name ;
+    :canonical ":x"^^xsd:Name .
+
+:NCName-dots a :Mapping ;
+    :lexical "x.y"^^xsd:NCName ;
+    :canonical "x.y"^^xsd:NCName .
+
+# Different lexical forms of one value.
+
+:dateTime-zones a :Equal ;
+    :left "2026-10-30T12:00:00Z"^^xsd:dateTime ;
+    :right "2026-10-30T13:00:00+01:00"^^xsd:dateTime .
+
+:duration-year a :Equal ;
+    :left "P1Y"^^xsd:duration ;
+    :right "P12M"^^xsd:duration .
+
+:decimal-trailing-zero a :Equal ;
+    :left "1.50"^^xsd:decimal ;
+    :right "1.5"^^xsd:decimal .
+
+:double-forms a :Equal ;
+    :left "1e0"^^xsd:double ;
+    :right "1"^^xsd:double .
+
+:time-midnight a :Equal ;
+    :left "00:00:00"^^xsd:time ;
+    :right "24:00:00"^^xsd:time .
+
+:gYear-zones a :Equal ;
+    :left "2026Z"^^xsd:gYear ;
+    :right "2026+00:00"^^xsd:gYear .
+
+# Ill-typed literals.
+
+:integer-fraction a :IllTyped ;
+    :literal "1.0"^^xsd:integer .
+
+:integer-empty a :IllTyped ;
+    :literal ""^^xsd:integer .
+
+:integer-space a :IllTyped ;
+    :literal " 1"^^xsd:integer .
+
+:boolean-capitals a :IllTyped ;
+    :literal "TRUE"^^xsd:boolean .
+
+:decimal-exponent a :IllTyped ;
+    :literal "1e2"^^xsd:decimal .
+
+:double-lower-case-infinity a :IllTyped ;
+    :literal "inf"^^xsd:double .
+
+:double-hexadecimal a :IllTyped ;
+    :literal "0x1p3"^^xsd:double .
+
+:float-two-points a :IllTyped ;
+    :literal "1.0.0"^^xsd:float .
+
+:date-not-a-leap-year a :IllTyped ;
+    :literal "2023-02-29"^^xsd:date .
+
+:dateTime-offset-too-wide a :IllTyped ;
+    :literal "2026-10-30T12:00:00+14:30"^^xsd:dateTime .
+
+:dateTimeStamp-no-timezone a :IllTyped ;
+    :literal "2026-10-30T12:00:00"^^xsd:dateTimeStamp .
+
+:time-hour a :IllTyped ;
+    :literal "25:00:00"^^xsd:time .
+
+:gYear-two-digits a :IllTyped ;
+    :literal "26"^^xsd:gYear .
+
+:gMonth-thirteen a :IllTyped ;
+    :literal "--13"^^xsd:gMonth .
+
+:gDay-thirty-two a :IllTyped ;
+    :literal "---32"^^xsd:gDay .
+
+:gYearMonth-thirteen a :IllTyped ;
+    :literal "2026-13"^^xsd:gYearMonth .
+
+:gMonthDay-february-thirtieth a :IllTyped ;
+    :literal "--02-30"^^xsd:gMonthDay .
+
+:duration-empty-time a :IllTyped ;
+    :literal "P1DT"^^xsd:duration .
+
+:duration-nothing a :IllTyped ;
+    :literal "PT"^^xsd:duration .
+
+:yearMonthDuration-days a :IllTyped ;
+    :literal "P1D"^^xsd:yearMonthDuration .
+
+:dayTimeDuration-months a :IllTyped ;
+    :literal "P1M"^^xsd:dayTimeDuration .
+
+:byte-too-large a :IllTyped ;
+    :literal "128"^^xsd:byte .
+
+:short-too-small a :IllTyped ;
+    :literal "-32769"^^xsd:short .
+
+:int-too-large a :IllTyped ;
+    :literal "2147483648"^^xsd:int .
+
+:long-too-large a :IllTyped ;
+    :literal "9223372036854775808"^^xsd:long .
+
+:unsignedByte-negative a :IllTyped ;
+    :literal "-1"^^xsd:unsignedByte .
+
+:unsignedShort-too-large a :IllTyped ;
+    :literal "65536"^^xsd:unsignedShort .
+
+:unsignedInt-too-large a :IllTyped ;
+    :literal "4294967296"^^xsd:unsignedInt .
+
+:unsignedLong-too-large a :IllTyped ;
+    :literal "18446744073709551616"^^xsd:unsignedLong .
+
+:positiveInteger-zero a :IllTyped ;
+    :literal "0"^^xsd:positiveInteger .
+
+:nonNegativeInteger-negative a :IllTyped ;
+    :literal "-1"^^xsd:nonNegativeInteger .
+
+:negativeInteger-zero a :IllTyped ;
+    :literal "0"^^xsd:negativeInteger .
+
+:nonPositiveInteger-one a :IllTyped ;
+    :literal "1"^^xsd:nonPositiveInteger .
+
+:hexBinary-odd a :IllTyped ;
+    :literal "abc"^^xsd:hexBinary .
+
+:base64Binary-unused-bits a :IllTyped ;
+    :literal "SGVsbG9="^^xsd:base64Binary .
+
+:language-underscore a :IllTyped ;
+    :literal "en_US"^^xsd:language .
+
+:token-leading-space a :IllTyped ;
+    :literal " a"^^xsd:token .
+
+:normalizedString-tab a :IllTyped ;
+    :literal "a\tb"^^xsd:normalizedString .
+
+:NMTOKEN-space a :IllTyped ;
+    :literal "a b"^^xsd:NMTOKEN .
+
+:Name-hyphen-first a :IllTyped ;
+    :literal "-x"^^xsd:Name .
+
+:NCName-colon a :IllTyped ;
+    :literal "a:b"^^xsd:NCName .
+
+:string-control a :IllTyped ;
+    :literal "a\u0001"^^xsd:string .
+
+:anyURI-control a :IllTyped ;
+    :literal "\u0001"^^xsd:anyURI .
+
+# A value of each datatype, in its canonical form, as a value of the
+# samples property that ranges over the datatype.
+:typical a samples:Sample ;
+    samples:string "Almanac"^^xsd:string ;
+    samples:boolean "true"^^xsd:boolean ;
+    samples:decimal "-1.5"^^xsd:decimal ;
+    samples:integer "12345678901234567890"^^xsd:integer ;
+    samples:double "1.25E-3"^^xsd:double ;
+    samples:float "3.0E0"^^xsd:float ;
+    samples:date "2026-10-30"^^xsd:date ;
+    samples:time "13:20:00Z"^^xsd:time ;
+    samples:dateTime "2026-10-30T13:20:00.25+01:00"^^xsd:dateTime ;
+    samples:dateTimeStamp "2026-10-30T12:20:00.25Z"^^xsd:dateTimeStamp ;
+    samples:gYear "2026"^^xsd:gYear ;
+    samples:gMonth "--10"^^xsd:gMonth ;
+    samples:gDay "---30"^^xsd:gDay ;
+    samples:gYearMonth "2026-10"^^xsd:gYearMonth ;
+    samples:gMonthDay "--10-30"^^xsd:gMonthDay ;
+    samples:duration "-P1Y2M3DT4H5M6.7S"^^xsd:duration ;
+    samples:yearMonthDuration "P1Y2M"^^xsd:yearMonthDuration ;
+    samples:dayTimeDuration "P3DT4H5M6.7S"^^xsd:dayTimeDuration ;
+    samples:byte "-128"^^xsd:byte ;
+    samples:short "32767"^^xsd:short ;
+    samples:int "-2147483648"^^xsd:int ;
+    samples:long "9223372036854775807"^^xsd:long ;
+    samples:unsignedByte "255"^^xsd:unsignedByte ;
+    samples:unsignedShort "0"^^xsd:unsignedShort ;
+    samples:unsignedInt "42"^^xsd:unsignedInt ;
+    samples:unsignedLong "18446744073709551615"^^xsd:unsignedLong ;
+    samples:positiveInteger "1"^^xsd:positiveInteger ;
+    samples:nonNegativeInteger "0"^^xsd:nonNegativeInteger ;
+    samples:negativeInteger "-1"^^xsd:negativeInteger ;
+    samples:nonPositiveInteger "0"^^xsd:nonPositiveInteger ;
+    samples:hexBinary "0FB7"^^xsd:hexBinary ;
+    samples:base64Binary "SGVsbG8="^^xsd:base64Binary ;
+    samples:anyURI "https://example.org/people/ren\u00E9e"^^xsd:anyURI ;
+    samples:language "zh-Hant-TW"^^xsd:language ;
+    samples:normalizedString "Almanac,  second edition"^^xsd:normalizedString ;
+    samples:token "Almanac second edition"^^xsd:token ;
+    samples:NMTOKEN "second-edition"^^xsd:NMTOKEN ;
+    samples:Name "edition:second"^^xsd:Name ;
+    samples:NCName "second-edition"^^xsd:NCName .
+
+# Literals the samples properties' value types do not hold: ill-typed, not
+# canonical, of another datatype, and of a datatype with no Swift type. They
+# stay literals and write back as they are.
+:unusual a samples:Sample ;
+    samples:nonNegativeInteger "5"^^xsd:nonNegativeInteger, "-1"^^xsd:nonNegativeInteger, "07"^^xsd:nonNegativeInteger, 3 ;
+    samples:boolean "yes"^^xsd:boolean ;
+    samples:string "x"^^<https://xsd.example/datatypes#unknown> .

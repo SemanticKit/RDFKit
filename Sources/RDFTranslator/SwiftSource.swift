@@ -8,6 +8,12 @@ import RDFCore
 ///
 /// - `rdfs:label` and `rdfs:comment` are the declarations' documentation,
 ///   and `owl:deprecated true` is `@available(*, deprecated)`.
+/// - A literal value of a property whose range is an XSD datatype is a
+///   value of the datatype's Swift type, `XSD::nonNegativeInteger`, built
+///   from its lexical form; the translator has checked that the lexical form
+///   is in the datatype's lexical space and canonical. A literal of a lower
+///   module's XSD-typed property that is not is kept as the literal, in a
+///   value type of this module (``Declarations/untyped``).
 /// - Each individual's values are set once, the first time any individual
 ///   of the module is read, since individuals refer to each other, cycles
 ///   included (`:alice foaf:knows :bob . :bob foaf:knows :alice .`).
@@ -60,6 +66,9 @@ struct SwiftSource {
         for combination in declarations.combinations {
             source += "\n" + combinationClass(combination)
         }
+        for property in declarations.untyped {
+            source += "\n" + untypedValue(property)
+        }
 
         // The individuals, each an instance of its class, and the values the
         // documents give them. A named individual is the one instance of a
@@ -78,7 +87,16 @@ struct SwiftSource {
         for node in declarations.order where declarations.individuals[node] != nil {
             for (property, objects) in values(of: node) {
                 let declaration = propertyDeclaration(property)!
-                source += "    \(handle(node)).\(declaration.member.swiftIdentifier) = [\(objects.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
+                var typed = objects
+                if let index = declarations.untyped.firstIndex(of: property) {
+                    let untyped = objects.filter { !holds(declaration.kind, $0) }
+                    typed = objects.filter { holds(declaration.kind, $0) }
+                    if !untyped.isEmpty {
+                        source += "    \(handle(node)).storage[\(untypedValueName(index)).self].value = [\(untyped.map { expression($0, as: .literals) }.joined(separator: ", "))]\n"
+                    }
+                }
+                guard !typed.isEmpty else { continue }
+                source += "    \(handle(node)).\(declaration.member.swiftIdentifier) = [\(typed.map { expression($0, as: declaration.kind) }.joined(separator: ", "))]\n"
             }
         }
         source += "}()\n"
@@ -270,6 +288,37 @@ struct SwiftSource {
         return text
     }
 
+    /// The value type of this module that keeps, as literals, the values the
+    /// documents give a lower module's XSD-typed property that its
+    /// datatype's value type cannot hold. It writes them keyed by the
+    /// property, so they round-trip.
+    private func untypedValue(_ node: SubjectTerm) -> String {
+        let property = propertyDeclaration(node)!
+        let name = untypedValueName(declarations.untyped.firstIndex(of: node)!)
+        var text = "/// The literals of \(node.iri!.rawValue) that are not values of its range: ill-typed, of another datatype, or not canonical.\n"
+        text += "private struct \(name): RDFCore::PropertyValue {\n"
+        text += "    static var key: RDFCore::TermKey { \(property.valueReference).key }\n\n"
+        text += "    var value: [RDFCore::Literal] = []\n\n"
+        text += "    init() {}\n\n"
+        text += "    func encode(to encoder: any Swift::Encoder) throws {\n"
+        text += "        var container = encoder.container(keyedBy: RDFCore::PropertyKey.self)\n"
+        text += "        try container.encode(value, for: RDFCore::PropertyKey(Self.key))\n"
+        text += "    }\n}\n"
+        return text
+    }
+
+    private func untypedValueName(_ index: Int) -> String {
+        ("untyped \(index) Value").swiftIdentifier
+    }
+
+    /// Whether `kind` holds `value`: for an XSD datatype, whether the
+    /// value is a literal its value type writes back as it is.
+    private func holds(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
+        guard case .datatype(let datatype) = kind else { return true }
+        guard case .literal(let literal) = value else { return false }
+        return vocabulary.datatypes.holds(literal, as: datatype)
+    }
+
     /// The storing protocol that gives an individual a property's accessor.
     private func propertyStoring(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
@@ -371,6 +420,9 @@ struct SwiftSource {
     private func expression(_ value: ObjectTerm, as kind: ValueKind) -> String {
         switch value {
         case .literal(let literal):
+            if case .datatype(let datatype) = kind {
+                return "try! \(classDeclaration(datatype)!.datatypeReference)(lexicalForm: \(literal.lexicalForm.swiftStringLiteral))"
+            }
             let text = Self.expression(literal)
             return kind == .values ? ".literal(\(text))" : text
         case .iri, .blankNode, .tripleTerm:
@@ -388,6 +440,7 @@ struct SwiftSource {
 
     private func memberType(of kind: ValueKind) -> String {
         switch kind {
+        case .datatype(let datatype): classDeclaration(datatype)!.datatypeReference
         case .literals: "RDFCore::Literal"
         case .classes: "any RDFCore::ResourceClass.Type"
         case .values: "RDFCore::Value"

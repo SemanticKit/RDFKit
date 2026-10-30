@@ -7,7 +7,8 @@ import Foundation
 ///
 /// Each `--module` names a module and its documents, lowest layer first; the
 /// last is the module the output belongs to. The others are the layers it
-/// builds on, whose declarations it uses.
+/// builds on, whose declarations it uses. Below them all is the `XSD`
+/// module, whose datatypes type the properties that range over them.
 do {
     var arguments = CommandLine.arguments.dropFirst()
     guard let output = arguments.popFirst() else {
@@ -25,15 +26,17 @@ do {
     }
     guard !groups.isEmpty else { throw TranslationError(description: "no module to translate") }
 
+    // The XSD datatypes are the layer below every module.
+    let datatypes = DatatypeLayer()
     var layers: [Layer] = []
-    var declarations: [Declarations] = []
-    var vocabulary = Vocabulary([])
+    var declarations: [Declarations] = [datatypes.declarations]
+    var vocabulary = Vocabulary([], datatypes: datatypes)
     var documents = 0
     for group in groups {
         let layer = try Layer(module: group.module, paths: group.paths, firstDocument: documents)
         documents += group.paths.count
         layers.append(layer)
-        vocabulary = Vocabulary(layers)
+        vocabulary = Vocabulary(layers, datatypes: datatypes)
         declarations.append(try Declarations(layer, vocabulary, below: declarations))
     }
     let source = SwiftSource(

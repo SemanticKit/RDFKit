@@ -23,6 +23,10 @@ let package = Package(
             targets: ["RDFFormats"]
         ),
         .library(
+            name: "XSD",
+            targets: ["XSD"]
+        ),
+        .library(
             name: "RDF",
             targets: ["RDF"]
         ),
@@ -70,12 +74,30 @@ let package = Package(
             ]
         ),
 
+        // The XML Schema datatypes RDF uses (RDF 1.2 Concepts §5.1), each a
+        // Swift value type, translated from the W3C documents in
+        // Sources/XSD/W3C by the translator and plugin that read them.
+        .target(
+            name: "XSD",
+            dependencies: ["RDFCore"],
+            exclude: ["W3C/README.md"],
+            plugins: ["XSDTranslatorPlugin"]
+        ),
+        .executableTarget(
+            name: "XSDTranslator"
+        ),
+        .plugin(
+            name: "XSDTranslatorPlugin",
+            capability: .buildTool(),
+            dependencies: ["XSDTranslator"]
+        ),
+
         // RDF in, Swift out: the translator and the build tool plugin that
         // runs it over a target's RDF documents. The Swift it writes uses
         // RDFCore, as the Swift @Ontology writes does.
         .executableTarget(
             name: "RDFTranslator",
-            dependencies: ["IRIKit", "RDFCore", "RDFFormats"]
+            dependencies: ["IRIKit", "RDFCore", "RDFFormats", "XSD"]
         ),
         .plugin(
             name: "RDFTranslatorPlugin",
@@ -87,33 +109,33 @@ let package = Package(
         // to each other), then OWL 2 (owl.ttl).
         .target(
             name: "RDF",
-            dependencies: ["RDFCore"],
+            dependencies: ["RDFCore", "XSD"],
             path: "Tests/ParallelTests/Fixtures/W3C",
             plugins: ["RDFTranslatorPlugin"]
         ),
         .target(
             name: "OWL",
-            dependencies: ["RDF"],
+            dependencies: ["RDF", "XSD"],
             plugins: ["RDFTranslatorPlugin"]
         ),
 
         // Vocabularies and data built on the layers.
         .target(
             name: "FOAF",
-            dependencies: ["OWL", "RDF"],
+            dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/ParallelTests/Fixtures/FOAF",
             plugins: ["RDFTranslatorPlugin"]
         ),
         .target(
             name: "AliceProfile",
-            dependencies: ["FOAF"],
+            dependencies: ["FOAF", "XSD"],
             path: "Tests/ParallelTests/Fixtures/AliceProfile",
             plugins: ["RDFTranslatorPlugin"]
         ),
         // SHACL 1.2's published vocabulary (shacl.ttl), on RDF and OWL.
         .target(
             name: "SHACL",
-            dependencies: ["OWL", "RDF"],
+            dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/SHACLTranslationTests/Fixtures/SHACL",
             plugins: ["RDFTranslatorPlugin"]
         ),
@@ -121,7 +143,7 @@ let package = Package(
         // RDF module it builds on.
         .target(
             name: "EntailmentRegimes",
-            dependencies: ["OWL", "RDF"],
+            dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/EntailmentTranslationTests/Fixtures/EntailmentRegimes",
             plugins: ["RDFTranslatorPlugin"]
         ),
@@ -180,8 +202,30 @@ let package = Package(
                 "RDFCore",
                 "RDFFormats",
                 "RDF",
-                "OWL"
+                "OWL",
+                "XSD"
             ],
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        // A vocabulary with a property for each XSD datatype, for XSDTests.
+        .target(
+            name: "Samples",
+            dependencies: ["OWL", "RDF", "XSD"],
+            path: "Tests/XSDTests/Fixtures/Samples",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        .testTarget(
+            name: "XSDTests",
+            dependencies: [
+                "RDFCore",
+                "RDFFormats",
+                "RDF",
+                "OWL",
+                "Samples",
+                "XSD",
+                .product(name: "IRIKit", package: "IRIKit")
+            ],
+            exclude: ["Fixtures"],
             plugins: ["RDFTranslatorPlugin"]
         ),
         .testTarget(

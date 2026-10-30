@@ -72,11 +72,30 @@ struct Declarations {
     /// describe.
     var additions: [SubjectTerm] = []
 
+    /// The literals the documents give individuals as values of a property
+    /// a module below types by an XSD datatype, which are not values of the
+    /// datatype: ill-typed literals, literals of another datatype, and
+    /// literals not in their canonical form. Each property's are kept as
+    /// literals in a value type of this module, which writes them back.
+    var untyped: [SubjectTerm] = []
+
     /// Names that generated code declares in every module.
     static let reserved: Set<String> = ["ontology", "described"]
 
     /// Names a generated class declares itself.
     static let memberNames: Set<String> = ["storage", "encode", "encodeDescription", "init", "Member", "classes"]
+
+    /// The declarations of the XSD datatypes (``DatatypeLayer``): a public
+    /// class for each, named as the `XSD` module names it.
+    init(module: String, datatypes: [(node: SubjectTerm, name: String)]) {
+        self.module = module
+        for (node, name) in datatypes {
+            var declaration = ClassDeclaration(node: node, module: module, isPublic: true, name: name)
+            declaration.isDatatype = true
+            declaration.member = .datatype(node)
+            classes[node] = declaration
+        }
+    }
 
     init(_ layer: Layer, _ vocabulary: Vocabulary, below: [Declarations]) throws {
         module = layer.module
@@ -158,7 +177,7 @@ struct Declarations {
             guard let declaration = classes[node] else { continue }
             let superclasses = vocabulary.superclassClosure(of: node).filter { superclass in
                 guard superclass != node else { return false }
-                if let other = lower.class(superclass) { return other.isPublic || !declaration.isPublic }
+                if let other = lower.class(superclass) { return !other.isDatatype && (other.isPublic || !declaration.isPublic) }
                 guard let other = classes[superclass], let otherIndex = position[superclass] else { return false }
                 guard other.isPublic || !declaration.isPublic else { return false }
                 let mutual = vocabulary.superclassClosure(of: superclass).contains(node)
@@ -216,6 +235,14 @@ struct ClassDeclaration {
 
     /// The Swift type of a member of the class as a property value.
     var member: ValueKind = .values
+
+    /// Whether the class is an XSD datatype, whose Swift type is a value
+    /// type, not a protocol.
+    var isDatatype = false
+
+    /// The value type of an XSD datatype, as Swift refers to it from any
+    /// module.
+    var datatypeReference: String { "\(module)::\(name.swiftIdentifier)" }
 
     var protocolName: String { name }
     var className: String { isPublic ? name + "Individual" : name + " Individual" }
@@ -313,7 +340,12 @@ struct Combination {
 
 /// The Swift type of a property's values.
 enum ValueKind: Hashable {
-    /// `[RDFCore::Literal]`: the range is a literal class or datatype.
+    /// `[XSD::nonNegativeInteger]`: the range is an XSD datatype, whose
+    /// Swift value type holds its values.
+    case datatype(SubjectTerm)
+    /// `[RDFCore::Literal]`: the range is another literal class or
+    /// datatype, or the documents give the property literals its
+    /// datatype's value type cannot hold.
     case literals
     /// `[any RDFCore::ResourceClass.Type]`: the range is a class of classes.
     case classes

@@ -5,12 +5,18 @@ import RDFCore
 /// storing protocol gives its members, and the class of each individual one
 /// module declares.
 ///
-/// - A property's values are typed by its range: literals for a literal
-///   class or datatype, classes for a class of classes, the protocols of
-///   the range's classes for individuals, and ``RDFCore/Value`` for a range
-///   that admits any resource. When the documents give the property a value
-///   that type cannot hold, such as a blank node as the value of
-///   `rdfs:comment`, its values are typed `[RDFCore::Value]`.
+/// - A property's values are typed by its range: the value type of an XSD
+///   datatype, literals for another literal class or datatype, classes for
+///   a class of classes, the protocols of the range's classes for
+///   individuals, and ``RDFCore/Value`` for a range that admits any
+///   resource. When the documents give the property a value that type
+///   cannot hold, such as a blank node as the value of `rdfs:comment`, its
+///   values are typed `[RDFCore::Value]`; when they give an XSD-typed
+///   property a literal its datatype's value type does not write back as
+///   it is (ill-typed, of another datatype, or not canonical), its values
+///   are typed `[RDFCore::Literal]`. A property a module below types by an
+///   XSD datatype keeps its type, and such literals are kept as literals
+///   (``Declarations/untyped``).
 /// - A class's storing protocol refines the storing protocols of the classes
 ///   it conforms to and of every property this module declares that a
 ///   member of it can have: one whose domain is the class or a superclass,
@@ -69,7 +75,13 @@ struct Planner {
 
     /// The protocols of `rdfs:Resource` and `owl:Thing`, where declared.
     private var universalProtocols: Set<SubjectTerm> {
-        Set(Self.universal.filter { classDeclaration($0) != nil })
+        Set(Self.universal.filter { hasProtocol($0) })
+    }
+
+    /// Whether `node` is a class with a protocol, here or below: a class
+    /// that is not an XSD datatype, whose Swift type is a value type.
+    func hasProtocol(_ node: SubjectTerm) -> Bool {
+        classDeclaration(node).map { !$0.isDatatype } ?? false
     }
 
     /// `nodes` and every protocol they refine.
@@ -91,7 +103,7 @@ struct Planner {
     /// The protocols of the classes an individual is a member of, stated
     /// and entailed, and of the classes every resource is a member of.
     private func protocols(of node: SubjectTerm) -> Set<SubjectTerm> {
-        Set((vocabulary.classes(of: node).union(stated(node))).filter { classDeclaration($0) != nil })
+        Set((vocabulary.classes(of: node).union(stated(node))).filter(hasProtocol))
             .union(universalProtocols)
     }
 
@@ -108,10 +120,11 @@ struct Planner {
 
     /// The Swift type of a property's values, by its range.
     func kind(ofRanges ranges: [SubjectTerm]) -> ValueKind {
+        if ranges.count == 1, vocabulary.datatypes.datatype(ranges[0]) != nil { return .datatype(ranges[0]) }
         if ranges.contains(where: vocabulary.isLiteralClass) { return .literals }
         if ranges.contains(where: vocabulary.isMetaclass) { return .classes }
         if ranges.isEmpty || ranges.contains(.iri(.rdfsResource)) { return .values }
-        let protocols = Set(ranges.filter { classDeclaration($0)?.isPublic == true })
+        let protocols = Set(ranges.filter { hasProtocol($0) && classDeclaration($0)?.isPublic == true })
         return .individuals(minimal(protocols))
     }
 
@@ -119,6 +132,8 @@ struct Planner {
     func holds(_ kind: ValueKind, _ value: ObjectTerm) -> Bool {
         switch (kind, value) {
         case (.values, _): return true
+        case (.datatype(let datatype), .literal(let literal)): return vocabulary.datatypes.holds(literal, as: datatype)
+        case (.datatype, _): return false
         case (.literals, .literal): return true
         case (_, .literal), (_, .tripleTerm): return false
         case (.literals, _): return false
@@ -137,16 +152,29 @@ struct Planner {
         for node in declarations.order {
             guard var property = declarations.properties[node], let iri = node.iri else { continue }
             property.kind = kind(ofRanges: vocabulary.ranges(of: node))
-            if !vocabulary.graph.allSatisfy({ $0.predicate != iri || holds(property.kind, $0.object) }) {
-                property.kind = .values
+            let objects = vocabulary.graph.filter { $0.predicate == iri }.map(\.object)
+            if !objects.allSatisfy({ holds(property.kind, $0) }) {
+                if case .datatype = property.kind, objects.allSatisfy({ holds(.literals, $0) }) {
+                    property.kind = .literals
+                } else {
+                    property.kind = .values
+                }
             }
             declarations.properties[node] = property
         }
-        // A property a module below declares keeps its type.
+        // A property a module below declares keeps its type. The literals
+        // its XSD datatype's value type cannot hold are kept as literals.
         for triple in layer.graph {
             guard declarations.properties[.iri(triple.predicate)] == nil,
                   let property = lower.property(.iri(triple.predicate)),
                   !holds(property.kind, triple.object) else { continue }
+            if case .datatype = property.kind, case .literal = triple.object {
+                // A class's description writes every value as it is.
+                if declarations.individuals[triple.subject] != nil, !declarations.untyped.contains(property.node) {
+                    declarations.untyped.append(property.node)
+                }
+                continue
+            }
             throw TranslationError(description: "\(layer.module): a value of '\(triple.predicate)' on \(triple.subject) is not of the type \(property.module) gives the property's values")
         }
     }
@@ -210,7 +238,7 @@ struct Planner {
         var own: [SubjectTerm: [SubjectTerm]] = [:]
         for node in declarations.order {
             guard var declaration = declarations.classes[node] else { continue }
-            let superclasses = vocabulary.superclassClosure(of: node).filter { classDeclaration($0) != nil }
+            let superclasses = vocabulary.superclassClosure(of: node).filter(hasProtocol)
             declaration.conformances = minimal(Set(superclasses).union([node]).union(universalProtocols))
             declaration.member = kind(ofRanges: [node])
             own[node] = ownProperties(conformingTo: declaration.conformances, isPublic: declaration.isPublic)
@@ -262,7 +290,7 @@ struct Planner {
         let properties = values(of: node).map(\.property)
         declaration.conformances = closure(required)
 
-        if stated.count == 1, let type = classDeclaration(stated[0]), closure(type.conformances).isSuperset(of: required),
+        if stated.count == 1, let type = classDeclaration(stated[0]), !type.isDatatype, closure(type.conformances).isSuperset(of: required),
            properties.allSatisfy(type.stored.contains) {
             declaration.instanceOf = .class(stated[0])
             // A named individual's Swift class is its own, which carries its

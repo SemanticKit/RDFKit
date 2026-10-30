@@ -4,6 +4,7 @@ import IRIKit
 import RDFCore
 import RDFFormats
 import RDF
+import XSD
 
 /// `library.ttl`, translated into this test module by `RDFTranslatorPlugin`.
 @Suite("A vocabulary and its data translated to Swift", .tags(.generated))
@@ -42,23 +43,50 @@ struct LibraryTests {
         #expect(`second-edition`.cites.contains { $0 === `second-edition` })
     }
 
-    /// Literal values keep their language tags and datatypes.
-    @Test func literalValuesKeepTheirForm() throws {
-        #expect(Set(almanac.title) == [
-            try Literal("Almanac", languageTag: "en"),
-            try Literal("Almanach", languageTag: "de"),
-        ])
-        // The typed literal as the document states it, decoded at the boundary.
+    /// The literals the document states about one individual for one
+    /// property, decoded at the boundary.
+    private func literals(of individual: any RDFCore.Resource, _ property: TermKey) throws -> [RDFCore.Literal] {
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
         let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
-        let pages: [RDFCore.Literal] = document.compactMap { triple in
-            guard triple.subject == .iri(IRI(of: almanac)!), triple.predicate == IRI(pagesValue.key),
+        let subject = SubjectTerm.iri(try #require(IRI(of: individual)))
+        return document.compactMap { triple in
+            guard triple.subject == subject, triple.predicate == IRI(property),
                   case .literal(let literal) = triple.object else { return nil }
             return literal
         }
-        #expect(pages.count == 1)
-        #expect(almanac.pages == pages)
+    }
+
+    /// Literal values keep their language tags and datatypes. `:title`
+    /// ranges over `xsd:string`, but the document gives it language-tagged
+    /// strings, which are not `xsd:string` values, so its values stay
+    /// literals.
+    @Test func literalValuesKeepTheirForm() throws {
+        #expect(Set(almanac.title) == Set(try literals(of: almanac, titleValue.key)))
+        #expect(almanac.title.count == 2)
         #expect(gazette.title == ["Gazette"])
+    }
+
+    /// A property whose range is an XSD datatype holds values of the
+    /// datatype's Swift value type, built from the document's literals at
+    /// the boundary.
+    @Test func datatypeValuesAreTheDatatypesValueTypes() throws {
+        let pages: [XSD.nonNegativeInteger] = almanac.pages
+        #expect(pages == (try literals(of: almanac, pagesValue.key).map { try XSD.nonNegativeInteger($0) }))
+        #expect(pages.first?.value.int == 212)
+        let published: [XSD.gYear] = almanac.published
+        #expect(published == (try literals(of: almanac, publishedValue.key).map { try XSD.gYear($0) }))
+    }
+
+    /// Literals a datatype's value type cannot write back as they are, one
+    /// not canonical (`"02"`) and one ill-typed (`"third"`), and a literal
+    /// of a datatype with no Swift type, stay literals, and the data
+    /// translates back to the same graph (``translatesBackToTheSameGraph()``).
+    @Test func otherLiteralsStayLiterals() throws {
+        let editions: [RDFCore.Literal] = `second-edition`.edition + `third-edition`.edition
+        #expect(editions == (try literals(of: `second-edition`, editionValue.key) + literals(of: `third-edition`, editionValue.key)))
+        #expect(throws: DatatypeError.illTyped) { try XSD.positiveInteger(try #require(`third-edition`.edition.first)) }
+        let catalogueNumbers: [RDFCore.Literal] = almanac.catalogueNumber
+        #expect(catalogueNumbers == (try literals(of: almanac, catalogueNumberValue.key)))
     }
 
     /// The data translates back to the same graph, blank nodes and the
