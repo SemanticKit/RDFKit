@@ -208,8 +208,8 @@ struct SwiftSource {
         return "extension \(extended) {\n"
             + documentation(node, indent: "    ")
             + "    public var \(SwiftName.identifier(name)): \(type) {\n"
-            + "        get { propertyValues.values(of: \(handle))\(read) }\n"
-            + "        set { propertyValues.replace(\(handle), with: newValue) }\n"
+            + "        get { propertyValues[\(handle)]\(read) }\n"
+            + "        set { propertyValues[\(handle)] = newValue }\n"
             + "    }\n"
             + "}\n"
     }

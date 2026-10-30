@@ -31,16 +31,15 @@ public final class PropertyValues: Sendable {
         storage.withLock { state in Self.statements(&state) }
     }
 
-    /// The values of one property.
-    public func values(of property: any Resource) -> [Value] {
-        all.filter { $0.property === property }.map(\.value)
-    }
-
-    /// Replaces the values of one property.
-    public func replace(_ property: any Resource, with values: [Value]) {
-        storage.withLock { state in
-            let others = Self.statements(&state).filter { $0.property !== property }
-            state = .values(others + values.map { (property: property, value: $0) })
+    /// The values of one property, in the order the document gives them.
+    /// Setting them replaces every value the property had.
+    public subscript(property: any Resource) -> [Value] {
+        get { all.filter { $0.property === property }.map(\.value) }
+        set {
+            storage.withLock { state in
+                let others = Self.statements(&state).filter { $0.property !== property }
+                state = .values(others + newValue.map { (property: property, value: $0) })
+            }
         }
     }
 
