@@ -1,5 +1,6 @@
 import SwiftDiagnostics
 import SwiftSyntax
+import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 /// Entry point for the `@Ontology` macro.
@@ -47,18 +48,41 @@ public struct OntologyMacro: MemberMacro, MemberAttributeMacro {
            let location = context.location(of: brace, at: .afterLeadingTrivia, filePathMode: .filePath),
            let file = location.file.as(StringLiteralExprSyntax.self),
            let line = location.line.as(IntegerLiteralExprSyntax.self) {
-            return ["@OntologyContent(file: \(file), line: \(line))"]
+            return [AttributeSyntax(
+                attributeName: IdentifierTypeSyntax(name: .identifier("OntologyContent")),
+                leftParen: .leftParenToken(),
+                arguments: .argumentList(LabeledExprListSyntax(separating: [
+                    LabeledExprSyntax("file", file.trimmed),
+                    LabeledExprSyntax("line", line.trimmed),
+                ])),
+                rightParen: .rightParenToken()
+            )]
         }
-        return ["@OntologyContent"]
+        return [AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier("OntologyContent")))]
     }
 
     /// The error for a `content()` function, with a fix-it that writes
     /// the same body as `var body: some Content`.
     static func contentFunctionDiagnostic(_ function: FunctionDeclSyntax) -> Diagnostic {
-        let attributes = function.attributes.map { $0.trimmedDescription + " " }.joined()
-        let modifiers = function.modifiers.map { $0.trimmedDescription + " " }.joined()
-        let body = function.body?.trimmedDescription ?? "{}"
-        let replacement: DeclSyntax = "\(raw: attributes)\(raw: modifiers)var body: some Content \(raw: body)"
+        let body = function.body?.trimmed ?? CodeBlockSyntax(statements: [])
+        // The function's attributes and modifiers, each followed by a
+        // space, then `var body: some Content` and the function's body.
+        let replacement = VariableDeclSyntax(
+            attributes: AttributeListSyntax(function.attributes.map { $0.trimmed.with(\.trailingTrivia, .space) }),
+            modifiers: DeclModifierListSyntax(function.modifiers.map { $0.trimmed.with(\.trailingTrivia, .space) }),
+            bindingSpecifier: .keyword(.var, trailingTrivia: .space),
+            bindings: PatternBindingListSyntax([PatternBindingSyntax(
+                pattern: IdentifierPatternSyntax(identifier: .identifier("body")),
+                typeAnnotation: TypeAnnotationSyntax(
+                    colon: .colonToken(trailingTrivia: .space),
+                    type: SomeOrAnyTypeSyntax(
+                        someOrAnySpecifier: .keyword(.some, trailingTrivia: .space),
+                        constraint: IdentifierTypeSyntax(name: .identifier("Content", trailingTrivia: .space))
+                    )
+                ),
+                accessorBlock: AccessorBlockSyntax(leftBrace: body.leftBrace, accessors: .getter(body.statements), rightBrace: body.rightBrace)
+            )])
+        )
         return Diagnostic(
             node: function.name,
             message: OntologyDiagnostic.writeContentInBody,

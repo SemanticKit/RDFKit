@@ -244,8 +244,8 @@ struct Planner: DeclarationScope {
             // A named individual's Swift class is its own, which carries its
             // declared key, so it is typed by its class's storing protocol,
             // which gives it every property a member of the class has.
-            declaration.publicType = !type.isPublic ? existential(minimal(required))
-                : node.iri == nil ? type.classReference : "any " + type.storingReference
+            declaration.publicType = !type.isPublic ? .existential(minimal(required))
+                : node.iri == nil ? .individualClass(stated[0]) : .storing(stated[0])
             declarations.individuals[node] = declaration
             return
         }
@@ -268,14 +268,8 @@ struct Planner: DeclarationScope {
             ))
         }
         declaration.instanceOf = .combination(index)
-        declaration.publicType = existential(conformances)
+        declaration.publicType = .existential(conformances)
         declarations.individuals[node] = declaration
-    }
-
-    /// `any A & B` of the public protocols among `protocols`.
-    func existential(_ protocols: [SubjectTerm]) -> String {
-        let names = protocols.compactMap { classDeclaration($0) }.filter(\.isPublic).map(\.protocolReference)
-        return "any " + (names.isEmpty ? "RDFCore::Resource" : names.joined(separator: " & "))
     }
 
     /// The name of a combination class: its stated classes, and the classes

@@ -23,11 +23,12 @@ extension ParsedOntology {
         return .external(trimmed)
     }
 
-    /// The Swift spelling of a resolved term, qualified by its ontology.
-    func spelling(of reference: TermReference) -> String {
+    /// The Swift name of a resolved term, qualified by its ontology:
+    /// `Fauna.Habitat`.
+    func name(of reference: TermReference) -> QualifiedName {
         switch reference {
-        case .local(let name): return "\(typeName).\(SwiftIdentifier.escaped(name))"
-        case .external(let spelling): return spelling
+        case .local(let name): QualifiedName(typeName, name)
+        case .external(let spelling): QualifiedName(spelling: spelling)
         }
     }
 
@@ -43,28 +44,12 @@ extension ParsedOntology {
 }
 
 enum SwiftIdentifier {
-    private static let keywords: Set<String> = [
-        "associatedtype", "class", "deinit", "enum", "extension", "fileprivate", "func",
-        "import", "init", "inout", "internal", "let", "open", "operator", "private",
-        "precedencegroup", "protocol", "public", "rethrows", "static", "struct",
-        "subscript", "typealias", "var", "break", "case", "catch", "continue", "default",
-        "defer", "do", "else", "fallthrough", "for", "guard", "if", "in", "repeat",
-        "return", "throw", "switch", "where", "while", "Any", "as", "await", "false",
-        "is", "nil", "self", "Self", "super", "throws", "true", "try", "Type", "Protocol",
-    ]
-
     /// A local name made into a Swift identifier: `version-1.0` becomes `version_1_0`.
     static func sanitized(_ name: String) -> String {
         let mapped = name.map { $0.isLetter || $0.isNumber || $0 == "_" ? $0 : "_" }
         var result = String(mapped)
         if let first = result.first, first.isNumber { result = "_" + result }
         return result
-    }
-
-    /// A sanitized identifier, in backticks when it is a keyword.
-    static func escaped(_ name: String) -> String {
-        let identifier = sanitized(name)
-        return keywords.contains(identifier) ? "`\(identifier)`" : identifier
     }
 }
 

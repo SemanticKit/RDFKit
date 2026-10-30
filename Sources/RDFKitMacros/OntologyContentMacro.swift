@@ -1,5 +1,7 @@
 import SwiftDiagnostics
+import SwiftSpelling
 import SwiftSyntax
+import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 /// The body macro on an ontology's `var body`.
@@ -43,7 +45,7 @@ public struct OntologyContentMacro: BodyMacro {
             }
             items.append(statement)
         }
-        if items.count > rewritten.count { items.append(CodeBlockItemSyntax(item: .decl("#sourceLocation()"))) }
+        if items.count > rewritten.count { items.append(CodeBlockItemSyntax(item: .decl(DeclSyntax(PoundSourceLocationSyntax())))) }
         return items
     }
 
@@ -51,9 +53,27 @@ public struct OntologyContentMacro: BodyMacro {
     /// authored on.
     private static func sourceLocation(of statement: CodeBlockItemSyntax, in context: some MacroExpansionContext) -> CodeBlockItemSyntax? {
         guard let location = context.location(of: statement, at: .afterLeadingTrivia, filePathMode: .filePath),
-              let file = location.file.as(StringLiteralExprSyntax.self),
+              let file = location.file.as(StringLiteralExprSyntax.self)?.representedLiteralValue,
               let line = location.line.as(IntegerLiteralExprSyntax.self) else { return nil }
-        return CodeBlockItemSyntax(item: .decl("#sourceLocation(file: \(file), line: \(line))"))
+        return .sourceLocation(file: file, line: line.literal)
+    }
+}
+
+extension CodeBlockItemSyntax {
+    /// `#sourceLocation(file: file, line: line)`, or nil for a file whose
+    /// name the directive cannot spell, one with `\` or `"`
+    /// (`SimpleStringLiteralExprSyntax(verbatim:)`). The statements are then
+    /// reported where the compiler places the expansion, never at a file of
+    /// another name.
+    static func sourceLocation(file: String, line: TokenSyntax) -> CodeBlockItemSyntax? {
+        guard let fileName = SimpleStringLiteralExprSyntax(verbatim: file) else { return nil }
+        return CodeBlockItemSyntax(item: .decl(DeclSyntax(PoundSourceLocationSyntax(arguments: PoundSourceLocationArgumentsSyntax(
+            fileColon: .colonToken(trailingTrivia: .space),
+            fileName: fileName,
+            comma: .commaToken(trailingTrivia: .space),
+            lineColon: .colonToken(trailingTrivia: .space),
+            lineNumber: line.trimmed
+        )))))
     }
 }
 
@@ -62,16 +82,16 @@ public struct OntologyContentMacro: BodyMacro {
 /// computed property is given is built outside the authored file, so the
 /// line of each statement is counted from the brace.
 private struct BraceAnchor {
-    let file: StringLiteralExprSyntax
+    let file: String
     let line: Int
     let brace: TokenSyntax
 
     init?(_ attribute: AttributeSyntax, body: CodeBlockSyntax) {
         guard case .argumentList(let arguments) = attribute.arguments,
-              let file = arguments.first(where: { $0.label?.text == "file" })?.expression.as(StringLiteralExprSyntax.self),
+              let file = arguments.first(where: { $0.label?.text == "file" })?.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue,
               let line = arguments.first(where: { $0.label?.text == "line" })?.expression.as(IntegerLiteralExprSyntax.self),
               let value = Int(line.literal.text) else { return nil }
-        self.file = file.trimmed
+        self.file = file
         self.line = value
         self.brace = body.leftBrace
     }
@@ -81,7 +101,7 @@ private struct BraceAnchor {
         let converter = SourceLocationConverter(fileName: "", tree: statement.root)
         let offset = converter.location(for: statement.positionAfterSkippingLeadingTrivia).line
             - converter.location(for: brace.positionAfterSkippingLeadingTrivia).line
-        return CodeBlockItemSyntax(item: .decl("#sourceLocation(file: \(file), line: \(raw: line + offset))"))
+        return .sourceLocation(file: file, line: .integerLiteral(String(line + offset)))
     }
 }
 
@@ -130,8 +150,11 @@ private final class ContentRewriter: SyntaxRewriter {
         guard let call = visited.as(FunctionCallExprSyntax.self),
               let reference = call.calledExpression.as(DeclReferenceExprSyntax.self),
               Self.forms.contains(reference.baseName.text) else { return visited }
-        let qualified: ExprSyntax = "RDFCore.\(raw: reference.baseName.text)"
-        return ExprSyntax(call.with(\.calledExpression, qualified.with(\.leadingTrivia, reference.leadingTrivia)))
+        let qualified = MemberAccessExprSyntax(
+            base: DeclReferenceExprSyntax(baseName: .identifier("RDFCore")),
+            declName: DeclReferenceExprSyntax(baseName: reference.baseName.trimmed)
+        )
+        return ExprSyntax(call.with(\.calledExpression, ExprSyntax(qualified.with(\.leadingTrivia, reference.leadingTrivia))))
     }
 
     /// The form and related type of an annotation that relates the declared
@@ -178,7 +201,7 @@ enum UnusedSpelling {
     /// fix-it to the related type as the argument.
     static func diagnostic(for call: FunctionCallExprSyntax) -> Diagnostic? {
         guard let (form, type) = of(call) else { return nil }
-        let replacement: ExprSyntax = "\(raw: form)(\(raw: type))"
+        let replacement = QualifiedName(form).expression.call(LabeledExprSyntax(expression: QualifiedName(spelling: type).expression))
         return Diagnostic(
             node: call,
             message: OntologyDiagnostic.writeRelatedTypeAsArgument(form: form, type: type),

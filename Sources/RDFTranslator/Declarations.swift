@@ -225,16 +225,16 @@ struct ClassDeclaration {
     var storingName: String { isPublic ? name + "Storing" : name + " Storing" }
 
     /// The protocol, as Swift refers to it from any module.
-    var protocolReference: String { reference(protocolName) }
+    var protocolReference: SwiftReference { reference(protocolName) }
 
     /// The class, as Swift refers to it from any module.
-    var classReference: String { reference(className) }
+    var classReference: SwiftReference { reference(className) }
 
     /// The storing protocol, as Swift refers to it from any module.
-    var storingReference: String { reference(storingName) }
+    var storingReference: SwiftReference { reference(storingName) }
 
-    private func reference(_ name: String) -> String {
-        isPublic ? "\(module)::\(name.swiftIdentifier)" : name.swiftIdentifier
+    private func reference(_ name: String) -> SwiftReference {
+        SwiftReference(module: isPublic ? module : nil, name: name)
     }
 }
 
@@ -257,12 +257,12 @@ struct PropertyDeclaration {
     var storingName: String { isPublic ? name + "Storing" : name + " Storing" }
 
     /// The term type, as Swift refers to it from any module.
-    var termReference: String { reference(termName) }
-    var valueReference: String { reference(valueName) }
-    var storingReference: String { reference(storingName) }
+    var termReference: SwiftReference { reference(termName) }
+    var valueReference: SwiftReference { reference(valueName) }
+    var storingReference: SwiftReference { reference(storingName) }
 
-    private func reference(_ name: String) -> String {
-        isPublic ? "\(module)::\(name.swiftIdentifier)" : name.swiftIdentifier
+    private func reference(_ name: String) -> SwiftReference {
+        SwiftReference(module: isPublic ? module : nil, name: name)
     }
 }
 
@@ -288,12 +288,34 @@ struct IndividualDeclaration {
     var conformances: Set<SubjectTerm> = []
 
     /// The Swift type of the public constant.
-    var publicType = "any RDFCore::Resource"
+    var publicType: IndividualType = .existential([])
 
     /// The individual, as Swift refers to it from any module.
-    var reference: String {
-        isPublic ? "\(module)::\(name.swiftIdentifier)" : name.swiftIdentifier
+    var reference: SwiftReference {
+        SwiftReference(module: isPublic ? module : nil, name: name)
     }
+}
+
+/// The Swift type an individual's public constant is declared with.
+enum IndividualType: Hashable {
+    /// `any A & B` of the public protocols of these classes, or
+    /// `any RDFCore::Resource` when none is public.
+    case existential([SubjectTerm])
+    /// The Swift class of the class: a blank node's type.
+    case individualClass(SubjectTerm)
+    /// `any` the storing protocol of the class: a named individual's type,
+    /// whose own Swift class conforms to it.
+    case storing(SubjectTerm)
+}
+
+/// A declaration as Swift refers to it: by its name, after a module
+/// selector (SE-0491) when it is public, `RDF::Property`, so that a
+/// resource named like an imported module cannot hide that module.
+struct SwiftReference: Hashable {
+    /// The module of a public declaration; `nil` for a private one, named
+    /// only inside its own module.
+    let module: String?
+    let name: String
 }
 
 /// The Swift class an individual is an instance of.
@@ -452,25 +474,7 @@ extension IRI {
     }
 }
 
-extension Literal {
-    /// The literal as a Swift expression that makes it: its lexical form,
-    /// language tag, base direction and datatype, unchanged.
-    var swiftExpression: String {
-        let lexical = lexicalForm.swiftStringLiteral
-        if languageTag == nil, datatype == nil {
-            return "RDFCore::Literal(\(lexical))"
-        }
-        var arguments = [lexical]
-        if let languageTag { arguments.append("languageTag: \(languageTag.swiftStringLiteral)") }
-        if let baseDirection { arguments.append("baseDirection: .\(baseDirection.rawValue)") }
-        if let datatype { arguments.append("datatype: \(datatype.rawValue.swiftStringLiteral)") }
-        // Only a language tag can be refused; a typed literal cannot.
-        let attempt = languageTag == nil ? "" : "try! "
-        return "\(attempt)RDFCore::Literal(\(arguments.joined(separator: ", ")))"
-    }
-}
-
-/// Spelling RDF names as Swift identifiers and string literals.
+/// Spelling RDF names as Swift names.
 extension String {
     /// Whether the name can be a raw identifier (SE-0451, Permitted
     /// characters): it is not empty, not only whitespace or operator
@@ -500,29 +504,6 @@ extension String {
     var capitalizingFirstLetter: String {
         guard let first else { return self }
         return first.uppercased() + dropFirst()
-    }
-
-    /// The name as an identifier, always in backticks, so keywords and names Swift's
-    /// identifier grammar does not allow are raw identifiers (SE-0451).
-    var swiftIdentifier: String {
-        "`" + self + "`"
-    }
-
-    /// A Swift string literal of the text.
-    var swiftStringLiteral: String {
-        var literal = "\""
-        for scalar in unicodeScalars {
-            switch scalar {
-            case "\"": literal += "\\\""
-            case "\\": literal += "\\\\"
-            case "\n": literal += "\\n"
-            case "\r": literal += "\\r"
-            case "\t": literal += "\\t"
-            case "\u{00}"..."\u{1F}", "\u{7F}": literal += "\\u{\(String(scalar.value, radix: 16))}"
-            default: literal.unicodeScalars.append(scalar)
-            }
-        }
-        return literal + "\""
     }
 }
 

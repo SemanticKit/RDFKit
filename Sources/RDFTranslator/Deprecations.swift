@@ -1,4 +1,5 @@
 import RDFCore
+import SwiftSyntax
 
 /// The nodes whose Swift is `@available(*, deprecated)`.
 ///
@@ -47,8 +48,8 @@ struct Deprecations {
     }
 
     /// `@available(*, deprecated)` on its own line, when `deprecated`.
-    static func attribute(_ deprecated: Bool, indent: String = "") -> String {
-        deprecated ? indent + "@available(*, deprecated)\n" : ""
+    static func attributes(_ deprecated: Bool) -> AttributeListSyntax {
+        deprecated ? .deprecated : []
     }
 }
 

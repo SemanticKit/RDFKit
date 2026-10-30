@@ -1188,4 +1188,379 @@ struct OntologyMacroTests {
             ]
         )
     }
+
+    @Test("A deprecation reason becomes the message of @available, escaped as a string literal")
+    func deprecationReasonBecomesTheMessage() {
+        assertExpansion(
+            #"""
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Cage") {
+                        Deprecated("use \"Enclosure\" \\ instead\n")
+                    }
+                    Property("bars") {
+                        Domain(Zoo.Cage)
+                        Deprecated("counted in \"Enclosure\"")
+                    }
+                }
+            }
+            """#,
+            expandedSource: #"""
+            struct Zoo: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
+                    RDFCore.Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
+                    RDFCore.Class("Cage") {
+                                RDFCore.Deprecated("use \"Enclosure\" \\ instead\n")
+                            }
+                    #sourceLocation(file: "test.swift", line: 8)
+                    RDFCore.Property("bars") {
+
+                                RDFCore.Deprecated("counted in \"Enclosure\"")
+                            }
+                    #sourceLocation()
+                }
+
+                @available(*, deprecated, message: "use \"Enclosure\" \\ instead\n")
+                protocol Cage: RDF.Resource {
+                    @available(*, deprecated, message: "counted in \"Enclosure\"")
+                    var bars: [RDFCore.Value] {
+                        get
+                        set
+                    }
+                }
+
+                /// A member of ``Zoo/Cage`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol CageStoring: Zoo.Cage, Zoo.barsStoring, RDF.ResourceStoring {
+                }
+
+                @available(*, deprecated, message: "use \"Enclosure\" \\ instead\n")
+                final class CageIndividual: Zoo.CageStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
+                    static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Cage", in: Zoo.self)
+
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.CageIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        [Zoo.barsValue.self] + RDF.ResourceIndividual.properties
+                    }
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.Cage
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class that no declaration names: a blank node at the boundary.
+                    init() {
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([RDFCore.Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
+                    }
+                }
+
+                @available(*, deprecated, message: "counted in \"Enclosure\"")
+                struct bars: RDFCore.PropertyTerm {
+                    static let key = RDFCore.TermKey("bars", in: Zoo.self)
+
+                    /// The property's description, which ``Zoo/ontology`` lists.
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.CageIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain.key))
+                        try container.encode([RDFCore.Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
+                    }
+                }
+
+                /// The values an individual has for ``Zoo/bars``.
+                struct barsValue: RDFCore.PropertyValue, Decodable {
+                    /// The declared key of the property, from which an encoder derives its IRI.
+                    static var key: RDFCore.TermKey {
+                        Zoo.bars.key
+                    }
+
+                    var value: [RDFCore.Value] = []
+
+                    init() {
+                    }
+
+                    init(from decoder: any Decoder) throws {
+                        let container = try decoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        value = try container.decode([RDFCore.Value].self, for: RDFCore.PropertyKey(Self.key), as: RDF.ResourceIndividual.self)
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Self.key))
+                    }
+                }
+
+                /// An individual that has ``Zoo/bars``.
+                protocol barsStoring: RDFCore.PropertyValueStoring {
+                    var bars: [RDFCore.Value] {
+                        get
+                        set
+                    }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.CageIndividual.self),
+                        Zoo.bars(),
+                    ]
+                }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
+            }
+
+            extension barsStoring {
+                var bars: [RDFCore.Value] {
+                    get {
+                        storage[barsValue.self].value
+                    }
+                    set {
+                        storage[barsValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[barsValue.self].value
+                    }
+                }
+            }
+            """#
+        )
+    }
+
+    @Test("Terms named like Swift keywords are written in backticks wherever they are named")
+    func keywordNamesAreBackticked() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Type")
+                    Class("class") {
+                        SubClassOf(Zoo.Type)
+                    }
+                    Property("in") {
+                        Domain(Zoo.class)
+                        Range(Zoo.Type)
+                    }
+                    Individual("default") {
+                        Type(Zoo.class)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            struct Zoo: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
+                    RDFCore.Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
+                    RDFCore.Class("Type")
+                    #sourceLocation(file: "test.swift", line: 6)
+                    RDFCore.Class("class") {
+
+                            }
+                    #sourceLocation(file: "test.swift", line: 9)
+                    RDFCore.Property("in") {
+
+
+                            }
+                    #sourceLocation(file: "test.swift", line: 13)
+                    RDFCore.Individual("default") {
+
+                            }
+                    #sourceLocation()
+                }
+
+                protocol `Type`: RDF.Resource {
+                }
+
+                /// A member of ``Zoo/Type`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol TypeStoring: Zoo.`Type`, RDF.ResourceStoring {
+                }
+
+                final class TypeIndividual: Zoo.TypeStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
+                    static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Type", in: Zoo.self)
+
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.TypeIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        RDF.ResourceIndividual.properties
+                    }
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.`Type`
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class that no declaration names: a blank node at the boundary.
+                    init() {
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                    }
+                }
+
+                protocol `class`: Zoo.`Type` {
+                    var `in`: [any Zoo.`Type`] {
+                        get
+                        set
+                    }
+                }
+
+                /// A member of ``Zoo/class`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol classStoring: Zoo.`class`, Zoo.inStoring, Zoo.TypeStoring {
+                }
+
+                final class classIndividual: Zoo.classStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
+                    static let classKey: RDFCore.TermKey? = RDFCore.TermKey("class", in: Zoo.self)
+
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.classIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        [Zoo.inValue.self] + Zoo.TypeIndividual.properties
+                    }
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.`class`
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class that no declaration names: a blank node at the boundary.
+                    init() {
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.TypeIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf.key))
+                    }
+                }
+
+                struct `in`: RDFCore.PropertyTerm {
+                    static let key = RDFCore.TermKey("in", in: Zoo.self)
+
+                    /// The property's description, which ``Zoo/ontology`` lists.
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.classIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain.key))
+                        try container.encode([Zoo.TypeIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.range.key))
+                    }
+                }
+
+                /// The values an individual has for ``Zoo/in``.
+                struct inValue: RDFCore.PropertyValue, Decodable {
+                    /// The declared key of the property, from which an encoder derives its IRI.
+                    static var key: RDFCore.TermKey {
+                        Zoo.`in`.key
+                    }
+
+                    var value: [any Zoo.`Type`] = []
+
+                    init() {
+                    }
+
+                    init(from decoder: any Decoder) throws {
+                        let container = try decoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        value = try container.decode([any Zoo.`Type`].self, for: RDFCore.PropertyKey(Self.key), as: Zoo.TypeIndividual.self)
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Self.key))
+                    }
+                }
+
+                /// An individual that has ``Zoo/in``.
+                protocol inStoring: RDFCore.PropertyValueStoring {
+                    var `in`: [any Zoo.`Type`] {
+                        get
+                        set
+                    }
+                }
+
+                var `default`: Zoo.defaultIndividual {
+                    Zoo.defaultIndividual.individual
+                }
+
+                /// The class of the named individual ``Zoo/default``.
+                final class defaultIndividual: Zoo.classStoring, RDFCore.PropertyValueStoring {
+                    static let key: RDFCore.TermKey? = RDFCore.TermKey("default", in: Zoo.self)
+
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.classIndividual.self]
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// The individual, the one instance of its class.
+                    static let individual = Zoo.defaultIndividual()
+
+                    private init() {
+                    }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.TypeIndividual.self),
+                        RDFCore.ClassDescription(Zoo.classIndividual.self),
+                        Zoo.`in`(),
+                        `default`,
+                    ]
+                }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
+            }
+
+            extension inStoring {
+                var `in`: [any Zoo.`Type`] {
+                    get {
+                        storage[inValue.self].value
+                    }
+                    set {
+                        storage[inValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[inValue.self].value
+                    }
+                }
+            }
+            """
+        )
+    }
 }

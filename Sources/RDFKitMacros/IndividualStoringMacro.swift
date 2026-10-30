@@ -1,4 +1,5 @@
 import SwiftSyntax
+import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 /// The extension macro on the storing protocol `@Ontology` generates for a
@@ -22,31 +23,39 @@ public struct IndividualStoringMacro: ExtensionMacro {
         guard let storing = declaration.as(ProtocolDeclSyntax.self), storing.name.text.hasSuffix("Storing") else {
             throw MacroError("@IndividualStoring applies to the storing protocol @Ontology generates")
         }
-        let storingType = type.trimmedDescription
-        let valueType = String(storingType.dropLast("Storing".count)) + "Value"
+        // The value type sits beside the storing protocol:
+        // `Fauna.hasHabitatStoring` keeps its values in `Fauna.hasHabitatValue`.
+        let valueName = String(storing.name.text.dropLast("Storing".count)) + "Value"
+        let value: ExprSyntax = if let member = type.as(MemberTypeSyntax.self) {
+            ExprSyntax.type(member.baseType.trimmed).member(.identifier(valueName))
+        } else {
+            ExprSyntax(DeclReferenceExprSyntax(baseName: .identifier(valueName)))
+        }
+        // `storage[Fauna.hasHabitatValue.self].value`
+        let stored = ExprSyntax.named("storage").subscripted(value.dotSelf).member("value")
         // The accessors are as visible as the protocol, which is as visible
         // as the ontology that declares it.
-        let access = storing.modifiers
-            .first { [.keyword(.public), .keyword(.package)].contains($0.name.tokenKind) }
-            .map { $0.name.text + " " } ?? ""
-        let accessors = storing.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }.compactMap { variable -> String? in
+        let access = DeclModifierListSyntax(storing.modifiers.filter { [.keyword(.public), .keyword(.package)].contains($0.name.tokenKind) }.map(\.trimmed))
+        let accessors = storing.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }.compactMap { variable -> DeclSyntax? in
             guard let binding = variable.bindings.first,
-                  let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-                  let type = binding.typeAnnotation?.type.trimmedDescription else { return nil }
-            return """
-                \(access)var \(name): \(type) {
-                    get { storage[\(valueType).self].value }
-                    set { storage[\(valueType).self].value = newValue }
-                    _modify { yield &storage[\(valueType).self].value }
-                }
-            """
+                  let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier,
+                  let type = binding.typeAnnotation?.type else { return nil }
+            func accessor(_ specifier: Keyword, _ statement: CodeBlockItemSyntax.Item) -> AccessorDeclSyntax {
+                AccessorDeclSyntax(accessorSpecifier: .keyword(specifier), body: CodeBlockSyntax([statement]))
+            }
+            return DeclSyntax(VariableDeclSyntax(
+                modifiers: access,
+                .var,
+                name.trimmed,
+                type: type.trimmed,
+                accessors: AccessorBlockSyntax(accessors: .accessors(AccessorDeclListSyntax([
+                    accessor(.get, .expr(stored)),
+                    accessor(.set, .expr(stored.assigned(ExprSyntax.named("newValue")))),
+                    accessor(._modify, .stmt(StmtSyntax(YieldStmtSyntax(yieldedExpressions: .single(ExprSyntax(InOutExprSyntax(expression: stored))))))),
+                ])))
+            ))
         }
         guard !accessors.isEmpty else { return [] }
-        let source: DeclSyntax = """
-        extension \(raw: storingType) {
-        \(raw: accessors.joined(separator: "\n\n"))
-        }
-        """
-        return [source.cast(ExtensionDeclSyntax.self)]
+        return [ExtensionDeclSyntax(extendedType: type.trimmed, memberBlock: MemberBlockSyntax(spaced: accessors))]
     }
 }

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftDiagnostics
 import SwiftSyntax
+import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 /// Generates the Swift declarations for an ontology's terms: the same Swift
@@ -34,6 +35,9 @@ import SwiftSyntaxMacros
 /// declared name in the ontology (the ``RDFCore/Vocabulary`` whose
 /// `namespace` the `Namespace` declaration gives), and an encoder derives the
 /// IRI from it at the boundary.
+///
+/// Every declaration is built from SwiftSyntax's typed nodes; the macro
+/// system formats them.
 struct EntityGenerator {
     let model: OntologyModel
     let context: any MacroExpansionContext
@@ -50,48 +54,57 @@ struct EntityGenerator {
     func members() -> [DeclSyntax] {
         diagnoseUndeclaredTerms()
         diagnoseRedeclarations()
-        var descriptions: [String] = []
+        var descriptions: [ExprSyntax] = []
         // Every declaration of a term is merged into one by the parser, so
         // each term gets one set of types.
         let members = ontology.declarations.flatMap { declaration -> [DeclSyntax] in
             guard let shape = model.shape(of: declaration.name) else { return [] }
-            let sources: [String]
+            let declarations: [DeclSyntax]
             switch shape {
             case .class, .datatype:
-                sources = classDeclarations(declaration)
-                if sources.count > 1 {
-                    descriptions.append("RDFCore.ClassDescription(\(ontology.typeName).\(ClassNames(className: SwiftIdentifier.sanitized(declaration.name)).individual).self)")
+                declarations = classDeclarations(declaration)
+                if declarations.count > 1 {
+                    descriptions.append(rdfCore("ClassDescription").expression.call(LabeledExprSyntax(expression: individualClass(of: declaration).expression.dotSelf)))
                 }
             case .property:
-                sources = propertyDeclarations(declaration)
-                descriptions.append("\(ontology.typeName).\(SwiftIdentifier.escaped(declaration.name))()")
+                declarations = propertyDeclarations(declaration)
+                descriptions.append(self.declared(declaration.name).expression.call())
             case .individual:
-                sources = individualDeclarations(declaration)
-                if !sources.isEmpty { descriptions.append(SwiftIdentifier.escaped(declaration.name)) }
+                declarations = individualDeclarations(declaration)
+                if !declarations.isEmpty { descriptions.append(.named(declaration.name)) }
             }
-            return sources.map { DeclSyntax(stringLiteral: $0) }
+            return declarations
         }
-        let namespace = DeclSyntax(stringLiteral: """
-            /// The namespace this ontology's terms are declared in, from which an
-            /// encoder derives each term's IRI.
-            \(access)static let namespace = \(Documentation.literal(ontology.namespace))
-            """)
-        return members + [DeclSyntax(stringLiteral: ontologyDescriptions(descriptions)), namespace]
+        let namespace = VariableDeclSyntax(
+            leadingTrivia: .documentation([
+                "The namespace this ontology's terms are declared in, from which an",
+                "encoder derives each term's IRI.",
+            ]),
+            modifiers: access.andStatic,
+            .let,
+            .identifier("namespace"),
+            value: .string(ontology.namespace)
+        )
+        return members + [ontologyDescriptions(descriptions), DeclSyntax(namespace)]
     }
 
     /// `ontology`: the description of every term the ontology declares, the
     /// way back to RDF, as a translated module's `ontology` is.
-    private func ontologyDescriptions(_ descriptions: [String]) -> String {
-        """
-        /// The descriptions of the terms this ontology declares.
-        ///
-        /// Encoding them gives the ontology's graph:
-        ///
-        ///     let document = try TurtleEncoder().encode(\(ontology.typeName)().ontology)
-        \(access)var ontology: [any RDFCore.Description] {
-            [\(descriptions.map { "\n        \($0)," }.joined())\(descriptions.isEmpty ? "" : "\n    ")]
-        }
-        """
+    private func ontologyDescriptions(_ descriptions: [ExprSyntax]) -> DeclSyntax {
+        DeclSyntax(VariableDeclSyntax(
+            leadingTrivia: .documentation([
+                "The descriptions of the terms this ontology declares.",
+                "",
+                "Encoding them gives the ontology's graph:",
+                "",
+                "    let document = try TurtleEncoder().encode(\(ontology.typeName)().ontology)",
+            ]),
+            modifiers: access,
+            .var,
+            .identifier("ontology"),
+            type: .array(.any(rdfCore("Description").type)),
+            accessors: .getter(ExprSyntax.list(descriptions))
+        ))
     }
 
     /// Reports, at the authored annotation, a related term written as a term
@@ -138,112 +151,237 @@ struct EntityGenerator {
         return false
     }
 
-    private var access: String { ontology.access }
+    /// `public` or `package` for a public or package ontology's types and
+    /// their members, which must be as visible as the protocols they witness.
+    private var access: DeclModifierListSyntax { DeclModifierListSyntax(access: ontology.access) }
+
+    // MARK: - Names
+
+    /// A name declared in this ontology: `Fauna.Animal`.
+    private func declared(_ name: String) -> QualifiedName {
+        QualifiedName(ontology.typeName, name)
+    }
+
+    /// A type of the runtime: `RDFCore.Literal`.
+    private func rdfCore(_ name: String) -> QualifiedName {
+        QualifiedName("RDFCore", name)
+    }
+
+    /// The Swift class of a class this ontology declares: `Fauna.AnimalIndividual`.
+    private func individualClass(of declaration: ParsedEntity) -> QualifiedName {
+        declared(ClassNames(className: SwiftIdentifier.sanitized(declaration.name)).individual)
+    }
+
+    /// The Swift class of a class an annotation names, here or in another
+    /// module: `RDF.ClassIndividual` for `RDF.Class`.
+    private func individualClass(named spelling: String) -> QualifiedName {
+        ClassNames(qualifiedClass: ontology.name(of: ontology.resolve(spelling))).qualifiedIndividual
+    }
+
+    /// The declared key of a term this ontology declares:
+    /// `RDFCore.TermKey("Animal", in: Fauna.self)`.
+    private func key(of declaration: ParsedEntity) -> ExprSyntax {
+        rdfCore("TermKey").expression.call(
+            LabeledExprSyntax(expression: ExprSyntax.string(declaration.name)),
+            LabeledExprSyntax("in", QualifiedName(ontology.typeName).expression.dotSelf)
+        )
+    }
 
     // MARK: - Classes
 
-    private func classDeclarations(_ declaration: ParsedEntity) -> [String] {
-        let name = SwiftIdentifier.escaped(declaration.name)
+    private func classDeclarations(_ declaration: ParsedEntity) -> [DeclSyntax] {
         let names = ClassNames(className: SwiftIdentifier.sanitized(declaration.name))
         let requirements = model.ownRequirements(of: declaration.name).map { requirement in
-            Documentation.docComment(for: requirement.declaration, indent: "    ")
-                + "    var \(requirement.name): \(requirement.declaredType) { get set }"
-        }.joined(separator: "\n\n")
-        let protocolSource = """
-        \(Documentation.docComment(for: declaration))\(access)protocol \(name): \(model.refinements(of: declaration.name).joined(separator: ", ")) {\(requirements.isEmpty ? "}" : "\n" + requirements + "\n}")
-        """
-        guard !collides([names.storing, names.individual], with: declaration) else { return [protocolSource] }
+            DeclSyntax(VariableDeclSyntax(
+                leadingTrivia: Documentation.trivia(for: requirement.declaration),
+                attributes: Documentation.attributes(for: requirement.declaration),
+                .var,
+                requirement.name,
+                type: requirement.declaredType,
+                accessors: .getSet
+            ))
+        }
+        let classProtocol = DeclSyntax(ProtocolDeclSyntax(
+            leadingTrivia: Documentation.trivia(for: declaration),
+            attributes: Documentation.attributes(for: declaration),
+            modifiers: access,
+            name: .declared(declaration.name),
+            inheritanceClause: InheritanceClauseSyntax(model.refinements(of: declaration.name).map(\.type)),
+            memberBlock: MemberBlockSyntax(spaced: requirements)
+        ))
+        guard !collides([names.storing, names.individual], with: declaration) else { return [classProtocol] }
 
-        var storing = ["\(ontology.typeName).\(name)"]
+        var storing = [declared(declaration.name)]
         for requirement in model.ownRequirements(of: declaration.name) {
-            let property = "\(ontology.typeName).\(ClassNames(className: SwiftIdentifier.sanitized(requirement.declaration.name)).storing)"
+            let property = declared(ClassNames(className: SwiftIdentifier.sanitized(requirement.declaration.name)).storing)
             if !storing.contains(property) { storing.append(property) }
         }
         for superclass in model.superclassStoring(of: declaration.name) where !storing.contains(superclass) {
             storing.append(superclass)
         }
-        let storingSource = """
-        /// A member of ``\(ontology.typeName)/\(names.className)`` that keeps its property values in an
-        /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
-        /// any module, conforms to it.
-        \(access)protocol \(names.storing): \(storing.joined(separator: ", ")) {}
-        """
-        let qualifiedIndividual = "\(ontology.typeName).\(names.individual)"
-        let properties = (model.ownRequirements(of: declaration.name).map { requirement in
-            "[\(ontology.typeName).\(ClassNames(className: SwiftIdentifier.sanitized(requirement.declaration.name)).value).self]"
-        } + model.refinements(of: declaration.name).map { ClassNames(qualifiedClass: $0).qualifiedIndividual + ".properties" })
-            .joined(separator: " + ")
-        let individualSource = """
-        \(Documentation.docComment(for: declaration))\(access)final class \(names.individual): \(ontology.typeName).\(names.storing), RDFCore.ResourceClass, RDFCore.DecodableResource {
-            \(memberAccess)static let classKey: RDFCore.TermKey? = \(key(of: declaration))
+        let storingProtocol = DeclSyntax(ProtocolDeclSyntax(
+            leadingTrivia: .documentation([
+                "A member of ``\(ontology.typeName)/\(names.className)`` that keeps its property values in an",
+                "``RDFCore/IndividualStorage``. An individual typed with the class, in",
+                "any module, conforms to it.",
+            ]),
+            modifiers: access,
+            name: .declared(names.storing),
+            inheritanceClause: InheritanceClauseSyntax(storing.map(\.type)),
+            memberBlock: MemberBlockSyntax([])
+        ))
 
-            \(memberAccess)static let classes: [any RDFCore.ResourceClass.Type] = [\(qualifiedIndividual).self]
-
-            /// The properties a member of the class has, which a decoder reads:
-            /// its own and its superclasses'.
-            \(memberAccess)static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
-                \(properties)
-            }
-
-            /// A member of the class as a property value.
-            \(memberAccess)typealias Member = \(model.memberType(ofClass: declaration.name))
-
-            \(memberAccess)let storage = RDFCore.IndividualStorage()
-
-            /// A member of the class that no declaration names: a blank node at the boundary.
-            \(memberAccess)init() {}
-
-            \(memberAccess)static func encodeDescription(to encoder: any Encoder) throws {
-        \(description(of: declaration, indent: "        "))
-            }
+        let ownProperties = model.ownRequirements(of: declaration.name).map { requirement in
+            ExprSyntax.array([declared(ClassNames(className: SwiftIdentifier.sanitized(requirement.declaration.name)).value).expression.dotSelf])
         }
-        """
-        return [protocolSource, storingSource, individualSource]
+        let inheritedProperties = model.refinements(of: declaration.name).map { refined in
+            ClassNames(qualifiedClass: refined).qualifiedIndividual.expression.member("properties")
+        }
+        let properties = (ownProperties + inheritedProperties).dropFirst().reduce((ownProperties + inheritedProperties)[0]) { $0.plus($1) }
+        let individualClass = DeclSyntax(ClassDeclSyntax(
+            leadingTrivia: Documentation.trivia(for: declaration),
+            attributes: Documentation.attributes(for: declaration),
+            modifiers: access + [DeclModifierSyntax(name: .keyword(.final))],
+            name: .declared(names.individual),
+            inheritanceClause: InheritanceClauseSyntax([
+                declared(names.storing).type,
+                rdfCore("ResourceClass").type,
+                rdfCore("DecodableResource").type,
+            ]),
+            memberBlock: MemberBlockSyntax(spaced: [
+                DeclSyntax(VariableDeclSyntax(
+                    modifiers: access.andStatic,
+                    .let,
+                    .identifier("classKey"),
+                    type: TypeSyntax(OptionalTypeSyntax(wrappedType: rdfCore("TermKey").type)),
+                    value: key(of: declaration)
+                )),
+                DeclSyntax(VariableDeclSyntax(
+                    modifiers: access.andStatic,
+                    .let,
+                    .identifier("classes"),
+                    type: .array(.any(.metatype(rdfCore("ResourceClass").type))),
+                    value: .array([self.individualClass(of: declaration).expression.dotSelf])
+                )),
+                DeclSyntax(VariableDeclSyntax(
+                    leadingTrivia: .documentation([
+                        "The properties a member of the class has, which a decoder reads:",
+                        "its own and its superclasses'.",
+                    ]),
+                    modifiers: access.andStatic,
+                    .var,
+                    .identifier("properties"),
+                    type: .array(.any(.metatype(.composition([rdfCore("PropertyValue").type, QualifiedName("Decodable").type])))),
+                    accessors: .getter(properties)
+                )),
+                DeclSyntax(TypeAliasDeclSyntax(
+                    leadingTrivia: .documentation(["A member of the class as a property value."]),
+                    modifiers: access,
+                    name: .identifier("Member"),
+                    initializer: TypeInitializerClauseSyntax(value: model.memberType(ofClass: declaration.name))
+                )),
+                DeclSyntax(VariableDeclSyntax(
+                    modifiers: access,
+                    .let,
+                    .identifier("storage"),
+                    value: rdfCore("IndividualStorage").expression.call()
+                )),
+                initializer(
+                    documentation: ["A member of the class that no declaration names: a blank node at the boundary."],
+                    modifiers: access
+                ),
+                encodeFunction(
+                    named: "encodeDescription",
+                    modifiers: access.andStatic,
+                    body: description(of: declaration)
+                ),
+            ])
+        ))
+        return [classProtocol, storingProtocol, individualClass]
     }
 
-    /// The declared key of a term this ontology declares.
-    private func key(of declaration: ParsedEntity) -> String {
-        "RDFCore.TermKey(\(Documentation.literal(declaration.name)), in: \(ontology.typeName).self)"
+    /// `init() {}`, documented.
+    private func initializer(documentation: [String] = [], modifiers: DeclModifierListSyntax) -> DeclSyntax {
+        DeclSyntax(InitializerDeclSyntax(
+            leadingTrivia: .documentation(documentation),
+            modifiers: modifiers,
+            signature: FunctionSignatureSyntax(parameterClause: FunctionParameterClauseSyntax([])),
+            body: CodeBlockSyntax([])
+        ))
     }
 
-    /// `public ` for members of a public or package ontology's types, which
-    /// must be as visible as the protocols they witness.
-    private var memberAccess: String { access }
+    /// `func name(to encoder: any Encoder) throws { body }`.
+    private func encodeFunction(named name: String, modifiers: DeclModifierListSyntax, body: [CodeBlockItemSyntax.Item]) -> DeclSyntax {
+        DeclSyntax(FunctionDeclSyntax(
+            modifiers: modifiers,
+            name: .identifier(name),
+            signature: FunctionSignatureSyntax(
+                parameterClause: FunctionParameterClauseSyntax([(label: "to", name: "encoder", type: .any(QualifiedName("Encoder").type))]),
+                effectSpecifiers: .throwing
+            ),
+            body: CodeBlockSyntax(body)
+        ))
+    }
+
+    /// `encoder.container(keyedBy: RDFCore.PropertyKey.self)`.
+    private var container: ExprSyntax {
+        ExprSyntax.named("encoder").member("container").call(LabeledExprSyntax("keyedBy", rdfCore("PropertyKey").expression.dotSelf))
+    }
+
+    /// `RDFCore.PropertyKey(key)`.
+    private func propertyKey(_ key: some ExprSyntaxProtocol) -> ExprSyntax {
+        rdfCore("PropertyKey").expression.call(LabeledExprSyntax(expression: key))
+    }
+
+    /// `try container.encode(values, for: RDFCore.PropertyKey(key))`.
+    private func encode(_ values: some ExprSyntaxProtocol, for key: some ExprSyntaxProtocol) -> CodeBlockItemSyntax.Item {
+        .expr(ExprSyntax.named("container").member("encode").call(
+            LabeledExprSyntax(expression: values),
+            LabeledExprSyntax("for", propertyKey(key))
+        ).tried)
+    }
 
     /// The statements that write what the declaration states about its term:
     /// `rdf:type`, `rdfs:subClassOf`, `rdfs:domain`, `rdfs:range`,
     /// `rdfs:label`, `rdfs:comment`, `rdfs:seeAlso` and `owl:deprecated`.
-    private func description(of declaration: ParsedEntity, indent: String) -> String {
-        var lines: [String] = []
-        func classes(_ form: String) -> String {
-            declaration.terms(form).map { spelling in
-                ClassNames(qualifiedClass: ontology.spelling(of: ontology.resolve(spelling))).qualifiedIndividual + ".self"
-            }.joined(separator: ", ")
+    private func description(of declaration: ParsedEntity) -> [CodeBlockItemSyntax.Item] {
+        var statements: [CodeBlockItemSyntax.Item] = []
+        func classes(_ form: String) -> ExprSyntax {
+            ExprSyntax.array(declaration.terms(form).map { individualClass(named: $0).expression.dotSelf })
+                .as(TypeSyntax.array(.any(.metatype(rdfCore("ResourceClass").type))))
         }
-        if !declaration.terms("Type").isEmpty {
-            lines.append("try container.encode([\(classes("Type"))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.type.key))")
+        let forms: [(form: String, property: String)] = [("Type", "type"), ("SubClassOf", "subClassOf"), ("Domain", "domain"), ("Range", "range")]
+        for (form, property) in forms where !declaration.terms(form).isEmpty {
+            statements.append(encode(classes(form), for: QualifiedName("RDF", property, "key").expression))
         }
-        for (form, property) in [("SubClassOf", "RDF.subClassOf"), ("Domain", "RDF.domain"), ("Range", "RDF.range")] where !declaration.terms(form).isEmpty {
-            lines.append("try container.encode([\(classes(form))] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(\(property).key))")
-        }
-        for (form, property) in [("Label", "RDF.label"), ("Comment", "RDF.comment")] {
+        for (form, property) in [("Label", "label"), ("Comment", "comment")] {
             let texts = declaration.annotations(form).compactMap(\.text)
             if !texts.isEmpty {
-                lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property).key))")
+                let literals = texts.map { rdfCore("Literal").expression.call(LabeledExprSyntax(expression: ExprSyntax.string($0))) }
+                statements.append(encode(ExprSyntax.array(literals), for: QualifiedName("RDF", property, "key").expression))
             }
         }
         // The document `SeeAlso` names is a resource outside the runtime,
         // known only by its address: it is written as that IRI, and the
         // encoder makes it the object node, at the boundary.
         for document in declaration.annotations("SeeAlso").compactMap(\.text) {
-            lines.append("try container.encode(IRIKit.IRI(validating: \(Documentation.literal(document))), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))")
+            statements.append(.expr(ExprSyntax.named("container").member("encode").call(
+                LabeledExprSyntax(expression: QualifiedName("IRIKit", "IRI").expression.call(LabeledExprSyntax("validating", ExprSyntax.string(document)))),
+                LabeledExprSyntax("forKey", propertyKey(QualifiedName("RDF", "seeAlso", "key").expression))
+            ).tried))
         }
         if !declaration.annotations("Deprecated").isEmpty {
-            lines.append("try container.encode([RDFCore.Literal(\"true\", datatype: \"http://www.w3.org/2001/XMLSchema#boolean\")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))")
+            let literal = rdfCore("Literal").expression.call(
+                LabeledExprSyntax(expression: ExprSyntax.string("true")),
+                LabeledExprSyntax("datatype", ExprSyntax.string("http://www.w3.org/2001/XMLSchema#boolean"))
+            )
+            statements.append(encode(ExprSyntax.array([literal]), for: QualifiedName("OWL", "deprecatedValue", "key").expression))
         }
-        guard !lines.isEmpty else { return "\(indent)_ = encoder.container(keyedBy: RDFCore.PropertyKey.self)" }
-        return (["var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)"] + lines)
-            .map { indent + $0 }.joined(separator: "\n")
+        guard !statements.isEmpty else {
+            return [.expr(ExprSyntax(DiscardAssignmentExprSyntax()).assigned(container))]
+        }
+        let containerDeclaration = VariableDeclSyntax(.var, .identifier("container"), value: container)
+        return [.decl(DeclSyntax(containerDeclaration))] + statements
     }
 
     // MARK: - Individuals
@@ -252,33 +390,58 @@ struct EntityGenerator {
     /// protocol of each of its classes (ClassAssertion, OWL 2 Structural
     /// Specification §9.6.1) and carries its declared key, and the ontology
     /// member whose value is the individual.
-    private func individualDeclarations(_ declaration: ParsedEntity) -> [String] {
-        let name = SwiftIdentifier.escaped(declaration.name)
+    private func individualDeclarations(_ declaration: ParsedEntity) -> [DeclSyntax] {
         let className = ClassNames(className: SwiftIdentifier.sanitized(declaration.name)).individual
         guard !collides([className], with: declaration) else { return [] }
-        let classes = declaration.terms("Type").map { ClassNames(qualifiedClass: ontology.spelling(of: ontology.resolve($0))) }
-        let conformances = classes.map(\.qualifiedStoring) + ["RDFCore.PropertyValueStoring"]
+        let classes = declaration.terms("Type").map { ClassNames(qualifiedClass: ontology.name(of: ontology.resolve($0))) }
+        let conformances = classes.map(\.qualifiedStoring.type) + [rdfCore("PropertyValueStoring").type]
+        let individualClass = declared(className)
         return [
-            """
-            \(Documentation.docComment(for: declaration))\(access)var \(name): \(ontology.typeName).\(className) {
-                \(ontology.typeName).\(className).individual
-            }
-            """,
-            """
-            /// The class of the named individual ``\(ontology.typeName)/\(declaration.name)``.
-            \(access)final class \(className): \(conformances.joined(separator: ", ")) {
-                \(memberAccess)static let key: RDFCore.TermKey? = \(key(of: declaration))
-
-                \(memberAccess)static let classes: [any RDFCore.ResourceClass.Type] = [\(classes.map { $0.qualifiedIndividual + ".self" }.joined(separator: ", "))]
-
-                \(memberAccess)let storage = RDFCore.IndividualStorage()
-
-                /// The individual, the one instance of its class.
-                static let individual = \(ontology.typeName).\(className)()
-
-                private init() {}
-            }
-            """,
+            DeclSyntax(VariableDeclSyntax(
+                leadingTrivia: Documentation.trivia(for: declaration),
+                attributes: Documentation.attributes(for: declaration),
+                modifiers: access,
+                .var,
+                .declared(declaration.name),
+                type: individualClass.type,
+                accessors: .getter(individualClass.expression.member("individual"))
+            )),
+            DeclSyntax(ClassDeclSyntax(
+                leadingTrivia: .documentation(["The class of the named individual ``\(ontology.typeName)/\(declaration.name)``."]),
+                modifiers: access + [DeclModifierSyntax(name: .keyword(.final))],
+                name: .declared(className),
+                inheritanceClause: InheritanceClauseSyntax(conformances),
+                memberBlock: MemberBlockSyntax(spaced: [
+                    DeclSyntax(VariableDeclSyntax(
+                        modifiers: access.andStatic,
+                        .let,
+                        .identifier("key"),
+                        type: TypeSyntax(OptionalTypeSyntax(wrappedType: rdfCore("TermKey").type)),
+                        value: key(of: declaration)
+                    )),
+                    DeclSyntax(VariableDeclSyntax(
+                        modifiers: access.andStatic,
+                        .let,
+                        .identifier("classes"),
+                        type: .array(.any(.metatype(rdfCore("ResourceClass").type))),
+                        value: .array(classes.map { $0.qualifiedIndividual.expression.dotSelf })
+                    )),
+                    DeclSyntax(VariableDeclSyntax(
+                        modifiers: access,
+                        .let,
+                        .identifier("storage"),
+                        value: rdfCore("IndividualStorage").expression.call()
+                    )),
+                    DeclSyntax(VariableDeclSyntax(
+                        leadingTrivia: .documentation(["The individual, the one instance of its class."]),
+                        modifiers: [DeclModifierSyntax(name: .keyword(.static))],
+                        .let,
+                        .identifier("individual"),
+                        value: individualClass.expression.call()
+                    )),
+                    initializer(modifiers: [DeclModifierSyntax(name: .keyword(.private))]),
+                ])
+            )),
         ]
     }
 
@@ -287,9 +450,9 @@ struct EntityGenerator {
     /// The Swift class of the property's range, whose members a decoder
     /// makes for values the document gives no class: `rdfs:Resource`'s when
     /// the property has no `Range`.
-    private func rangeClass(of declaration: ParsedEntity) -> String {
+    private func rangeClass(of declaration: ParsedEntity) -> QualifiedName {
         guard let spelling = declaration.term("Range") else { return ClassNames(qualifiedClass: ClassNames.resource).qualifiedIndividual }
-        return ClassNames(qualifiedClass: ontology.spelling(of: ontology.resolve(spelling))).qualifiedIndividual
+        return individualClass(named: spelling)
     }
 
     /// The term type of a property, and, when a class of this ontology is
@@ -298,56 +461,96 @@ struct EntityGenerator {
     /// individual its accessor (`Fauna.hasHabitatStoring`). The storing
     /// protocol of every domain refines it, so the property is one property,
     /// supplied once.
-    private func propertyDeclarations(_ declaration: ParsedEntity) -> [String] {
-        let name = SwiftIdentifier.escaped(declaration.name)
-        let term = """
-        \(Documentation.docComment(for: declaration))\(access)struct \(name): RDFCore.PropertyTerm {
-            \(memberAccess)static let key = \(key(of: declaration))
-
-            /// The property's description, which ``\(ontology.typeName)/ontology`` lists.
-            \(memberAccess)init() {}
-
-            \(memberAccess)func encode(to encoder: any Encoder) throws {
-        \(description(of: declaration, indent: "        "))
-            }
-        }
-        """
+    private func propertyDeclarations(_ declaration: ParsedEntity) -> [DeclSyntax] {
+        let term = DeclSyntax(StructDeclSyntax(
+            leadingTrivia: Documentation.trivia(for: declaration),
+            attributes: Documentation.attributes(for: declaration),
+            modifiers: access,
+            name: .declared(declaration.name),
+            inheritanceClause: InheritanceClauseSyntax([rdfCore("PropertyTerm").type]),
+            memberBlock: MemberBlockSyntax(spaced: [
+                DeclSyntax(VariableDeclSyntax(
+                    modifiers: access.andStatic,
+                    .let,
+                    .identifier("key"),
+                    value: key(of: declaration)
+                )),
+                initializer(
+                    documentation: ["The property's description, which ``\(ontology.typeName)/ontology`` lists."],
+                    modifiers: access
+                ),
+                encodeFunction(named: "encode", modifiers: access, body: description(of: declaration)),
+            ])
+        ))
         guard model.isStored(declaration) else { return [term] }
         let names = ClassNames(className: SwiftIdentifier.sanitized(declaration.name))
         guard !collides([names.value, names.storing], with: declaration) else { return [term] }
         let requirement = model.requirement(for: declaration)
-        return [
-            term,
-            """
-            /// The values an individual has for ``\(ontology.typeName)/\(names.className)``.
-            \(access)struct \(names.value): RDFCore.PropertyValue, Decodable {
-                /// The declared key of the property, from which an encoder derives its IRI.
-                \(memberAccess)static var key: RDFCore.TermKey {
-                    \(ontology.typeName).\(name).key
-                }
-
-                \(memberAccess)var value: \(requirement.declaredType) = []
-
-                \(memberAccess)init() {}
-
-                \(memberAccess)init(from decoder: any Decoder) throws {
-                    let container = try decoder.container(keyedBy: RDFCore.PropertyKey.self)
-                    value = try container.decode(\(requirement.declaredType).self, for: RDFCore.PropertyKey(Self.key), as: \(rangeClass(of: declaration)).self)
-                }
-
-                \(memberAccess)func encode(to encoder: any Encoder) throws {
-                    var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
-                    try container.encode(value, for: RDFCore.PropertyKey(Self.key))
-                }
-            }
-            """,
-            """
-            /// An individual that has ``\(ontology.typeName)/\(names.className)``.
-            @IndividualStoring
-            \(access)protocol \(names.storing): RDFCore.PropertyValueStoring {
-                var \(requirement.name): \(requirement.declaredType) { get set }
-            }
-            """,
-        ]
+        let selfKey = propertyKey(ExprSyntax.keyword(.Self).member("key"))
+        let value = DeclSyntax(StructDeclSyntax(
+            leadingTrivia: .documentation(["The values an individual has for ``\(ontology.typeName)/\(names.className)``."]),
+            modifiers: access,
+            name: .declared(names.value),
+            inheritanceClause: InheritanceClauseSyntax([rdfCore("PropertyValue").type, QualifiedName("Decodable").type]),
+            memberBlock: MemberBlockSyntax(spaced: [
+                DeclSyntax(VariableDeclSyntax(
+                    leadingTrivia: .documentation(["The declared key of the property, from which an encoder derives its IRI."]),
+                    modifiers: access.andStatic,
+                    .var,
+                    .identifier("key"),
+                    type: rdfCore("TermKey").type,
+                    accessors: .getter(declared(declaration.name).expression.member("key"))
+                )),
+                DeclSyntax(VariableDeclSyntax(
+                    modifiers: access,
+                    .var,
+                    .identifier("value"),
+                    type: requirement.declaredType,
+                    value: .array([])
+                )),
+                initializer(modifiers: access),
+                DeclSyntax(InitializerDeclSyntax(
+                    modifiers: access,
+                    signature: FunctionSignatureSyntax(
+                        parameterClause: FunctionParameterClauseSyntax([(label: "from", name: "decoder", type: .any(QualifiedName("Decoder").type))]),
+                        effectSpecifiers: .throwing
+                    ),
+                    body: CodeBlockSyntax([
+                        .decl(DeclSyntax(VariableDeclSyntax(
+                            .let,
+                            .identifier("container"),
+                            value: ExprSyntax.named("decoder").member("container")
+                                .call(LabeledExprSyntax("keyedBy", rdfCore("PropertyKey").expression.dotSelf)).tried
+                        ))),
+                        .expr(ExprSyntax.named("value").assigned(ExprSyntax.named("container").member("decode").call(
+                            LabeledExprSyntax(expression: ExprSyntax.type(requirement.declaredType).dotSelf),
+                            LabeledExprSyntax("for", selfKey),
+                            LabeledExprSyntax("as", rangeClass(of: declaration).expression.dotSelf)
+                        ).tried)),
+                    ])
+                )),
+                encodeFunction(named: "encode", modifiers: access, body: [
+                    .decl(DeclSyntax(VariableDeclSyntax(.var, .identifier("container"), value: container))),
+                    .expr(ExprSyntax.named("container").member("encode").call(
+                        LabeledExprSyntax(expression: ExprSyntax.named("value")),
+                        LabeledExprSyntax("for", selfKey)
+                    ).tried),
+                ]),
+            ])
+        ))
+        let storing = DeclSyntax(ProtocolDeclSyntax(
+            leadingTrivia: .documentation(["An individual that has ``\(ontology.typeName)/\(names.className)``."]),
+            attributes: [.attribute(AttributeSyntax(
+                attributeName: IdentifierTypeSyntax(name: .identifier("IndividualStoring")),
+                trailingTrivia: .newline
+            ))],
+            modifiers: access,
+            name: .declared(names.storing),
+            inheritanceClause: InheritanceClauseSyntax([rdfCore("PropertyValueStoring").type]),
+            memberBlock: MemberBlockSyntax([
+                DeclSyntax(VariableDeclSyntax(.var, requirement.name, type: requirement.declaredType, accessors: .getSet)),
+            ])
+        ))
+        return [term, value, storing]
     }
 }

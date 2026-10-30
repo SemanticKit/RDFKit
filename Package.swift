@@ -59,9 +59,20 @@ let package = Package(
                 "RDFKitMacros"
             ]
         ),
+        // How generated Swift spells a name and a text, shared by the
+        // @Ontology macro and RDFTranslator so both decide it the same way,
+        // through SwiftParser.
+        .target(
+            name: "SwiftSpelling",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax")
+            ]
+        ),
         .macro(
             name: "RDFKitMacros",
             dependencies: [
+                "SwiftSpelling",
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
@@ -77,10 +88,19 @@ let package = Package(
 
         // RDF in, Swift out: the translator and the build tool plugin that
         // runs it over a target's RDF documents. The Swift it writes uses
-        // RDFCore, as the Swift @Ontology writes does.
+        // RDFCore, as the Swift @Ontology writes does, and is built with
+        // SwiftSyntax's typed nodes, as @Ontology's is.
         .executableTarget(
             name: "RDFTranslator",
-            dependencies: ["IRIKit", "RDFCore", "RDFFormats"]
+            dependencies: [
+                "IRIKit",
+                "RDFCore",
+                "RDFFormats",
+                "SwiftSpelling",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+                .product(name: "SwiftBasicFormat", package: "swift-syntax")
+            ]
         ),
         .plugin(
             name: "RDFTranslatorPlugin",
@@ -256,7 +276,8 @@ let package = Package(
                 "RDFFormats",
                 "PlainData",
                 "RDFTranslator",
-                .product(name: "IRIKit", package: "IRIKit")
+                .product(name: "IRIKit", package: "IRIKit"),
+                .product(name: "SwiftParser", package: "swift-syntax")
             ],
             exclude: ["Fixtures"]
         ),
