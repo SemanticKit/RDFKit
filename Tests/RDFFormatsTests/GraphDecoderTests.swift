@@ -78,6 +78,28 @@ struct GraphDecoderTests {
         #expect(agents[0].name == alice.name)
     }
 
+    /// A context holds one individual for each IRI: decoding the document
+    /// again with it gives the same instances, through either entry point.
+    @Test("Decoding twice with one context gives the same individuals")
+    func oneIndividualForEachIRI() throws {
+        let graph = try profile()
+        let context = DocumentContext()
+        let decoder = GraphDecoder(classes: [FOAF.PersonIndividual.self])
+        let first = try decoder.decode((any FOAF.PersonStoring).self, from: graph, context: context)
+        let second = try decoder.decode((any FOAF.PersonStoring).self, from: graph, context: context)
+        let iri = try #require(IRI(of: alice))
+        let firstAlice = try #require(first.first { context.iri(of: $0) == iri })
+        let secondAlice = try #require(second.first { context.iri(of: $0) == iri })
+        #expect(firstAlice === secondAlice)
+        #expect(context.individual(for: iri) === firstAlice)
+        #expect(secondAlice.knows.count == firstAlice.knows.count)
+
+        let stated = try GraphDecoder(classes: [])
+            .decode(FOAF.PersonIndividual.self, for: [iri], from: graph, context: context)
+        #expect(stated.first === firstAlice)
+        #expect(try GraphEncoder(context: context).encode(first) == graph)
+    }
+
     /// The profile, as the document states it (`alice.ttl`).
     private func profile() throws -> Graph {
         let url = URL(filePath: #filePath).deletingLastPathComponent()

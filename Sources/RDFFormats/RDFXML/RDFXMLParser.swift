@@ -124,17 +124,17 @@ struct RDFXMLParser {
 
         let subject: SubjectTerm
         if let id = attributes.id {
-            subject = .iri(try identifier(id, scope, at: element))
+            subject = .iri(try IRI(rdfXMLID: id, parser: &self, scope: scope, at: element))
         } else if let nodeID = attributes.nodeID {
-            subject = .blankNode(try blankNode(nodeID, at: element))
+            subject = .blankNode(try BlankNode(rdfXMLNodeID: nodeID, parser: &self, at: element))
         } else if let about = attributes.about {
-            subject = .iri(try resolve(about, scope, at: element))
+            subject = .iri(try IRI(rdfXMLReference: about, scope: scope, at: element))
         } else {
             subject = .blankNode(try blankNodes.fresh())
         }
 
         if elementIRI != Self.rdf + "Description" {
-            emit(subject, Self.typeIRI, .iri(try makeIRI(elementIRI, at: element)))
+            emit(subject, Self.typeIRI, .iri(try IRI(rdfXMLName: elementIRI, at: element)))
         }
         try emitPropertyAttributes(attributes.properties, of: subject, scope, at: element)
 
@@ -161,7 +161,7 @@ struct RDFXMLParser {
             elementIRI = Self.rdf + "_" + String(liCounter)
             liCounter += 1
         }
-        let predicate = try makeIRI(elementIRI, at: element)
+        let predicate = try IRI(rdfXMLName: elementIRI, at: element)
         let (scope, events) = try elementEvent(element, parent)
         let attributes = try roles(of: events, at: element)
         guard attributes.about == nil else {
@@ -184,8 +184,8 @@ struct RDFXMLParser {
                 try parseTypeTriple(element, subject, predicate, attributes, scope)
             default:
                 // Production parseTypeOtherPropertyElt: every other value is treated as "Literal".
-                let literal = try makeLiteral(
-                    ExclusiveCanonicalXML.serialize(element.children),
+                let literal = try Literal(
+                    rdfXML: ExclusiveCanonicalXML.serialize(element.children),
                     datatype: Self.xmlLiteralIRI,
                     at: element
                 )
@@ -219,9 +219,9 @@ struct RDFXMLParser {
             }
             let literal: Literal
             if let datatype = attributes.datatype {
-                literal = try makeLiteral(text, datatype: resolve(datatype, scope, at: element), at: element)
+                literal = try Literal(rdfXML: text, datatype: IRI(rdfXMLReference: datatype, scope: scope, at: element), at: element)
             } else {
-                literal = try plainLiteral(text, scope, at: element)
+                literal = try Literal(rdfXMLText: text, scope: scope, at: element)
             }
             try emitStatement(subject, predicate, .literal(literal), attributes, scope, at: element)
             return
@@ -235,14 +235,14 @@ struct RDFXMLParser {
             throw error("a property element takes rdf:resource or rdf:nodeID, not both", at: element)
         }
         if attributes.resource == nil, attributes.nodeID == nil, attributes.properties.isEmpty {
-            try emitStatement(subject, predicate, .literal(try plainLiteral("", scope, at: element)), attributes, scope, at: element)
+            try emitStatement(subject, predicate, .literal(try Literal(rdfXMLText: "", scope: scope, at: element)), attributes, scope, at: element)
             return
         }
         let object: SubjectTerm
         if let resource = attributes.resource {
-            object = .iri(try resolve(resource, scope, at: element))
+            object = .iri(try IRI(rdfXMLReference: resource, scope: scope, at: element))
         } else if let nodeID = attributes.nodeID {
-            object = .blankNode(try blankNode(nodeID, at: element))
+            object = .blankNode(try BlankNode(rdfXMLNodeID: nodeID, parser: &self, at: element))
         } else {
             object = .blankNode(try blankNodes.fresh())
         }
@@ -460,75 +460,16 @@ struct RDFXMLParser {
         }
     }
 
-    func makeIRI(_ string: String, at element: XMLInfoset.Element) throws -> IRI {
-        guard let iri = IRI(rawValue: string) else {
-            throw error("<\(string)> is not an IRI", at: element)
-        }
-        return iri
-    }
-
-    /// Resolving IRIs: a reference resolved against the in-scope base.
-    func resolve(_ reference: String, _ scope: Scope, at element: XMLInfoset.Element) throws -> IRI {
-        guard let base = scope.base else {
-            guard let iri = IRI(rawValue: reference) else {
-                throw error("<\(reference)> is relative and there is no base IRI", at: element)
-            }
-            return iri
-        }
-        guard let iri = IRI(resolving: reference, against: base) else {
-            throw error("<\(reference)> does not resolve to an IRI against <\(base)>", at: element)
-        }
-        return iri
-    }
-
     /// XML Base: an `xml:base` value resolved against the parent's base.
     func resolveBase(_ value: String, against parent: String?, at element: XMLInfoset.Element) throws -> String {
         guard let parent else { return value }
-        guard let base = IRI(resolving: value, against: parent) else {
-            throw error("xml:base <\(value)> does not resolve to an IRI against <\(parent)>", at: element)
-        }
-        return base.rawValue
-    }
-
-    /// The IRI of an `rdf:ID` value (production idAttr): `#` and the value, resolved
-    /// against the base, unique in the document (constraint-id).
-    mutating func identifier(_ id: String, _ scope: Scope, at element: XMLInfoset.Element) throws -> IRI {
-        guard Self.isNCName(id) else {
-            throw error("rdf:ID \"\(id)\" is not an XML NCName", at: element)
-        }
-        let iri = try resolve("#" + id, scope, at: element)
-        guard identifiers.insert(iri).inserted else {
-            throw error("rdf:ID \"\(id)\" names <\(iri)>, which another rdf:ID already names", at: element)
-        }
-        return iri
-    }
-
-    /// The blank node of an `rdf:nodeID` or `rdf:annotationNodeID` value.
-    mutating func blankNode(_ id: String, at element: XMLInfoset.Element) throws -> BlankNode {
-        guard Self.isNCName(id) else {
-            throw error("the blank node identifier \"\(id)\" is not an XML NCName", at: element)
-        }
-        return try blankNodes.node(labelled: id)
-    }
-
-    /// A literal without datatype (Literal Without Datatype Event): the in-scope language and base
-    /// direction make it a language-tagged or directional string.
-    func plainLiteral(_ value: String, _ scope: Scope, at element: XMLInfoset.Element) throws -> Literal {
         do {
-            guard !scope.language.isEmpty else { return Literal(value) }
-            return try Literal(value, languageTag: scope.language, baseDirection: BaseDirection(rawValue: scope.direction))
+            return try IRI(reference: value, base: parent).rawValue
         } catch {
-            throw self.error("\(error)", at: element)
+            throw self.error("xml:base <\(value)> does not resolve to an IRI against <\(parent)>", at: element)
         }
     }
 
-    /// A typed literal (Typed Literal Event).
-    func makeLiteral(_ value: String, datatype: IRI, at element: XMLInfoset.Element) throws -> Literal {
-        guard let literal = try? Literal(value, datatype: datatype) else {
-            throw error("<\(datatype)> cannot be the datatype of \"\(value)\"", at: element)
-        }
-        return literal
-    }
 
     /// XML Namespaces 1.0 [4] NCName.
     static func isNCName(_ value: String) -> Bool {
@@ -577,7 +518,7 @@ struct RDFXMLParser {
     ) throws {
         emit(subject, predicate, object)
         if let id = attributes.id {
-            let reifier = SubjectTerm.iri(try identifier(id, scope, at: element))
+            let reifier = SubjectTerm.iri(try IRI(rdfXMLID: id, parser: &self, scope: scope, at: element))
             emit(reifier, IRI.rdfSubject, subject.object)
             emit(reifier, IRI.rdfPredicate, .iri(predicate))
             emit(reifier, IRI.rdfObject, object)
@@ -585,9 +526,9 @@ struct RDFXMLParser {
         }
         let reifier: SubjectTerm?
         if let annotation = attributes.annotation {
-            reifier = .iri(try resolve(annotation, scope, at: element))
+            reifier = .iri(try IRI(rdfXMLReference: annotation, scope: scope, at: element))
         } else if let annotationNodeID = attributes.annotationNodeID {
-            reifier = .blankNode(try blankNode(annotationNodeID, at: element))
+            reifier = .blankNode(try BlankNode(rdfXMLNodeID: annotationNodeID, parser: &self, at: element))
         } else {
             reifier = nil
         }
@@ -606,16 +547,16 @@ struct RDFXMLParser {
         at element: XMLInfoset.Element
     ) throws {
         for property in properties {
-            let predicate = try makeIRI(property.iri, at: element)
+            let predicate = try IRI(rdfXMLName: property.iri, at: element)
             if predicate == Self.typeIRI {
-                emit(subject, predicate, .iri(try resolve(property.value, scope, at: element)))
+                emit(subject, predicate, .iri(try IRI(rdfXMLReference: property.value, scope: scope, at: element)))
             } else {
-                emit(subject, predicate, .literal(try plainLiteral(property.value, scope, at: element)))
+                emit(subject, predicate, .literal(try Literal(rdfXMLText: property.value, scope: scope, at: element)))
             }
         }
     }
 
     func error(_ message: String, at element: XMLInfoset.Element) -> SyntaxError {
-        SyntaxError(line: element.line, column: element.column, message: message)
+        SyntaxError(message, at: element)
     }
 }
