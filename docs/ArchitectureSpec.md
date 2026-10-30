@@ -26,7 +26,7 @@ Implements the standards in Swift. This is the foundation everything builds on.
 
 **Infrastructure:**
 - `Node` — base type for everything in RDF
-- `IRI` — identity system (from IRIKit)
+- `IRI` — RDF's identity, used only at the boundary (from IRIKit); in Swift the instance is identity, and the IRI is derived from the declaration when a coder or translator asks for it
 - `Ontology` — protocol for building ontologies (like SwiftUI's View)
 
 **Declaration Protocols — what gets generated:**
@@ -64,14 +64,14 @@ Users write ontologies using the DSL. The DSL maps 1:1 to the standards.
 **Components:**
 - ContentBuilder — result builder for content
 - DSL functions — Class(), Property(), Individual(), Datatype()
-- Content modifiers — .deprecated(), .isDeclaredBy()
+- Declaration forms in a declaration's trailing closure, in `var body` — `Label`, `Comment`, `SeeAlso`, `Deprecated("reason")` (→ `@available`); no content modifiers (`add*`, `isDeclaredBy`)
 
 ### Layer 4: Code Generation (Macro)
 
 Reads the DSL and generates Swift types. Reads protocol conformance to determine what to generate.
 
 **How it works:**
-1. User writes `Class("Animal")` → returns `TermDeclaration` conforming to `Class`
+1. User writes `Class("Animal")` in `var body` → the `Class` declaration form
 2. Macro reads `Class` conformance → knows to generate a Swift class
 3. User writes `Domain(Fauna.Animal)` → macro reads `Domain` conformance → adds domain property
 4. Generated type conforms to protocols → has behaviors from standards
@@ -83,9 +83,9 @@ Reads the DSL and generates Swift types. Reads protocol conformance to determine
 - Properties derived from Domain/Range annotations
 - Conform to standard Swift protocols (Equatable, Codable, etc.)
 
-**Nested Term** — metadata carrier (like CodingKeys):
-- Each type has a nested `Term` that carries RDF metadata
-- `Term` protocol unifies them
+**Declared key** — coding information (like CodingKeys):
+- Each generated class, property and named individual carries its declared key (`TermKey`: its declared name and its ontology), never an IRI
+- Encoders and decoders derive the IRI from the key and the ontology's namespace at the boundary
 
 ---
 
@@ -102,7 +102,7 @@ Every term in the standards has meaning — that meaning IS the behavior.
 
 ### Extensibility
 
-Common behaviors go in RDFCore — the shared API consumed by the macro. These are "different but identical" — same interface, different implementations. Extensibility comes through content modifiers or other means, allowing custom behaviors without changing the core.
+Common behaviors go in RDFCore — the shared API consumed by the macro. These are "different but identical" — same interface, different implementations. Extensibility comes through declaration forms and protocol conformance, allowing custom behaviors without changing the core. Declared types are never modified by chained content modifiers.
 
 ---
 
@@ -142,7 +142,7 @@ These are metadata about the types. They should be generated as DocC comments on
 
 **5. Infrastructure**
 - `Node` — base type for all RDF nodes
-- `IRI` — internationalized resource identifier (from IRIKit)
+- `IRI` — internationalized resource identifier (from IRIKit), used only at the boundary; no generated class, property or individual stores or declares one
 - `Term` — metadata carrier (like CodingKeys)
 - `Ontology` — what ontologies conform to
 
@@ -196,10 +196,11 @@ Leverage modern Swift features for clean, expressive code:
 - Protocol extensions provide default implementations
 - Protocol conformance drives code generation
 
-**Value Types:**
-- Structs for immutable data (terms, annotations)
-- Enums for fixed sets (term kinds, if needed)
-- Avoid classes unless reference semantics are required
+**Classes and Instances:**
+- A DSL `Class` generates a Swift class, and a class can be a protocol; not everything is a struct
+- Individuals are instances of their classes, and the instance is their identity
+- Vocabulary terms are never mapped statically onto enums, structs or static properties
+- Structs for the DSL's own syntax (declaration forms, annotations)
 
 **Result Builders:**
 - `@ContentBuilder` for composing ontology content
@@ -214,7 +215,7 @@ Leverage modern Swift features for clean, expressive code:
 - Consider for computed properties that need storage control
 
 **Macros:**
-- `@Vocabulary` for code generation
+- `@Ontology` for code generation, reading the ontology's `var body`
 - Compile-time processing of DSL declarations
 
 **Sendable/Concurrency:**
@@ -237,7 +238,7 @@ Each protocol gets its own clean file. Special protocols carry conforming types 
 
 | Protocol | File | Test File | Notes |
 |----------|------|-----------|-------|
-| `Node` | `Node.swift` | `NodeTests.swift` | Carries `IRI` conformance |
+| `Node` | `Node.swift` | `NodeTests.swift` | |
 | `Ontology` | `Ontology.swift` | `OntologyTests.swift` | |
 | `Class` | `Class.swift` | `ClassTests.swift` | |
 | `Property` | `Property.swift` | `PropertyTests.swift` | |

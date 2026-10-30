@@ -2,7 +2,7 @@
 
 ## The Fundamental Rule
 
-Everything declared in the DSL creates a type that conforms to `Entity`. Every Entity is a building block. The content block of an ontology contains Entity declarations.
+Everything declared in the DSL generates the Swift form of what it declares. A `Class` declaration generates a Swift class (a class can be a protocol), a `Property` generates a property on the classes of its domain, and an `Individual` generates an instance of its declared classes. The content block of an ontology, its `var body`, contains these declarations. The DSL forms themselves conform to `Entity`: they are syntax that `@Ontology` reads, not the generated types.
 
 ```swift
 Class("Resource") {
@@ -19,15 +19,13 @@ Property("label") {
 }
 ```
 
-`Resource` is an Entity. `label` is an Entity. They are all the same thing. The trailing closure of a declaration contains annotations — not Entities. Annotations describe what the declaration does. Properties declare their domain and range inside themselves.
+`Resource` generates a Swift class. `label` generates a property on its domain's class. The trailing closure of a declaration contains its declaration forms. They describe what the declaration states. Properties declare their domain and range inside themselves.
 
-Entity instances are what you get when you read `ontology.body` or `ontology.entities`. The body is evaluated at runtime. Each DSL function call (Class, Property, etc.) returns an Entity instance. The body returns these Entity instances in order.
+`ontology.body` holds the declarations as written. What users build with is the generated Swift: the classes, their properties, and the instances that are their members.
 
 ## Metadata
 
-Every Entity has Metadata. Metadata is a descriptor. It captures what the Entity does. It is not a node. It describes the Entity.
-
-Metadata has CodingKeys. The CodingKeys enumerate the properties. The properties are the children. The children describe what the Entity contains.
+Every generated class, property and named individual carries its declared key. It is type-level coding information, as a `CodingKey` is for a `Codable` property. It is not a node, and it holds no IRI.
 
 A generated term carries its declared key (`RDFCore.TermKey`: its declared name and its ontology), never an IRI; an encoder derives the IRI from the key and the ontology's namespace at the boundary.
 
@@ -35,47 +33,40 @@ A generated term carries its declared key (`RDFCore.TermKey`: its declared name 
 
 Some elements have behaviors — actions that drive code generation. Others are just declarations.
 
-- `Label("...")` — overrides the output name
-- `Comment("...")` — adds a documentation comment
+- `Label("...")` — documents the generated declaration (DocC)
+- `Comment("...")` — adds a documentation comment (DocC)
 - `Domain(X)` — attaches a property to class X
 - `Range(Y)` — sets the type of the property value
-- `SubClassOf(X)` — makes the Entity conform to X
-- `Deprecated` — adds `@available(*, deprecated)`
+- `SubClassOf(X)` — makes the generated class refine X
+- `Deprecated("reason")` — adds `@available(*, deprecated, message: "reason")`
 
 Today, behaviors are hard-coded in the macro. The macro reads the DSL and generates code based on what it finds.
 
 ## Code Generation Flow
 
-1. Macro parses the DSL content block
-2. For each declaration, it generates a struct conforming to `Entity`
-3. Each struct has nested `Metadata` — the descriptor
-4. Metadata captures what the declaration does
-5. The code generator reads Metadata to produce Swift code
-6. Properties with Domain/Range attach stored properties to the domain class
+1. Macro parses the DSL content block in `var body`
+2. For each `Class` declaration, it generates a Swift class: a protocol for the class, a storing protocol, and a final class whose instances are its members
+3. For each `Property` declaration, it generates a requirement on its domains' protocols, typed by its range, and a property term type that carries its declared key
+4. For each `Individual` declaration, it generates the one instance of its declared classes
+5. Label and Comment become DocC documentation on the generated declarations
+6. Properties with Domain/Range attach to the domain class
 
 ## The Macro Must
 
 1. Parse all declarations in the content block
 2. Collect Property declarations with their Domain/Range
 3. For each Class declaration, look up which Properties have it as their Domain
-4. Generate stored properties on the Class struct based on those Properties
-5. Generate Metadata capturing all annotations (Label, Comment, etc.)
-6. Generate `callAsFunction` that accepts `@EntityContentBuilder` and returns `Metadata`
+4. Generate those Properties as requirements of the Class's protocol and as members of its instances
+5. Generate DocC from Label and Comment, and `@available` from `Deprecated`
+6. Give each generated class, property and individual its declared key, and no stored or static IRI
 
 ## The Protocol
 
-`Entity` provides a default `callAsFunction` — the base DSL shape. The macro generates additional overloads based on Metadata. These are overloads, not replacements.
+`Entity` is the protocol of the DSL forms: `Class`, `Property`, `Datatype`, `Individual` and the annotations. They carry no RDF of their own; what `rdfs:Class` or `rdfs:label` is comes from the one translation of rdf.ttl, rdfs.ttl and owl.ttl, whose types the generated code names.
 
-## What Needs to Change
+## What the Macro Generates
 
-The macro currently generates:
-- Struct with `Entity, IRIIdentifiable, Sendable`
-- Metadata with `Codable, Identifiable, Sendable`
-- `callAsFunction` returning `TermDeclaration`
-- Properties from annotations inside Metadata only
-
-The macro needs to generate:
-- Struct with `Entity, Sendable`
-- A declared key (`RDFCore.TermKey`) as type-level coding information
-- `callAsFunction` returning `Metadata` with `@EntityContentBuilder`
-- Properties from Domain/Range as stored properties on the domain class struct
+- For a class, a protocol, a storing protocol and a final class, with no stored `rdfType`: membership is the type system
+- A declared key (`RDFCore.TermKey`) as type-level coding information, and no stored or static IRI and no `init(iri:)`
+- DocC documentation from Label and Comment
+- Properties from Domain/Range as requirements on the domain class's protocol and members of its instances
