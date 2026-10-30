@@ -42,23 +42,28 @@ struct LibraryTests {
         #expect(`second-edition`.cites.contains { $0 === `second-edition` })
     }
 
-    /// Literal values keep their language tags and datatypes.
+    /// Literal values keep their language tags and datatypes, as the
+    /// document states them, decoded at the boundary.
     @Test func literalValuesKeepTheirForm() throws {
-        #expect(Set(almanac.title) == [
-            try Literal("Almanac", languageTag: "en"),
-            try Literal("Almanach", languageTag: "de"),
-        ])
-        // The typed literal as the document states it, decoded at the boundary.
         let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "library.ttl")
         let document = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
-        let pages: [RDFCore.Literal] = document.compactMap { triple in
-            guard triple.subject == .iri(IRI(of: almanac)!), triple.predicate == IRI(pages.key),
-                  case .literal(let literal) = triple.object else { return nil }
-            return literal
+        func literals(of subject: any RDFCore.Resource, _ predicate: IRI?) throws -> [RDFCore.Literal] {
+            let subject = try #require(IRI(of: subject))
+            let predicate = try #require(predicate)
+            return document.compactMap { triple in
+                guard triple.subject == .iri(subject), triple.predicate == predicate,
+                      case .literal(let literal) = triple.object else { return nil }
+                return literal
+            }
         }
-        #expect(pages.count == 1)
-        #expect(almanac.pages == pages)
-        #expect(gazette.title == ["Gazette"])
+        let almanacTitles = try literals(of: almanac, IRI(title.key))
+        #expect(almanacTitles.count == 2)
+        #expect(almanacTitles.allSatisfy { $0.languageTag != nil })
+        #expect(Set(almanac.title) == Set(almanacTitles))
+        let statedPages = try literals(of: almanac, IRI(pages.key))
+        #expect(statedPages.count == 1)
+        #expect(almanac.pages == statedPages)
+        #expect(gazette.title == (try literals(of: gazette, IRI(title.key))))
     }
 
     /// The data translates back to the same graph, blank nodes and the
