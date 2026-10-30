@@ -48,10 +48,10 @@ struct IndividualStorageTests {
         #expect(carol.knows.contains { $0 === dave })
         // A change in place that writes another property while it runs.
         carol.knows.removeAll { _ in
-            carol.joined = carol.name
+            carol.firstName = carol.name
             return false
         }
-        #expect(carol.joined == ["Carol"])
+        #expect(carol.firstName == ["Carol"])
         #expect(carol.knows.contains { $0 === dave })
     }
 }

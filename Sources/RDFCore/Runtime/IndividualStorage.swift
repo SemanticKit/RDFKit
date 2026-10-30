@@ -33,12 +33,21 @@ public final class IndividualStorage: Sendable {
     ///
     /// Reading copies the value under the lock, and setting replaces it under
     /// the lock. Changing it in place holds the lock for the whole change.
+    ///
+    /// Setting or changing the value states the property's values anew: the
+    /// literals a decoder kept for the property because they denote no value
+    /// of its Swift type (``PropertyLiterals``), which the accessor cannot
+    /// show, are no longer stated, so the individual writes only the values
+    /// Swift gave it.
     public subscript<Value: PropertyValue>(_ property: Value.Type) -> Value {
         get {
             lock.withLock { values.value(Value.self) }
         }
         set {
-            lock.withLock { values.set(newValue) }
+            lock.withLock {
+                values.set(newValue)
+                values.remove(PropertyLiterals<Value>.self)
+            }
         }
         _modify {
             lock.lock()
@@ -46,8 +55,37 @@ public final class IndividualStorage: Sendable {
             // The value is taken out while it changes, so a reentrant access
             // to another property does not overlap an access to `values`.
             var value = values.value(Value.self)
-            defer { values.set(value) }
+            defer {
+                values.set(value)
+                values.remove(PropertyLiterals<Value>.self)
+            }
             yield &value
+        }
+    }
+
+    /// The literals stated for one property, kept because they denote no
+    /// value of the property's Swift type: an ill-typed literal, one of a
+    /// datatype with no Swift type, or one whose value is outside the range.
+    public func keptLiterals<Value: PropertyValue>(of property: Value.Type) -> [Literal] {
+        lock.withLock { values.value(PropertyLiterals<Value>.self).value }
+    }
+
+    /// States what a document gives one property whose range is a datatype
+    /// with a Swift value type, as a decoder reads it: the values its
+    /// literals denote, each of which writes back its literal, and the
+    /// literals that denote none, kept as they are (``PropertyLiterals``).
+    ///
+    /// `RDFTranslatorPlugin` reads each literal with the range's value type
+    /// while it translates, so the Swift it writes states the values as
+    /// values, and only the literals that stay literals as ``Literal``s.
+    public func state<Value: DatatypePropertyValue>(_ members: [Value.Member], keeping literals: [Literal] = [], for property: Value.Type) {
+        var stated = Value()
+        stated.value = members
+        var kept = PropertyLiterals<Value>()
+        kept.value = literals
+        lock.withLock {
+            if !stated.value.isEmpty { values.set(stated) }
+            if !kept.value.isEmpty { values.set(kept) }
         }
     }
 
@@ -58,7 +96,18 @@ public final class IndividualStorage: Sendable {
 
     private func keep<Value: PropertyValue & Decodable>(_ property: Value.Type, _ decoder: any Decoder) throws {
         let value = try Value(from: decoder)
-        lock.withLock { values.set(value) }
+        // The literals the property's values do not hold, which the decoder
+        // kept while the value read them.
+        let objects = try decoder.container(keyedBy: PropertyKey.self).superDecoder(forKey: PropertyKey(Value.key))
+        let literals = (objects as? any PropertyObjectsDecoder)?.keptLiterals ?? []
+        lock.withLock {
+            values.set(value)
+            if !literals.isEmpty {
+                var kept = PropertyLiterals<Value>()
+                kept.value = literals
+                values.set(kept)
+            }
+        }
     }
 
     /// Writes every property value stated, in the order the properties were
@@ -84,6 +133,12 @@ public final class IndividualStorage: Sendable {
         mutating func set<Value: PropertyValue>(_ value: Value) {
             let key = ObjectIdentifier(Value.self)
             if values.updateValue(value, forKey: key) == nil { order.append(key) }
+        }
+
+        mutating func remove<Value: PropertyValue>(_ type: Value.Type) {
+            let key = ObjectIdentifier(type)
+            guard values.removeValue(forKey: key) != nil else { return }
+            order.removeAll { $0 == key }
         }
     }
 }

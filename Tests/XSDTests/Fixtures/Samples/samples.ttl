@@ -1,0 +1,166 @@
+# A vocabulary for the XSD tests: a class whose members have one property
+# for each XSD datatype RDF 1.2 Concepts §5.1 lists, ranging over it.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <https://xsd.example/samples#> .
+
+:Sample a owl:Class ;
+    rdfs:comment "Something with a value of each XSD datatype." .
+
+:string a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:string .
+
+:boolean a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:boolean .
+
+:decimal a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:decimal .
+
+:integer a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:integer .
+
+:double a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:double .
+
+:float a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:float .
+
+:date a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:date .
+
+:time a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:time .
+
+:dateTime a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:dateTime .
+
+:dateTimeStamp a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:dateTimeStamp .
+
+:gYear a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:gYear .
+
+:gMonth a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:gMonth .
+
+:gDay a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:gDay .
+
+:gYearMonth a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:gYearMonth .
+
+:gMonthDay a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:gMonthDay .
+
+:duration a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:duration .
+
+:yearMonthDuration a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:yearMonthDuration .
+
+:dayTimeDuration a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:dayTimeDuration .
+
+:byte a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:byte .
+
+:short a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:short .
+
+:int a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:int .
+
+:long a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:long .
+
+:unsignedByte a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:unsignedByte .
+
+:unsignedShort a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:unsignedShort .
+
+:unsignedInt a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:unsignedInt .
+
+:unsignedLong a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:unsignedLong .
+
+:positiveInteger a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:positiveInteger .
+
+:nonNegativeInteger a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:nonNegativeInteger .
+
+:negativeInteger a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:negativeInteger .
+
+:nonPositiveInteger a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:nonPositiveInteger .
+
+:hexBinary a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:hexBinary .
+
+:base64Binary a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:base64Binary .
+
+:anyURI a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:anyURI .
+
+:language a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:language .
+
+:normalizedString a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:normalizedString .
+
+:token a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:token .
+
+:NMTOKEN a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:NMTOKEN .
+
+:Name a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:Name .
+
+:NCName a owl:DatatypeProperty ;
+    rdfs:domain :Sample ;
+    rdfs:range xsd:NCName .

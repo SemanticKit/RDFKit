@@ -7,7 +7,10 @@ import RDFCore
 /// Each description writes the triples about one subject: an individual
 /// (a ``RDFCore/Resource``, declared in the DSL or translated from RDF), a
 /// class, or the resource an ``RDFCore/Addition`` refers to. Its values are
-/// typed Swift values; this is where they become RDF terms. A resource in
+/// typed Swift values; this is where they become RDF terms: a datatype's
+/// value (``RDFCore/DatatypeValue``) becomes a literal of the lexical form
+/// and datatype IRI of its literal form, the literal it was decoded from or
+/// its canonical form. A resource in
 /// object position is written as the IRI its declared key gives (its
 /// declared name in its vocabulary's namespace); one no declaration names is
 /// a blank node, which is described too, once, since nothing outside the graph can
@@ -132,6 +135,27 @@ final class EncodedGraph {
         return .blankNode(node)
     }
 
+    /// The literal of a datatype's value: the lexical form of its literal
+    /// form, and the datatype IRI the form's declared key gives, derived
+    /// here, at the boundary (RDF 1.2 Concepts §3.4: "a literal ... consists
+    /// of ... a lexical form ... a datatype IRI").
+    ///
+    /// - Throws: `EncodingError.invalidValue` when the declared key does not
+    ///   give an IRI.
+    func literal(_ value: any DatatypeValue, codingPath: [any CodingKey]) throws -> Literal {
+        let form = value.literalForm
+        do {
+            // `^^xsd:string` is the simple literal (RDF 1.2 Concepts §3.4).
+            return try Literal(form.lexicalForm, datatypeIRI: try IRI(validating: form.datatype.stringValue))
+        } catch {
+            throw EncodingError.invalidValue(value, EncodingError.Context(
+                codingPath: codingPath,
+                debugDescription: "A datatype's declared name in its vocabulary's namespace is its datatype IRI (RDF 1.2 Concepts §5).",
+                underlyingError: error
+            ))
+        }
+    }
+
     /// A value in object position. A blank node it reaches is described too.
     ///
     /// - Throws: `EncodingError.invalidValue` when a declared key does not
@@ -220,6 +244,8 @@ struct PropertyContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
             object = try graph.object(.individual(resource))
         } else if let literal = value as? Literal {
             object = .literal(literal)
+        } else if let value = value as? any DatatypeValue {
+            object = .literal(try graph.literal(value, codingPath: codingPath + [key]))
         } else if let iri = value as? IRI {
             // A resource outside the runtime that a description names by
             // its address, such as the document `rdfs:seeAlso` gives.

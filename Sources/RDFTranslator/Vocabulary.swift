@@ -1,5 +1,6 @@
 import IRIKit
 import RDFCore
+import XSD
 
 extension IRI {
     // The terms whose meaning RDF 1.2 Semantics and OWL 2 fix, and that the
@@ -23,8 +24,6 @@ extension IRI {
     static let rdfsDatatype: IRI = "http://www.w3.org/2000/01/rdf-schema#Datatype"
     static let owlThing: IRI = "http://www.w3.org/2002/07/owl#Thing"
     static let owlDeprecated: IRI = "http://www.w3.org/2002/07/owl#deprecated"
-    static let xsdBoolean: IRI = "http://www.w3.org/2001/XMLSchema#boolean"
-    static let xsdNamespace = "http://www.w3.org/2001/XMLSchema#"
 }
 
 /// What the merged graph of a module and the layers below it states and
@@ -41,12 +40,15 @@ extension IRI {
 /// `rdf:type` a class.
 struct Vocabulary {
     let graph: Graph
+    /// The XSD datatypes, the layer below every module.
+    let datatypes: DatatypeLayer
     private(set) var types: [SubjectTerm: Set<SubjectTerm>] = [:]
     private var superclasses: [SubjectTerm: Set<SubjectTerm>] = [:]
     private var domains: [IRI: [SubjectTerm]] = [:]
     private var ranges: [IRI: [SubjectTerm]] = [:]
 
-    init(_ layers: some Sequence<Layer>) {
+    init(_ layers: some Sequence<Layer>, datatypes: DatatypeLayer) {
+        self.datatypes = datatypes
         var graph = Graph()
         for layer in layers { graph.formUnion(layer.graph) }
         self.graph = graph
@@ -98,11 +100,11 @@ struct Vocabulary {
     }
 
     /// Whether the members of `node` are literals: `rdfs:Literal`, a
-    /// subclass of it, a datatype (rdfs13) or an XML Schema datatype.
+    /// subclass of it, a datatype (rdfs13) or one of the XSD datatypes.
     func isLiteralClass(_ node: SubjectTerm) -> Bool {
         if superclassClosure(of: node).contains(.iri(.rdfsLiteral)) { return true }
         if classes(of: node).contains(.iri(.rdfsDatatype)) { return true }
-        return node.iri?.rawValue.hasPrefix(IRI.xsdNamespace) ?? false
+        return datatypes.isDatatype(node)
     }
 
     /// Whether the members of `node` are classes: `rdfs:Class` or a subclass
@@ -126,10 +128,11 @@ struct Vocabulary {
         }
     }
 
-    /// Whether `node` is `owl:deprecated true`.
+    /// Whether `node` is `owl:deprecated true`: a value of `owl:deprecated`
+    /// is the `xsd:boolean` true, `"true"` or `"1"`.
     func isDeprecated(_ node: SubjectTerm) -> Bool {
         literals(.owlDeprecated, of: node).contains { literal in
-            literal.datatype == .xsdBoolean && (literal.lexicalForm == "true" || literal.lexicalForm == "1")
+            XSD.boolean(literal)?.value == true
         }
     }
 

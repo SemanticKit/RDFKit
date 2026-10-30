@@ -582,7 +582,7 @@ struct OntologyMacroTests {
                         var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                         try container.encode([FOAF.PersonIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf.key))
                         try container.encode(IRIKit.IRI(validating: "https://club.example.org/rules"), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))
-                        try container.encode([RDFCore.Literal("true", datatype: "http://www.w3.org/2001/XMLSchema#boolean")], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
+                        try container.encode([true] as [XSD.boolean], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
                     }
                 }
 
