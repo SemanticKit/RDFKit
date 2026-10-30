@@ -34,11 +34,15 @@ public typealias Entities = [AnyEntity]
 /// }
 /// ```
 ///
+/// The ontology is the ``Vocabulary`` of the terms it declares: `@Ontology`
+/// gives it the `namespace` its `Namespace` declares, from which an encoder
+/// derives each term's IRI.
+///
 /// - Note: ``Ontology`` conformance is `Sendable`; conforming types should
 ///   ensure all stored properties are also `Sendable`.
 ///
 /// - SeeAlso: ``ContentBuilder``, ``Entity``, ``Declaration``
-public protocol Ontology: Sendable {
+public protocol Ontology: Vocabulary {
     /// The type of the ontology's content, inferred from ``body``.
     associatedtype Body: Content
 

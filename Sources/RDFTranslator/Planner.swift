@@ -265,7 +265,11 @@ struct Planner {
         if stated.count == 1, let type = classDeclaration(stated[0]), closure(type.conformances).isSuperset(of: required),
            properties.allSatisfy(type.stored.contains) {
             declaration.instanceOf = .class(stated[0])
-            declaration.publicType = type.isPublic ? type.classReference : existential(minimal(required))
+            // A named individual's Swift class is its own, which carries its
+            // declared key, so it is typed by its class's storing protocol,
+            // which gives it every property a member of the class has.
+            declaration.publicType = !type.isPublic ? existential(minimal(required))
+                : node.iri == nil ? type.classReference : "any " + type.storingReference
             declarations.individuals[node] = declaration
             return
         }

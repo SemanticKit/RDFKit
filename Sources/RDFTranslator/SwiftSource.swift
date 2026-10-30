@@ -44,6 +44,7 @@ struct SwiftSource {
         for module in below.map(\.module) {
             source += "import \(module)\n"
         }
+        source += "\n" + namespaceTypes()
 
         for node in declarations.order {
             if let declaration = declarations.classes[node] {
@@ -61,11 +62,17 @@ struct SwiftSource {
         }
 
         // The individuals, each an instance of its class, and the values the
-        // documents give them.
+        // documents give them. A named individual is the one instance of a
+        // Swift class of its own, which carries its declared key.
+        for node in declarations.order {
+            guard let individual = declarations.individuals[node], node.iri != nil else { continue }
+            source += "\n" + namedIndividualClass(node, individual)
+        }
         source += "\n"
         for node in declarations.order {
             guard let individual = declarations.individuals[node] else { continue }
-            source += "private let \(handle(node)) = \(classReference(individual.instanceOf))(iri: \(node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil"))\n"
+            let type = node.iri == nil ? classReference(individual.instanceOf) : namedIndividualClassName(node)
+            source += "private let \(handle(node)) = \(type)()\n"
         }
         source += "\n/// Sets the values the documents give the individuals, once.\nprivate let described: Swift::Void = {\n"
         for node in declarations.order where declarations.individuals[node] != nil {
@@ -80,6 +87,15 @@ struct SwiftSource {
             guard let individual = declarations.individuals[node], individual.isPublic else { continue }
             source += "\n" + docComment(node) + deprecation(node)
             source += "public let \(individual.name.swiftIdentifier): \(individual.publicType) = { _ = described; return \(handle(node)) }()\n"
+        }
+
+        // `rdf:type` is the property every member of `rdfs:Resource` writes
+        // its classes with, so the module that declares `rdfs:Resource`
+        // gives it to the class's storing protocol.
+        if let resource = declarations.classes[.iri(.rdfsResource)], propertyDeclaration(.iri(.rdfType)) != nil || declarations.individuals[.iri(.rdfType)] != nil {
+            source += "\n/// `rdf:type`, the property a member of `rdfs:Resource` writes its classes with.\n"
+            source += "extension \(resource.storingReference) {\n"
+            source += "    public static var typeProperty: (any RDFCore::Resource)? { \(reference(.iri(.rdfType))) }\n}\n"
         }
 
         for (index, node) in declarations.additions.enumerated() {
@@ -148,7 +164,7 @@ struct SwiftSource {
         let access = self.access(declaration.isPublic)
         var text = docComment(declaration.node) + deprecation(declaration.node)
         text += "\(access)final class \(declaration.className.swiftIdentifier): \(declaration.storingReference), RDFCore::ResourceClass {\n"
-        text += "    public static let iri: IRIKit::IRI? = \(declaration.node.iri.map { $0.rawValue.swiftStringLiteral } ?? "nil")\n\n"
+        text += "    public static let classKey: RDFCore::TermKey? = \(key(declaration.node))\n\n"
         text += "    /// A member of the class as a property value.\n"
         text += "    public typealias Member = \(memberType(of: declaration.member))\n\n"
         text += individual(stated: [declaration.node])
@@ -166,16 +182,71 @@ struct SwiftSource {
         return text + "}\n"
     }
 
-    /// The classes, the IRI and the storage of a generated class. Its
+    /// The Swift class of a named individual, whose one instance is the
+    /// individual, and whose declared key names it at the boundary.
+    private func namedIndividualClass(_ node: SubjectTerm, _ declaration: IndividualDeclaration) -> String {
+        let stated: [SubjectTerm]
+        var conformances: [String]
+        switch declaration.instanceOf {
+        case .class(let type):
+            stated = [type]
+            conformances = [classDeclaration(type)!.storingReference]
+        case .combination(let index):
+            let combination = declarations.combinations[index]
+            stated = combination.stated
+            conformances = combination.storing.map(reference) + ["RDFCore::PropertyValueStoring"]
+        }
+        var text = "/// The class of \(node.iri!.rawValue), a named individual.\n"
+        text += "private final class \(namedIndividualClassName(node)): \(conformances.joined(separator: ", ")) {\n"
+        text += "    static let key: RDFCore::TermKey? = \(key(node))\n\n"
+        text += individual(stated: stated)
+        return text + "}\n"
+    }
+
+    private func namedIndividualClassName(_ node: SubjectTerm) -> String {
+        ("resource \(declarations.order.firstIndex(of: node)!) Individual").swiftIdentifier
+    }
+
+    // MARK: - Keys
+
+    /// The namespaces of the IRIs this module declares, each a
+    /// ``RDFCore/Vocabulary`` that the declared keys refer to.
+    private var namespaces: [String] {
+        var namespaces: [String] = []
+        for node in declarations.order {
+            guard let iri = node.iri else { continue }
+            let namespace = String(iri.rawValue.dropLast(iri.localName.count))
+            if !namespaces.contains(namespace) { namespaces.append(namespace) }
+        }
+        return namespaces
+    }
+
+    private func namespaceTypes() -> String {
+        namespaces.enumerated().map { index, namespace in
+            "/// The namespace \(namespace), which declared keys of this module refer to.\n"
+                + "private struct \(("namespace \(index)").swiftIdentifier): RDFCore::Vocabulary {\n"
+                + "    static let namespace = \(namespace.swiftStringLiteral)\n}\n"
+        }.joined(separator: "\n")
+    }
+
+    /// The declared key of a node: its local name in its namespace, or `nil`
+    /// for a blank node.
+    private func key(_ node: SubjectTerm) -> String {
+        guard let iri = node.iri else { return "nil" }
+        let namespace = String(iri.rawValue.dropLast(iri.localName.count))
+        let index = namespaces.firstIndex(of: namespace)!
+        return "RDFCore::TermKey(\(iri.localName.swiftStringLiteral), in: \(("namespace \(index)").swiftIdentifier).self)"
+    }
+
+    /// The classes and the storage of a generated class. Its
     /// `Encodable` conformance comes from ``RDFCore/PropertyValueStoring``,
     /// which writes the classes as `rdf:type`.
     private func individual(stated: [SubjectTerm]) -> String {
         let types = stated.compactMap(classDeclaration).map { "\($0.classReference).self" }
         var text = "    public static let classes: [any RDFCore::ResourceClass.Type] = [\(types.joined(separator: ", "))]\n\n"
-        text += "    public let iri: IRIKit::IRI?\n\n"
         text += "    public let storage = RDFCore::IndividualStorage()\n\n"
-        text += "    /// An individual, denoted by `iri`, or a blank node when it is `nil`.\n"
-        text += "    public init(iri: IRIKit::IRI? = nil) {\n        self.iri = iri\n    }\n"
+        text += "    /// An individual no declaration names: a blank node at the boundary.\n"
+        text += "    public init() {}\n"
         return text
     }
 

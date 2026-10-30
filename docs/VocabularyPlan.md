@@ -10,7 +10,7 @@ The vocabularies follow the same rules as any translated vocabulary (see `Source
 
 - Every class is a protocol, for membership, a storing protocol and a final class whose instances are its members: `RDF.List`, `RDF.ListStoring`, `RDF.ListIndividual`. `rdfs:subClassOf` is refinement (`OWL.ObjectProperty` refines `RDF.Property`).
 - Every property is an individual of `rdf:Property` (`RDF.type`, `OWL.sameAs`), a value type that holds its values on an individual, and a storing protocol that gives the individual its accessor, typed by the property's range.
-- Named individuals are module-level values: `RDF.nil` is the one empty list.
+- Named individuals are module-level values: `RDF.nil` is the one empty list. Each is the one instance of a Swift class of its own that carries its declared key, from which the encoders derive its IRI.
 - Literal classes and datatypes (`RDF.Literal`, `RDF.langString`) have `RDFCore.Literal` members.
 
 ## The DSL Builds on Them

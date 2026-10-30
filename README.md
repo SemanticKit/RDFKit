@@ -63,5 +63,6 @@ Related terms are written as their types: `SubClassOf(FOAF.Person)`, `Range(RDF.
 
 - **The type is the identity.** Inside the runtime, terms refer to each other as Swift types; an individual is an object. IRIs exist only at the boundary: the encoders and decoders.
 - **One runtime.** DSL-declared and translated individuals are the same kind of `Resource`, keep their values in an `IndividualStorage` as typed Swift values, and encode through the same encoders.
-- **A named individual is a module-level value** (`alice`), never a static member of an ontology type.
+- **No stored or declared IRI.** Each class, property and named individual carries its declared key (`TermKey`: its declared name and its vocabulary), as a `Codable` type carries its `CodingKeys`. The encoders derive the IRI from the key and the vocabulary's namespace; an individual made in Swift that no declaration names is a blank node.
+- **A named individual is never a static member of an ontology type.** A translated one is a module-level value (`alice`); `Individual("tweety") { Type(Fauna.Bird) }` in an `@Ontology` body (`owl:NamedIndividual`) is the ontology member `Fauna().tweety`.
 - **`var body`, as in SwiftUI**, and related terms by inference: `Domain(Fauna.Animal)`.

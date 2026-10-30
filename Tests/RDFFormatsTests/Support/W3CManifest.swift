@@ -57,19 +57,19 @@ struct W3CManifest {
         let text = try String(contentsOf: try file(for: iri), encoding: .utf8)
         let graph = try TurtleDecoder(base: iri).decode(text)
         guard let manifest = graph.subjects(
-            RDF.type.iri!,
-            TestManifest.ManifestIndividual.iri!
+            IRI(of: RDF.type)!,
+            IRI(of: TestManifest.ManifestIndividual.self)!
         ).first else {
             throw W3CManifestError.malformed(iri, "no mf:Manifest")
         }
         var tests: [W3CTestCase] = []
-        for include in try graph.list(graph.object(manifest, TestManifest.include.metadata.id)) {
+        for include in try graph.list(graph.object(manifest, IRI(TestManifest.include.key)!)) {
             guard case .iri(let included) = include else {
                 throw W3CManifestError.malformed(iri, "mf:include names a non-IRI")
             }
             tests += try self.tests(inManifest: included)
         }
-        for entry in try graph.list(graph.object(manifest, TestManifest.entries.metadata.id)) {
+        for entry in try graph.list(graph.object(manifest, IRI(TestManifest.entries.key)!)) {
             guard let subject = entry.subject else {
                 throw W3CManifestError.malformed(iri, "an entry is not a node")
             }
@@ -80,16 +80,16 @@ struct W3CManifest {
 
     func test(_ entry: SubjectTerm, in graph: Graph, manifest: IRI) throws -> W3CTestCase {
         guard case .iri(let id) = entry else { throw W3CManifestError.malformed(manifest, "a test without an IRI") }
-        guard case .iri(let type)? = graph.object(entry, RDF.type.iri!),
+        guard case .iri(let type)? = graph.object(entry, IRI(of: RDF.type)!),
               let kind = Self.kind(of: type) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
         }
-        guard case .literal(let name)? = graph.object(entry, TestManifest.name.metadata.id),
-              case .iri(let action)? = graph.object(entry, TestManifest.action.metadata.id) else {
+        guard case .literal(let name)? = graph.object(entry, IRI(TestManifest.name.key)!),
+              case .iri(let action)? = graph.object(entry, IRI(TestManifest.action.key)!) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> needs mf:name and mf:action")
         }
         var resultFile: URL?
-        if case .iri(let result)? = graph.object(entry, TestManifest.result.metadata.id) {
+        if case .iri(let result)? = graph.object(entry, IRI(TestManifest.result.key)!) {
             resultFile = try file(for: result)
         }
         return W3CTestCase(
@@ -104,17 +104,17 @@ struct W3CManifest {
 
     static func kind(of type: IRI) -> W3CTestCase.Kind? {
         switch Optional(type) {
-        case RDFTest.TestNTriplesPositiveSyntaxIndividual.iri,
-             RDFTest.TestTurtlePositiveSyntaxIndividual.iri:
+        case IRI(of: RDFTest.TestNTriplesPositiveSyntaxIndividual.self)!,
+             IRI(of: RDFTest.TestTurtlePositiveSyntaxIndividual.self)!:
             .positiveSyntax
-        case RDFTest.TestNTriplesNegativeSyntaxIndividual.iri,
-             RDFTest.TestTurtleNegativeSyntaxIndividual.iri,
-             RDFTest.TestXMLNegativeSyntaxIndividual.iri:
+        case IRI(of: RDFTest.TestNTriplesNegativeSyntaxIndividual.self)!,
+             IRI(of: RDFTest.TestTurtleNegativeSyntaxIndividual.self)!,
+             IRI(of: RDFTest.TestXMLNegativeSyntaxIndividual.self)!:
             .negativeSyntax
-        case RDFTest.TestTurtleEvalIndividual.iri,
-             RDFTest.TestXMLEvalIndividual.iri:
+        case IRI(of: RDFTest.TestTurtleEvalIndividual.self)!,
+             IRI(of: RDFTest.TestXMLEvalIndividual.self)!:
             .evaluation
-        case RDFTest.TestNTriplesPositiveC14NIndividual.iri:
+        case IRI(of: RDFTest.TestNTriplesPositiveC14NIndividual.self)!:
             .canonicalization
         default:
             nil
@@ -136,13 +136,13 @@ extension Graph {
     func list(_ head: ObjectTerm?) throws -> [ObjectTerm] {
         var members: [ObjectTerm] = []
         var node = head
-        while let current = node, current != .iri(RDF.nil.iri!) {
+        while let current = node, current != .iri(IRI(of: RDF.nil)!) {
             guard let cell = current.subject,
-                  let first = object(cell, RDF.first.iri!) else {
-                throw W3CManifestError.malformed(RDF.nil.iri!, "a broken list")
+                  let first = object(cell, IRI(of: RDF.first)!) else {
+                throw W3CManifestError.malformed(IRI(of: RDF.nil)!, "a broken list")
             }
             members.append(first)
-            node = object(cell, RDF.rest.iri!)
+            node = object(cell, IRI(of: RDF.rest)!)
         }
         return members
     }

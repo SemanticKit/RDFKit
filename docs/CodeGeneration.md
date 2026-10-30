@@ -29,7 +29,7 @@ Every Entity has Metadata. Metadata is a descriptor. It captures what the Entity
 
 Metadata has CodingKeys. The CodingKeys enumerate the properties. The properties are the children. The children describe what the Entity contains.
 
-The `ContentMetadata` protocol defines the minimum shape: `id` and `name`. Concrete Metadata types have more properties based on what the Entity declares.
+A generated term carries its declared key (`RDFCore.TermKey`: its declared name and its ontology), never an IRI; an encoder derives the IRI from the key and the ontology's namespace at the boundary.
 
 ## Behaviors
 
@@ -76,6 +76,6 @@ The macro currently generates:
 
 The macro needs to generate:
 - Struct with `Entity, Sendable`
-- Metadata conforming to `ContentMetadata`
+- A declared key (`RDFCore.TermKey`) as type-level coding information
 - `callAsFunction` returning `Metadata` with `@EntityContentBuilder`
 - Properties from Domain/Range as stored properties on the domain class struct

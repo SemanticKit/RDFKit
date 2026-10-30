@@ -96,20 +96,17 @@ struct OntologyContentMacroTests {
                 }
 
                 final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass {
-                    static let iri: IRIKit.IRI? = "https://zoo.example.org/#Animal"
+                    static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Animal", in: Zoo.self)
 
                     static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
 
                     /// A member of the class as a property value.
                     typealias Member = any Zoo.Animal
 
-                    let iri: IRIKit.IRI?
-
                     let storage = RDFCore.IndividualStorage()
 
-                    /// A member of the class, denoted by `iri`, or a blank node when it is `nil`.
-                    init(iri: IRIKit.IRI? = nil) {
-                        self.iri = iri
+                    /// A member of the class that no declaration names: a blank node at the boundary.
+                    init() {
                     }
 
                     static func encodeDescription(to encoder: any Encoder) throws {
@@ -127,6 +124,10 @@ struct OntologyContentMacroTests {
                         RDFCore.ClassDescription(Zoo.AnimalIndividual.self),
                     ]
                 }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
             }
             """,
             diagnostics: [
