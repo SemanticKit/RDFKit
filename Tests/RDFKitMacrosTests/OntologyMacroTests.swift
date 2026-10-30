@@ -581,19 +581,7 @@ struct OntologyMacroTests {
                     static func encodeDescription(to encoder: any Encoder) throws {
                         var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
                         try container.encode([FOAF.PersonIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf.key))
-                        struct SeeAlsoNamespace0: RDFCore.Vocabulary {
-                            static var namespace: String {
-                                "https://club.example.org/rules"
-                            }
-                        }
-                        final class SeeAlsoDocument0: RDFCore.Resource {
-                            static var key: RDFCore.TermKey? {
-                                RDFCore.TermKey("", in: SeeAlsoNamespace0.self)
-                            }
-                            func encode(to encoder: any Encoder) throws {
-                            }
-                        }
-                        try container.encode([SeeAlsoDocument0()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso.key))
+                        try container.encode(IRIKit.IRI(validating: "https://club.example.org/rules"), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))
                         try container.encode([true] as [XSD.boolean], for: RDFCore.PropertyKey(OWL.deprecatedValue.key))
                     }
                 }
@@ -748,6 +736,263 @@ struct OntologyMacroTests {
                 }
             }
             """
+        )
+    }
+
+    @Test("Declarations of one term are one term with everything each states, each requirement once")
+    func splitDeclarationsAreMerged() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal")
+                    Property("name") {
+                        Domain(Zoo.Animal)
+                    }
+                    Class("Animal") {
+                        SubClassOf(FOAF.Agent)
+                        Label("Animal")
+                    }
+                    Property("name") {
+                        Domain(Zoo.Animal)
+                        Label("name")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+
+            struct Zoo: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
+                    RDFCore.Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
+                    RDFCore.Class("Animal")
+                    #sourceLocation(file: "test.swift", line: 6)
+                    RDFCore.Property("name") {
+
+                            }
+                    #sourceLocation(file: "test.swift", line: 9)
+                    RDFCore.Class("Animal") {
+
+                                RDFCore.Label("Animal")
+                            }
+                    #sourceLocation(file: "test.swift", line: 13)
+                    RDFCore.Property("name") {
+
+                                RDFCore.Label("name")
+                            }
+                    #sourceLocation()
+                }
+
+                /// Animal
+                protocol Animal: FOAF.Agent {
+                    /// name
+                    var name: [RDFCore.Value] {
+                        get
+                        set
+                    }
+                }
+
+                /// A member of ``Zoo/Animal`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol AnimalStoring: Zoo.Animal, Zoo.nameStoring, FOAF.AgentStoring {
+                }
+
+                /// Animal
+                final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
+                    static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Animal", in: Zoo.self)
+
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        [Zoo.nameValue.self] + FOAF.AgentIndividual.properties
+                    }
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.Animal
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class that no declaration names: a blank node at the boundary.
+                    init() {
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([FOAF.AgentIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.subClassOf.key))
+                        try container.encode([RDFCore.Literal("Animal")], for: RDFCore.PropertyKey(RDF.label.key))
+                    }
+                }
+
+                /// name
+                struct name: RDFCore.PropertyTerm {
+                    static let key = RDFCore.TermKey("name", in: Zoo.self)
+
+                    /// The property's description, which ``Zoo/ontology`` lists.
+                    init() {
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode([Zoo.AnimalIndividual.self] as [any RDFCore.ResourceClass.Type], for: RDFCore.PropertyKey(RDF.domain.key))
+                        try container.encode([RDFCore.Literal("name")], for: RDFCore.PropertyKey(RDF.label.key))
+                    }
+                }
+
+                /// The values an individual has for ``Zoo/name``.
+                struct nameValue: RDFCore.PropertyValue, Decodable {
+                    /// The declared key of the property, from which an encoder derives its IRI.
+                    static var key: RDFCore.TermKey {
+                        Zoo.name.key
+                    }
+
+                    var value: [RDFCore.Value] = []
+
+                    init() {
+                    }
+
+                    init(from decoder: any Decoder) throws {
+                        let container = try decoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        value = try container.decode([RDFCore.Value].self, for: RDFCore.PropertyKey(Self.key), as: RDF.ResourceIndividual.self)
+                    }
+
+                    func encode(to encoder: any Encoder) throws {
+                        var container = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                        try container.encode(value, for: RDFCore.PropertyKey(Self.key))
+                    }
+                }
+
+                /// An individual that has ``Zoo/name``.
+                protocol nameStoring: RDFCore.PropertyValueStoring {
+                    var name: [RDFCore.Value] {
+                        get
+                        set
+                    }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.AnimalIndividual.self),
+                        Zoo.name(),
+                    ]
+                }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
+            }
+
+            extension nameStoring {
+                var name: [RDFCore.Value] {
+                    get {
+                        storage[nameValue.self].value
+                    }
+                    set {
+                        storage[nameValue.self].value = newValue
+                    }
+                    _modify {
+                        yield &storage[nameValue.self].value
+                    }
+                }
+            }
+            """
+        )
+    }
+
+    @Test("A term declared again with another form is reported at the later declaration")
+    func redeclarationWithAnotherFormIsReported() {
+        assertExpansion(
+            """
+            @Ontology
+            struct Zoo: Ontology {
+                var body: some Content {
+                    Namespace("https://zoo.example.org/#")
+                    Class("Animal")
+                    Property("Animal") {
+                        Domain(Zoo.Animal)
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+
+            struct Zoo: Ontology {
+                var body: some Content {
+                    #sourceLocation(file: "test.swift", line: 4)
+                    RDFCore.Namespace("https://zoo.example.org/#")
+                    #sourceLocation(file: "test.swift", line: 5)
+                    RDFCore.Class("Animal")
+                    #sourceLocation(file: "test.swift", line: 6)
+                    RDFCore.Property("Animal") {
+
+                            }
+                    #sourceLocation()
+                }
+
+                protocol Animal: RDF.Resource {
+                }
+
+                /// A member of ``Zoo/Animal`` that keeps its property values in an
+                /// ``RDFCore/IndividualStorage``. An individual typed with the class, in
+                /// any module, conforms to it.
+                protocol AnimalStoring: Zoo.Animal, RDF.ResourceStoring {
+                }
+
+                final class AnimalIndividual: Zoo.AnimalStoring, RDFCore.ResourceClass, RDFCore.DecodableResource {
+                    static let classKey: RDFCore.TermKey? = RDFCore.TermKey("Animal", in: Zoo.self)
+
+                    static let classes: [any RDFCore.ResourceClass.Type] = [Zoo.AnimalIndividual.self]
+
+                    /// The properties a member of the class has, which a decoder reads:
+                    /// its own and its superclasses'.
+                    static var properties: [any (RDFCore.PropertyValue & Decodable).Type] {
+                        RDF.ResourceIndividual.properties
+                    }
+
+                    /// A member of the class as a property value.
+                    typealias Member = any Zoo.Animal
+
+                    let storage = RDFCore.IndividualStorage()
+
+                    /// A member of the class that no declaration names: a blank node at the boundary.
+                    init() {
+                    }
+
+                    static func encodeDescription(to encoder: any Encoder) throws {
+                        _ = encoder.container(keyedBy: RDFCore.PropertyKey.self)
+                    }
+                }
+
+                /// The descriptions of the terms this ontology declares.
+                ///
+                /// Encoding them gives the ontology's graph:
+                ///
+                ///     let document = try TurtleEncoder().encode(Zoo().ontology)
+                var ontology: [any RDFCore.Description] {
+                    [
+                        RDFCore.ClassDescription(Zoo.AnimalIndividual.self),
+                    ]
+                }
+
+                /// The namespace this ontology's terms are declared in, from which an
+                /// encoder derives each term's IRI.
+                static let namespace = "https://zoo.example.org/#"
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "'Animal' is declared as Class(\"Animal\") in this ontology, so it cannot also be declared as Property(\"Animal\")", line: 6, column: 9),
+            ]
         )
     }
 

@@ -39,4 +39,26 @@ extension ObjectTerm {
         case .tripleTerm(let triple): "<<( \(triple.subject) <\(triple.predicate)> \(triple.object) )>>"
         }
     }
+
+    /// The blank nodes in the term, in the order they occur, the blank nodes
+    /// of a triple term's subject before those of its object (RDF 1.2
+    /// Concepts §3.6: a triple term's components are terms).
+    public var blankNodes: [BlankNode] {
+        switch self {
+        case .blankNode(let node): [node]
+        case .tripleTerm(let triple): triple.blankNodes
+        case .iri, .literal: []
+        }
+    }
+
+    /// The same term, each blank node in it, inside triple terms too,
+    /// replaced by the node `mapping` gives it. A blank node `mapping` does
+    /// not name stays as it is.
+    public func replacingBlankNodes(_ mapping: [BlankNode: BlankNode]) -> ObjectTerm {
+        switch self {
+        case .blankNode(let node): .blankNode(mapping[node] ?? node)
+        case .tripleTerm(let triple): .tripleTerm(triple.replacingBlankNodes(mapping))
+        case .iri, .literal: self
+        }
+    }
 }

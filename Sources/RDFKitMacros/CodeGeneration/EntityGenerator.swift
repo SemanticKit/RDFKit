@@ -50,11 +50,12 @@ struct EntityGenerator {
     /// properties.
     func members() -> [DeclSyntax] {
         diagnoseUndeclaredTerms()
-        var generated: Set<String> = []
+        diagnoseRedeclarations()
         var descriptions: [String] = []
+        // Every declaration of a term is merged into one by the parser, so
+        // each term gets one set of types.
         let members = ontology.declarations.flatMap { declaration -> [DeclSyntax] in
-            // A term declared twice gets one type.
-            guard generated.insert(declaration.name).inserted, let shape = model.shape(of: declaration.name) else { return [] }
+            guard let shape = model.shape(of: declaration.name) else { return [] }
             let sources: [String]
             switch shape {
             case .class, .datatype:
@@ -107,6 +108,22 @@ struct EntityGenerator {
                     message: OntologyDiagnostic.undeclaredTerm(spelling, ontology: ontology.typeName)
                 ))
             }
+        }
+    }
+
+    /// Reports, at the later declaration, a term declared again with
+    /// another form: `Property("name")` after `Class("name")`.
+    private func diagnoseRedeclarations() {
+        for redeclaration in ontology.redeclarations {
+            let declaration = redeclaration.declaration
+            context.diagnose(Diagnostic(
+                node: declaration.syntax,
+                message: OntologyDiagnostic.declaredWithAnotherForm(
+                    declaration.name,
+                    form: declaration.kind.rawValue,
+                    firstForm: redeclaration.firstKind.rawValue
+                )
+            ))
         }
     }
 
@@ -216,25 +233,11 @@ struct EntityGenerator {
                 lines.append("try container.encode([\(texts.map { "RDFCore.Literal(\(Documentation.literal($0)))" }.joined(separator: ", "))], for: RDFCore.PropertyKey(\(property).key))")
             }
         }
-        // A document `SeeAlso` names is a resource outside the runtime,
-        // dereferenced by its IRI: its declared key is the document's IRI as
-        // a namespace with no local name.
-        for (index, document) in declaration.annotations("SeeAlso").compactMap(\.text).enumerated() {
-            lines += [
-                "struct SeeAlsoNamespace\(index): RDFCore.Vocabulary {",
-                "    static var namespace: String {",
-                "        \(Documentation.literal(document))",
-                "    }",
-                "}",
-                "final class SeeAlsoDocument\(index): RDFCore.Resource {",
-                "    static var key: RDFCore.TermKey? {",
-                "        RDFCore.TermKey(\"\", in: SeeAlsoNamespace\(index).self)",
-                "    }",
-                "    func encode(to encoder: any Encoder) throws {",
-                "    }",
-                "}",
-            ]
-            lines.append("try container.encode([SeeAlsoDocument\(index)()] as [any RDFCore.Resource], for: RDFCore.PropertyKey(RDF.seeAlso.key))")
+        // The document `SeeAlso` names is a resource outside the runtime,
+        // known only by its address: it is written as that IRI, and the
+        // encoder makes it the object node, at the boundary.
+        for document in declaration.annotations("SeeAlso").compactMap(\.text) {
+            lines.append("try container.encode(IRIKit.IRI(validating: \(Documentation.literal(document))), forKey: RDFCore.PropertyKey(RDF.seeAlso.key))")
         }
         // `owl:deprecated true`: the `xsd:boolean` true, as a value of the
         // datatype's Swift type, which an encoder writes as its literal.

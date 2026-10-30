@@ -6,7 +6,8 @@
 /// It is the boundary of decoding: the objects are IRIs, blank nodes and
 /// literals of the document, and what it returns are Swift values. A literal
 /// is the literal; an IRI that names a class or property the decoder knows is
-/// that class or property; an IRI or blank node the document has already been
+/// that class or property; a triple term is a ``Value/tripleTerm(subject:predicate:object:)``
+/// of the values of its subject and object; an IRI or blank node the document has already been
 /// decoded for is that individual; one the document states is a member of a
 /// class the decoder may make is a new member of it; any other is a new
 /// member of the class the property's range gives.
@@ -96,6 +97,7 @@ extension Value {
         case .class(let type): type as? Member
         case .property(let term): term as? Member
         case .literal(let literal): literal as? Member
+        case .tripleTerm: nil
         }
     }
 }

@@ -47,6 +47,33 @@ struct Layer {
         self.documents = paths.map { URL(filePath: $0).lastPathComponent }
         self.graph = graph
     }
+
+    /// The classes the documents state `node` is a member of: the nodes its
+    /// `rdf:type` triples name, in IRI order.
+    func stated(_ node: SubjectTerm) -> [SubjectTerm] {
+        var types: [SubjectTerm] = []
+        for triple in graph where triple.subject == node && triple.predicate == .rdfType {
+            if let type = triple.object.node, !types.contains(type) { types.append(type) }
+        }
+        return types.sorted(by: SubjectTerm.inIRIOrder)
+    }
+
+    /// The values each predicate has on `node`, in document order, without
+    /// the `rdf:type` values `isClass` says the individual's Swift class
+    /// writes as its classes.
+    func values(of node: SubjectTerm, besidesClasses isClass: (SubjectTerm) -> Bool) -> [(property: SubjectTerm, values: [ObjectTerm])] {
+        var values: [(property: SubjectTerm, values: [ObjectTerm])] = []
+        for triple in graph where triple.subject == node {
+            if triple.predicate == .rdfType, let type = triple.object.node, isClass(type) { continue }
+            let property = SubjectTerm.iri(triple.predicate)
+            if let index = values.firstIndex(where: { $0.property == property }) {
+                values[index].values.append(triple.object)
+            } else {
+                values.append((property, [triple.object]))
+            }
+        }
+        return values
+    }
 }
 
 /// The error the translator reports to the build.
@@ -77,9 +104,18 @@ extension SubjectTerm {
         return nil
     }
 
-    /// The order the translator writes nodes in: by IRI, blank nodes last.
+    /// The order the translator writes nodes in: IRIs by simple string
+    /// comparison, code point by code point (RDF 1.2 Concepts §3.2, IRIKit's
+    /// `<`), then blank nodes by their document-scoped identifiers, scalar by
+    /// scalar. No two different nodes tie, so sorting a `Set` of nodes gives
+    /// one order in every process, and every build writes the same Swift.
     static func inIRIOrder(_ lhs: SubjectTerm, _ rhs: SubjectTerm) -> Bool {
-        (lhs.iri?.rawValue ?? "\u{10FFFF}") < (rhs.iri?.rawValue ?? "\u{10FFFF}")
+        switch (lhs, rhs) {
+        case (.iri(let lhs), .iri(let rhs)): lhs < rhs
+        case (.iri, .blankNode): true
+        case (.blankNode, .iri): false
+        case (.blankNode(let lhs), .blankNode(let rhs)): lhs < rhs
+        }
     }
 }
 

@@ -32,9 +32,26 @@ struct IndividualStorageTests {
     @Test("A change in place can read the individual's other properties")
     func changeInPlaceReadsOtherProperties() {
         let carol = Club.MemberIndividual()
+        let dave = FOAF.PersonIndividual()
+        let erin = FOAF.PersonIndividual()
         carol.name = ["Carol"]
-        carol.firstName.append(contentsOf: carol.name)
-        carol.knows.removeAll { _ in carol.name.isEmpty }
+        carol.knows = [dave, erin]
+        var reads = 0
+        // The closure runs while `knows` changes in place, so each call reads
+        // `name` from the same storage during the yielded access.
+        carol.knows.removeAll { person in
+            reads += 1
+            return person === erin && carol.name.isEmpty == false
+        }
+        #expect(reads == 2)
+        #expect(carol.knows.count == 1)
+        #expect(carol.knows.contains { $0 === dave })
+        // A change in place that writes another property while it runs.
+        carol.knows.removeAll { _ in
+            carol.firstName = carol.name
+            return false
+        }
         #expect(carol.firstName == ["Carol"])
+        #expect(carol.knows.contains { $0 === dave })
     }
 }

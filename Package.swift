@@ -2,6 +2,11 @@
 import PackageDescription
 import CompilerPluginSupport
 
+/// The settings of a target whose Swift RDFTranslatorPlugin generates: the
+/// generated Swift compiles without warnings, deprecated declarations
+/// (`owl:deprecated`) included, so a warning in it fails the build.
+let generated: [SwiftSetting] = [.treatAllWarnings(as: .error)]
+
 let package = Package(
     name: "RDFKit",
     platforms: [
@@ -141,11 +146,13 @@ let package = Package(
             name: "RDF",
             dependencies: ["RDFCore", "XSD"],
             path: "Tests/ParallelTests/Fixtures/W3C",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
         .target(
             name: "OWL",
             dependencies: ["RDF", "XSD"],
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
 
@@ -154,12 +161,14 @@ let package = Package(
             name: "FOAF",
             dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/ParallelTests/Fixtures/FOAF",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
         .target(
             name: "AliceProfile",
             dependencies: ["FOAF", "XSD"],
             path: "Tests/ParallelTests/Fixtures/AliceProfile",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
         // SHACL 1.2's published vocabulary (shacl.ttl), on RDF and OWL.
@@ -167,6 +176,7 @@ let package = Package(
             name: "SHACL",
             dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/SHACLTranslationTests/Fixtures/SHACL",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
         // The entailment regime vocabulary, whose ent:RDF is named like the
@@ -175,6 +185,16 @@ let package = Package(
             name: "EntailmentRegimes",
             dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/EntailmentTranslationTests/Fixtures/EntailmentRegimes",
+            swiftSettings: generated,
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+
+        // Data on no layer: rdf:type names no class.
+        .target(
+            name: "PlainData",
+            dependencies: ["RDFCore"],
+            path: "Tests/PlainDataTranslationTests/Fixtures/PlainData",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
 
@@ -184,12 +204,14 @@ let package = Package(
             name: "TestManifest",
             dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/RDFFormatsTests/Vocabularies/TestManifest",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
         .target(
             name: "RDFTest",
             dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/RDFFormatsTests/Vocabularies/RDFTest",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
 
@@ -226,7 +248,8 @@ let package = Package(
             ],
             exclude: [
                 "W3C/README.md",
-                "Vocabularies"
+                "Vocabularies",
+                "Fixtures"
             ],
             resources: [
                 .copy("W3C/rdf-tests")
@@ -236,8 +259,10 @@ let package = Package(
             name: "RDFCoreTests",
             dependencies: [
                 "RDFCore",
+                "RDFFormats",
                 .product(name: "IRIKit", package: "IRIKit")
-            ]
+            ],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "RDFKitMacrosTests",
@@ -262,6 +287,7 @@ let package = Package(
             name: "Samples",
             dependencies: ["OWL", "RDF", "XSD"],
             path: "Tests/XSDTests/Fixtures/Samples",
+            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
         .testTarget(
@@ -297,6 +323,17 @@ let package = Package(
                 "RDFFormats",
                 "RDF",
                 "EntailmentRegimes"
+            ],
+            exclude: ["Fixtures"]
+        ),
+        .testTarget(
+            name: "PlainDataTranslationTests",
+            dependencies: [
+                "RDFCore",
+                "RDFFormats",
+                "PlainData",
+                "RDFTranslator",
+                .product(name: "IRIKit", package: "IRIKit")
             ],
             exclude: ["Fixtures"]
         ),

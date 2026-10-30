@@ -34,10 +34,11 @@ do {
     }
     guard !groups.isEmpty else { throw TranslationError(description: "no module to translate") }
 
-    // The XSD datatypes are the layer below every module.
+    // The XSD datatypes are the layer below every module that depends on
+    // their module.
     let datatypes = try datatypeGroup.map { try DatatypeLayer(module: $0.module, documents: $0.paths) } ?? DatatypeLayer()
     var layers: [Layer] = []
-    var declarations: [Declarations] = [datatypes.declarations]
+    var declarations: [Declarations] = datatypeGroup == nil ? [] : [datatypes.declarations]
     var vocabulary = Vocabulary([], datatypes: datatypes)
     var documents = 0
     for group in groups {

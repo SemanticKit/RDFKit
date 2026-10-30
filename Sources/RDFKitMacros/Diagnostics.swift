@@ -18,6 +18,14 @@ struct OntologyDiagnostic: DiagnosticMessage {
         Self(message: "'\(spelling)' is not declared in \(ontology)", id: "undeclaredTerm")
     }
 
+    /// A term declared again with another declaration form.
+    static func declaredWithAnotherForm(_ name: String, form: String, firstForm: String) -> Self {
+        Self(
+            message: "'\(name)' is declared as \(firstForm)(\"\(name)\") in this ontology, so it cannot also be declared as \(form)(\"\(name)\")",
+            id: "declaredWithAnotherForm"
+        )
+    }
+
     /// Content written as a `content()` function, which the DSL does not use.
     static let writeContentInBody = Self(
         message: "Write the ontology's content in 'var body: some Content', as a SwiftUI view's body; @Ontology does not read a 'content()' function",

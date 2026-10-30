@@ -15,6 +15,16 @@ extension string {
     public static func representations(of value: CharacterSequence) -> [String] {
         [value.text]
     }
+
+    /// The value a simple literal denotes: RDF 1.2 Concepts §3.4, "Simple
+    /// literals are syntactic sugar for abstract syntax literals with the
+    /// datatype IRI http://www.w3.org/2001/XMLSchema#string", and RDFCore's
+    /// ``RDFCore/Literal`` keeps such a literal in its simple form, with no
+    /// datatype IRI. A language-tagged string is not one.
+    public static func ownDenotation(of literal: Literal) -> (value: CharacterSequence, literalForm: LiteralForm)? {
+        guard literal.datatype == nil, literal.languageTag == nil else { return nil }
+        return writtenDenotation(of: literal.lexicalForm)
+    }
 }
 
 extension string: ExpressibleByStringLiteral {

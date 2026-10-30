@@ -63,7 +63,8 @@ extension SwiftSource {
         if let direction = literal.baseDirection { arguments.append(("baseDirection", .member(.identifier(direction.rawValue), of: nil))) }
         if let datatype = literal.datatype { arguments.append(("datatype", .string(datatype.rawValue))) }
         let call = ExprSyntax.call(.reference(.identifier("Literal"), in: "RDFCore"), arguments)
-        guard arguments.count > 1 else { return call }
+        // Only a language tag can be refused; a typed literal cannot.
+        guard literal.languageTag != nil else { return call }
         return ExprSyntax(TryExprSyntax(questionOrExclamationMark: .exclamationMarkToken(), expression: call))
     }
 }

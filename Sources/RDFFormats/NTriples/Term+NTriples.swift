@@ -79,7 +79,7 @@ extension Literal {
             scanner.skipLineSpace()
             let datatype = try IRI(nTriples: &scanner)
             do {
-                try self.init(lexicalForm, datatype: datatype)
+                try self.init(lexicalForm, datatypeIRI: datatype)
             } catch {
                 throw scanner.error("a language-tagged string cannot be written with '^^'", at: start)
             }

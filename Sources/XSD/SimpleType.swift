@@ -98,15 +98,21 @@ extension SimpleType {
         return (value, denotation.literalForm)
     }
 
-    /// The value `literal` denotes when it is a literal of exactly this
-    /// datatype: its datatype IRI, derived from ``RDFCore/DatatypeValue/datatype``
-    /// for the comparison, is the literal's (RDF 1.2 Concepts §3.2: IRIs are
-    /// equal when they are the same sequence of code points), and its
-    /// lexical form is in the lexical space.
+    /// The value `literal` denotes when it is a typed literal of exactly
+    /// this datatype: its datatype IRI, derived from
+    /// ``RDFCore/DatatypeValue/datatype`` for the comparison, is the
+    /// literal's (RDF 1.2 Concepts §3.2: IRIs are equal when they are the
+    /// same sequence of code points), and its lexical form is in the lexical
+    /// space. (`xsd:string` reads simple literals, ``string/ownDenotation(of:)``.)
     public static func ownDenotation(of literal: Literal) -> (value: Primitive.Value, literalForm: LiteralForm)? {
-        guard literal.datatypeIRI.rawValue.unicodeScalars.elementsEqual(datatype.stringValue.unicodeScalars),
-              let value = try? Self.value(lexicalForm: literal.lexicalForm) else { return nil }
-        return (value, LiteralForm(lexicalForm: literal.lexicalForm, datatype: datatype))
+        guard let iri = literal.datatype, iri.rawValue.unicodeScalars.elementsEqual(datatype.stringValue.unicodeScalars) else { return nil }
+        return writtenDenotation(of: literal.lexicalForm)
+    }
+
+    /// The value of `lexicalForm` in this datatype, written as it is.
+    static func writtenDenotation(of lexicalForm: String) -> (value: Primitive.Value, literalForm: LiteralForm)? {
+        guard let value = try? Self.value(lexicalForm: lexicalForm) else { return nil }
+        return (value, LiteralForm(lexicalForm: lexicalForm, datatype: datatype))
     }
 
     /// The facets of the definitions from the primitive down to this one,

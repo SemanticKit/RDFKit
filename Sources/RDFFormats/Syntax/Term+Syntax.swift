@@ -90,6 +90,24 @@ extension Literal {
         return quotedLexicalForm
     }
 
+    /// The literal a document writes as `"lexicalForm"^^<datatype>`.
+    ///
+    /// RDF 1.2 Concepts §3.4 Literals: "Simple literals are syntactic sugar
+    /// for abstract syntax literals with the datatype IRI
+    /// http://www.w3.org/2001/XMLSchema#string", so `^^xsd:string` gives the
+    /// simple literal; and a language tag is present "if and only if the
+    /// datatype IRI is `rdf:langString` or `rdf:dirLangString`".
+    ///
+    /// - Throws: ``TermError/datatypeRequiresLanguageTag`` for
+    ///   `rdf:langString` and `rdf:dirLangString`.
+    init(_ lexicalForm: String, datatypeIRI datatype: IRI) throws(TermError) {
+        switch datatype {
+        case .xsdString: self.init(lexicalForm)
+        case .rdfLangString, .rdfDirLangString: throw .datatypeRequiresLanguageTag
+        default: self.init(lexicalForm, datatype: datatype)
+        }
+    }
+
     /// A language-tagged string from a `LANG_DIR`: `word` is the text after
     /// `@`, a language tag and an optional `--` base direction.
     ///

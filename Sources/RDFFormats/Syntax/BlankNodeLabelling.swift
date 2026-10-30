@@ -17,17 +17,7 @@ struct BlankNodeLabelling {
     private var next = 0
 
     init(_ graph: Graph) {
-        var inUse: Set<String> = []
-        func collect(_ triple: Graph.Element) {
-            if case .blankNode(let node) = triple.subject { inUse.insert(node.identifier) }
-            switch triple.object {
-            case .blankNode(let node): inUse.insert(node.identifier)
-            case .tripleTerm(let term): collect(term)
-            case .iri, .literal: break
-            }
-        }
-        graph.forEach(collect)
-        self.inUse = inUse.filter(Self.isLabel)
+        self.inUse = Set(graph.flatMap(\.blankNodes).map(\.identifier).filter(Self.isLabel))
     }
 
     /// The label of `node`, without `_:`.

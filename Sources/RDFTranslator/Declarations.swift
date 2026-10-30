@@ -352,6 +352,43 @@ enum ValueKind: Hashable {
     case values
 }
 
+/// The declarations one module can name: its own, and the public ones of
+/// the modules below it. The planner and the renderer resolve nodes through
+/// it, so both find the same declaration for a node.
+protocol DeclarationScope {
+    /// The declarations of this module.
+    var declarations: Declarations { get }
+
+    /// The public declarations of the modules below.
+    var lower: Lower { get }
+
+    /// The documents of this module.
+    var layer: Layer { get }
+}
+
+extension DeclarationScope {
+    /// The class declaration of `node`, here or below.
+    func classDeclaration(_ node: SubjectTerm) -> ClassDeclaration? {
+        declarations.classes[node] ?? lower.class(node)
+    }
+
+    /// The property declaration of `node`, here or below.
+    func propertyDeclaration(_ node: SubjectTerm) -> PropertyDeclaration? {
+        declarations.properties[node] ?? lower.property(node)
+    }
+
+    /// The values each property has on `node` that its Swift class keeps in
+    /// its storage, in document order. An `rdf:type` value is one of them
+    /// unless it names a class with a declaration, which the individual's
+    /// Swift class writes as one of its classes; a stated type with no class
+    /// declaration (in a module without the RDF layer, nothing is) stays a
+    /// value of `rdf:type`, so encoding the individual gives back every
+    /// triple the documents state about it.
+    func values(of node: SubjectTerm) -> [(property: SubjectTerm, values: [ObjectTerm])] {
+        layer.values(of: node, besidesClasses: { classDeclaration($0) != nil })
+    }
+}
+
 /// The public declarations of the modules below one module.
 struct Lower {
     let modules: [Declarations]
@@ -414,11 +451,42 @@ struct Lower {
 
 extension IRI {
     /// The local name of the IRI: what follows its last `#`, or else its
-    /// last `/`.
+    /// last `/`, scalar by scalar, so a combining mark after the `#` stays
+    /// in the local name.
     var localName: String {
-        if let hash = rawValue.lastIndex(of: "#") { return String(rawValue[rawValue.index(after: hash)...]) }
-        if let slash = rawValue.lastIndex(of: "/") { return String(rawValue[rawValue.index(after: slash)...]) }
-        return ""
+        String(rawValue.unicodeScalars[localNameStart...])
+    }
+
+    /// The namespace of the IRI: everything before its local name. Two
+    /// namespaces are the same only when their Unicode scalars are, as two
+    /// IRIs are (RDF 1.2 Concepts §3.2: "simple string comparison").
+    var namespace: String {
+        String(rawValue.unicodeScalars[..<localNameStart])
+    }
+
+    private var localNameStart: String.UnicodeScalarView.Index {
+        let scalars = rawValue.unicodeScalars
+        if let hash = scalars.lastIndex(of: "#") { return scalars.index(after: hash) }
+        if let slash = scalars.lastIndex(of: "/") { return scalars.index(after: slash) }
+        return scalars.endIndex
+    }
+}
+
+extension Literal {
+    /// The literal as a Swift expression that makes it: its lexical form,
+    /// language tag, base direction and datatype, unchanged.
+    var swiftExpression: String {
+        let lexical = lexicalForm.swiftStringLiteral
+        if languageTag == nil, datatype == nil {
+            return "RDFCore::Literal(\(lexical))"
+        }
+        var arguments = [lexical]
+        if let languageTag { arguments.append("languageTag: \(languageTag.swiftStringLiteral)") }
+        if let baseDirection { arguments.append("baseDirection: .\(baseDirection.rawValue)") }
+        if let datatype { arguments.append("datatype: \(datatype.rawValue.swiftStringLiteral)") }
+        // Only a language tag can be refused; a typed literal cannot.
+        let attempt = languageTag == nil ? "" : "try! "
+        return "\(attempt)RDFCore::Literal(\(arguments.joined(separator: ", ")))"
     }
 }
 
@@ -475,5 +543,13 @@ extension String {
             }
         }
         return literal + "\""
+    }
+}
+
+extension [String] {
+    /// The index of the first text with the same Unicode scalars as `text`:
+    /// the comparison RDF makes of IRIs, not Swift's canonical equivalence.
+    func firstIndex(ofScalars text: String) -> Int? {
+        firstIndex { $0.unicodeScalars.elementsEqual(text.unicodeScalars) }
     }
 }

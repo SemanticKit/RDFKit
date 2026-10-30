@@ -13,6 +13,7 @@ struct OntologyParser {
         let declaredNames = Self.declaredNames(in: statements)
         var namespace: String?
         var declarations: [ParsedEntity] = []
+        var redeclarations: [ParsedOntology.Redeclaration] = []
 
         for statement in statements {
             guard let expression = statement.item.as(ExprSyntax.self),
@@ -25,14 +26,24 @@ struct OntologyParser {
             guard let kind = ParsedEntity.Kind(rawValue: call.name),
                   let name = call.stringArgument, !name.isEmpty else { continue }
 
-            declarations.append(
-                ParsedEntity(
-                    name: name,
-                    kind: kind,
-                    annotations: AnnotationParser.parse(from: call.call, declaredNames: declaredNames),
-                    syntax: Syntax(call.call)
-                )
+            let declaration = ParsedEntity(
+                name: name,
+                kind: kind,
+                annotations: AnnotationParser.parse(from: call.call, declaredNames: declaredNames),
+                syntax: Syntax(call.call)
             )
+            // An RDF graph is a set of triples (RDF 1.2 Concepts, RDF
+            // Graphs): what a later declaration of the same term states is
+            // stated about that one term.
+            guard let index = declarations.firstIndex(where: { $0.name == name }) else {
+                declarations.append(declaration)
+                continue
+            }
+            if declarations[index].kind == kind {
+                declarations[index] = declarations[index].merging(declaration)
+            } else {
+                redeclarations.append(.init(declaration: declaration, firstKind: declarations[index].kind))
+            }
         }
 
         guard let namespace, !namespace.isEmpty else {
@@ -46,7 +57,8 @@ struct OntologyParser {
                 .first { [.keyword(.public), .keyword(.open), .keyword(.package)].contains($0) }
                 .map { $0 == .keyword(.package) ? "package " : "public " } ?? "",
             namespace: namespace,
-            declarations: declarations
+            declarations: declarations,
+            redeclarations: redeclarations
         )
     }
 

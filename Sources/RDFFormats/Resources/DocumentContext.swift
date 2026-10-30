@@ -18,14 +18,15 @@ import Synchronization
 ///         .decode((any FOAF.Person).self, from: graph, context: context)
 ///     let same = try GraphEncoder(context: context).encode(people)
 public final class DocumentContext: Sendable {
-    /// One individual and the IRI of the node it was decoded for.
-    private struct Correspondence {
-        let individual: any Resource
-        let iri: IRI
+    /// One IRI for each individual, and one individual for each IRI.
+    private struct Correspondences {
+        /// The IRI of each individual, keyed by the individual's identity.
+        var iris: [ObjectIdentifier: IRI] = [:]
+        /// The individual of each IRI.
+        var individuals: [IRI: any Resource] = [:]
     }
 
-    /// The correspondences, keyed by the individual's identity.
-    private let correspondences = Mutex<[ObjectIdentifier: Correspondence]>([:])
+    private let correspondences = Mutex(Correspondences())
 
     /// A context with no correspondences.
     public init() {}
@@ -33,18 +34,30 @@ public final class DocumentContext: Sendable {
     /// The IRI of the node `individual` was decoded for, or `nil` for an
     /// individual this context's document does not name.
     public func iri(of individual: any Resource) -> IRI? {
-        correspondences.withLock { $0[ObjectIdentifier(individual)]?.iri }
+        correspondences.withLock { $0.iris[ObjectIdentifier(individual)] }
     }
 
     /// The individual decoded for the node `iri` names, if any.
     public func individual(for iri: IRI) -> (any Resource)? {
-        correspondences.withLock { correspondences in
-            correspondences.values.first { $0.iri == iri }?.individual
-        }
+        correspondences.withLock { $0.individuals[iri] }
     }
 
-    /// Records that `individual` was decoded for the node `iri` names.
-    func record(_ individual: any Resource, for iri: IRI) {
-        correspondences.withLock { $0[ObjectIdentifier(individual)] = Correspondence(individual: individual, iri: iri) }
+    /// The individual recorded for `iri`, else `make()`, recorded for it.
+    ///
+    /// The context keeps one individual for each IRI and one IRI for each
+    /// individual: `make` runs only when `iri` has none yet, and an
+    /// individual it returns that already has another IRI is not recorded
+    /// again.
+    func individual(for iri: IRI, orRecord make: () -> any Resource) -> any Resource {
+        correspondences.withLock { correspondences in
+            if let individual = correspondences.individuals[iri] { return individual }
+            let individual = make()
+            let identity = ObjectIdentifier(individual)
+            if correspondences.iris[identity] == nil {
+                correspondences.iris[identity] = iri
+                correspondences.individuals[iri] = individual
+            }
+            return individual
+        }
     }
 }
