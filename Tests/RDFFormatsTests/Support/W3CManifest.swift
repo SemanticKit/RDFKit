@@ -3,7 +3,8 @@ import IRIKit
 import RDF
 import RDFCore
 import RDFFormats
-import RDFKit
+import RDFTest
+import TestManifest
 
 enum W3CManifestError: Error, CustomStringConvertible {
     case missingSuite
@@ -53,96 +54,122 @@ struct W3CManifest {
         return root.appending(path: String(iri.rawValue.dropFirst(publishedRoot.count)))
     }
 
+    /// The tests of one manifest, decoded from the manifest's Turtle into the
+    /// Swift types of the published test vocabularies, `TestManifest`
+    /// (test-manifest.ttl) and `RDFTest` (rdftest.ttl), and classified by
+    /// those types.
     func tests(inManifest iri: IRI) throws -> [W3CTestCase] {
         let text = try String(contentsOf: try file(for: iri), encoding: .utf8)
         let graph = try TurtleDecoder(base: iri).decode(text)
-        guard let manifest = graph.subjects(
-            IRI(RDF.type.key)!,
-            IRI(of: TestManifest.ManifestIndividual.self)!
-        ).first else {
+        let context = DocumentContext()
+        let decoder = GraphDecoder(classes: Self.classes, individuals: [RDF.nil])
+        guard let manifest = try decoder.decode((any TestManifest.Manifest).self, from: graph, context: context).first else {
             throw W3CManifestError.malformed(iri, "no mf:Manifest")
         }
         var tests: [W3CTestCase] = []
-        for include in try graph.list(graph.object(manifest, IRI(TestManifest.include.key)!)) {
-            guard case .iri(let included) = include else {
+        for include in try manifest.include.flatMap(Self.members) {
+            guard case .individual(let included) = include, let included = context.iri(of: included) else {
                 throw W3CManifestError.malformed(iri, "mf:include names a non-IRI")
             }
             tests += try self.tests(inManifest: included)
         }
-        for entry in try graph.list(graph.object(manifest, IRI(TestManifest.entries.key)!)) {
-            guard let subject = entry.subject else {
-                throw W3CManifestError.malformed(iri, "an entry is not a node")
+        var entries: [(entry: any RDFCore.Resource, id: IRI)] = []
+        for member in try manifest.entries.flatMap(Self.members) {
+            guard case .individual(let entry) = member, let id = context.iri(of: entry) else {
+                throw W3CManifestError.malformed(iri, "a test without an IRI")
             }
-            tests.append(try test(subject, in: graph, manifest: iri))
+            entries.append((entry, id))
+        }
+        // Every member of mf:entries is an mf:ManifestEntry ("One entry in
+        // rdf:type list of entries"), which has the entry's name, action and
+        // result.
+        let described = DocumentContext()
+        let descriptions = try GraphDecoder(classes: []).decode(
+            TestManifest.ManifestEntryIndividual.self, for: entries.map(\.id), from: graph, context: described
+        )
+        for ((entry, id), description) in zip(entries, descriptions) {
+            tests.append(try test(entry, id: id, description, context: described, manifest: iri))
         }
         return tests
     }
 
-    func test(_ entry: SubjectTerm, in graph: Graph, manifest: IRI) throws -> W3CTestCase {
-        guard case .iri(let id) = entry else { throw W3CManifestError.malformed(manifest, "a test without an IRI") }
-        guard case .iri(let type)? = graph.object(entry, IRI(RDF.type.key)!),
-              let kind = Self.kind(of: type) else {
-            throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
-        }
-        guard case .literal(let name)? = graph.object(entry, IRI(TestManifest.name.key)!),
-              case .iri(let action)? = graph.object(entry, IRI(TestManifest.action.key)!) else {
+    func test(
+        _ entry: any RDFCore.Resource,
+        id: IRI,
+        _ description: TestManifest.ManifestEntryIndividual,
+        context: DocumentContext,
+        manifest: IRI
+    ) throws -> W3CTestCase {
+        guard let name = description.name.first,
+              case .individual(let action)? = description.action.first,
+              let actionIRI = context.iri(of: action) else {
             throw W3CManifestError.malformed(manifest, "<\(id)> needs mf:name and mf:action")
         }
         var resultFile: URL?
-        if case .iri(let result)? = graph.object(entry, IRI(TestManifest.result.key)!) {
-            resultFile = try file(for: result)
+        if case .individual(let result)? = description.result.first, let resultIRI = context.iri(of: result) {
+            resultFile = try file(for: resultIRI)
+        }
+        guard let kind = Self.kind(of: entry, hasResult: resultFile != nil) else {
+            throw W3CManifestError.malformed(manifest, "<\(id)> has no known test type")
         }
         return W3CTestCase(
             id: id,
             name: name.lexicalForm,
             kind: kind,
-            action: action,
-            actionFile: try file(for: action),
+            action: actionIRI,
+            actionFile: try file(for: actionIRI),
             resultFile: resultFile
         )
     }
 
-    static func kind(of type: IRI) -> W3CTestCase.Kind? {
-        switch Optional(type) {
-        case IRI(of: RDFTest.TestNTriplesPositiveSyntaxIndividual.self)!,
-             IRI(of: RDFTest.TestTurtlePositiveSyntaxIndividual.self)!:
+    /// The classes of the published test vocabularies a manifest's
+    /// individuals are decoded as.
+    static let classes: [any DecodableResource.Type] = [
+        TestManifest.ManifestIndividual.self,
+        RDFTest.TestNTriplesPositiveSyntaxIndividual.self,
+        RDFTest.TestNTriplesNegativeSyntaxIndividual.self,
+        RDFTest.TestNTriplesPositiveC14NIndividual.self,
+        RDFTest.TestTurtlePositiveSyntaxIndividual.self,
+        RDFTest.TestTurtleNegativeSyntaxIndividual.self,
+        RDFTest.TestTurtleEvalIndividual.self,
+        RDFTest.XMLEvalIndividual.self,
+        RDFTest.TestXMLNegativeSyntaxIndividual.self,
+    ]
+
+    /// The kind of test an entry is, by the Swift type of its class.
+    ///
+    /// The RDF/XML manifests state their evaluation tests are members of
+    /// `rdft:TestXMLEval`, a class the published test vocabulary does not
+    /// declare (it declares `rdft:XMLEval`, "A positive RDF/XML evaluation
+    /// test"), so those entries decode with no class of it. Of the RDF/XML
+    /// entries, only evaluation tests name an expected outcome (`mf:result`).
+    static func kind(of entry: any RDFCore.Resource, hasResult: Bool) -> W3CTestCase.Kind? {
+        switch entry {
+        case is any RDFTest.TestNTriplesPositiveSyntax, is any RDFTest.TestTurtlePositiveSyntax:
             .positiveSyntax
-        case IRI(of: RDFTest.TestNTriplesNegativeSyntaxIndividual.self)!,
-             IRI(of: RDFTest.TestTurtleNegativeSyntaxIndividual.self)!,
-             IRI(of: RDFTest.TestXMLNegativeSyntaxIndividual.self)!:
+        case is any RDFTest.TestNTriplesNegativeSyntax, is any RDFTest.TestTurtleNegativeSyntax, is any RDFTest.TestXMLNegativeSyntax:
             .negativeSyntax
-        case IRI(of: RDFTest.TestTurtleEvalIndividual.self)!,
-             IRI(of: RDFTest.TestXMLEvalIndividual.self)!:
+        case is any RDFTest.TestTurtleEval, is any RDFTest.XMLEval:
             .evaluation
-        case IRI(of: RDFTest.TestNTriplesPositiveC14NIndividual.self)!:
+        case is any RDFTest.TestNTriplesPositiveC14N:
             .canonicalization
-        default:
+        case is any RDFTest.Test:
             nil
+        default:
+            hasResult ? .evaluation : nil
         }
     }
-}
 
-/// A decoded manifest, read by pattern.
-extension Graph {
-    func subjects(_ predicate: IRI, _ object: IRI) -> [SubjectTerm] {
-        triples(predicate: predicate, object: .iri(object)).map(\.subject)
-    }
-
-    func object(_ subject: SubjectTerm, _ predicate: IRI) -> ObjectTerm? {
-        triples(subject: subject, predicate: predicate).first?.object
-    }
-
-    /// The members of an `rdf:first` / `rdf:rest` list; none when absent.
-    func list(_ head: ObjectTerm?) throws -> [ObjectTerm] {
-        var members: [ObjectTerm] = []
-        var node = head
-        while let current = node, current != .iri(IRI(of: RDF.nil)!) {
-            guard let cell = current.subject,
-                  let first = object(cell, IRI(RDF.first.key)!) else {
+    /// The members of an `rdf:List`, in order, up to `rdf:nil`.
+    static func members(of list: any RDF.List) throws -> [RDFCore.Value] {
+        var members: [RDFCore.Value] = []
+        var cell = list
+        while cell !== RDF.nil {
+            guard let first = cell.first.first, let rest = cell.rest.first else {
                 throw W3CManifestError.malformed(IRI(of: RDF.nil)!, "a broken list")
             }
             members.append(first)
-            node = object(cell, IRI(RDF.rest.key)!)
+            cell = rest
         }
         return members
     }

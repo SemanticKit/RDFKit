@@ -1,7 +1,6 @@
 import IRIKit
 import RDFCore
 import RDFFormats
-import RDFKit
 import Testing
 
 @Suite("Turtle decoder", .tags(.turtle, .boundary))

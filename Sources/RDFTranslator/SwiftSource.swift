@@ -169,10 +169,13 @@ struct SwiftSource {
     private func individualClass(of declaration: ClassDeclaration) -> String {
         let access = self.access(declaration.isPublic)
         var text = docComment(declaration.node) + deprecation(declaration.node)
-        text += "\(access)final class \(declaration.className.swiftIdentifier): \(declaration.storingReference), RDFCore::ResourceClass {\n"
+        text += "\(access)final class \(declaration.className.swiftIdentifier): \(declaration.storingReference), RDFCore::ResourceClass, RDFCore::DecodableResource {\n"
         text += "    public static let classKey: RDFCore::TermKey? = \(key(declaration.node))\n\n"
         text += "    /// A member of the class as a property value.\n"
         text += "    public typealias Member = \(memberType(of: declaration.member))\n\n"
+        let properties = declaration.stored.sorted(by: SubjectTerm.inIRIOrder).compactMap(propertyDeclaration).map { "\($0.valueReference).self" }
+        text += "    /// The properties a member of the class has, which a decoder reads.\n"
+        text += "    public static let properties: [any (RDFCore::PropertyValue & Swift::Decodable).Type] = [\(properties.joined(separator: ", "))]\n\n"
         text += individual(stated: [declaration.node])
         text += "\n    public static func encodeDescription(to encoder: any Swift::Encoder) throws {\n"
         text += description(of: declaration.node, indent: "        ")
@@ -279,16 +282,35 @@ struct SwiftSource {
     private func propertyValue(_ property: PropertyDeclaration) -> String {
         let access = self.access(property.isPublic)
         var text = "/// The values an individual has for \(property.isPublic ? "``\(property.name)``" : "the property").\n"
-        text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore::PropertyValue {\n"
+        text += "\(access)struct \(property.valueName.swiftIdentifier): RDFCore::PropertyValue, Swift::Decodable {\n"
         text += "    /// The declared key of the property, from which an encoder derives its IRI.\n"
         text += "    public static var key: RDFCore::TermKey { \(property.termReference).key }\n\n"
         text += "    public var value: \(type(of: property.kind)) = []\n\n"
         text += "    public init() {}\n\n"
+        text += "    public init(from decoder: any Swift::Decoder) throws {\n"
+        text += "        let container = try decoder.container(keyedBy: RDFCore::PropertyKey.self)\n"
+        text += "        value = try container.decode(\(type(of: property.kind)).self, for: RDFCore::PropertyKey(Self.key)\(decodingClass(property.kind)))\n"
+        text += "    }\n\n"
         text += "    public func encode(to encoder: any Swift::Encoder) throws {\n"
         text += "        var container = encoder.container(keyedBy: RDFCore::PropertyKey.self)\n"
         text += "        try container.encode(value, for: RDFCore::PropertyKey(Self.key))\n"
         text += "    }\n}\n"
         return text
+    }
+
+    /// The class a decoder makes a value of a property of `kind` a member
+    /// of, when the document states no class for it: the class of the one
+    /// class the property's range gives, or `rdfs:Resource` for any value.
+    private func decodingClass(_ kind: ValueKind) -> String {
+        switch kind {
+        case .literals, .classes, .properties:
+            return ""
+        case .values:
+            return ", as: " + (classDeclaration(.iri(.rdfsResource)).map { "\($0.classReference).self" } ?? "nil")
+        case .individuals(let protocols):
+            guard protocols.count == 1, let declaration = classDeclaration(protocols[0]) else { return ", as: nil" }
+            return ", as: \(declaration.classReference).self"
+        }
     }
 
     /// The storing protocol that gives an individual a property's accessor.

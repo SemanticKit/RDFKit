@@ -126,6 +126,21 @@ let package = Package(
             plugins: ["RDFTranslatorPlugin"]
         ),
 
+        // The W3C test vocabularies the RDF test suites' manifests are
+        // written in, as published.
+        .target(
+            name: "TestManifest",
+            dependencies: ["OWL", "RDF"],
+            path: "Tests/RDFFormatsTests/Vocabularies/TestManifest",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        .target(
+            name: "RDFTest",
+            dependencies: ["OWL", "RDF"],
+            path: "Tests/RDFFormatsTests/Vocabularies/RDFTest",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+
         .testTarget(
             name: "RDFKitTests",
             dependencies: [
@@ -150,11 +165,15 @@ let package = Package(
                 "RDFFormats",
                 "RDFCore",
                 "RDF",
-                "RDFKit",
+                "FOAF",
+                "AliceProfile",
+                "TestManifest",
+                "RDFTest",
                 .product(name: "IRIKit", package: "IRIKit")
             ],
             exclude: [
-                "W3C/README.md"
+                "W3C/README.md",
+                "Vocabularies"
             ],
             resources: [
                 .copy("W3C/rdf-tests")

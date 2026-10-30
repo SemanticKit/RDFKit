@@ -1,0 +1,87 @@
+import Foundation
+import IRIKit
+import AliceProfile
+import FOAF
+import RDFCore
+import RDFFormats
+import Testing
+
+/// A document decoded into the individuals it describes, and encoded back.
+///
+/// The decoder makes the Swift individuals; the IRIs of the document stay in
+/// its ``DocumentContext``, which is what writes them back.
+@Suite("Graph decoder", .tags(.boundary))
+struct GraphDecoderTests {
+    /// `:alice a foaf:Person ; foaf:knows :bob`: each node becomes a
+    /// `FOAF.Person`, its values are typed Swift values, and the individuals
+    /// refer to each other, cycles included.
+    @Test("A document decodes to the individuals it describes")
+    func decodesIndividuals() throws {
+        let graph = try profile()
+        let context = DocumentContext()
+        let people = try GraphDecoder(classes: [FOAF.PersonIndividual.self])
+            .decode((any FOAF.PersonStoring).self, from: graph, context: context)
+        #expect(people.count == 2)
+        let decodedAlice = try #require(people.first { context.iri(of: $0) == IRI(of: alice) })
+        let decodedBob = try #require(people.first { context.iri(of: $0) == IRI(of: bob) })
+        #expect((decodedAlice as AnyObject) is any FOAF.Agent)
+        #expect(decodedAlice.knows.contains { $0 === decodedBob })
+        #expect(decodedBob.knows.contains { $0 === decodedAlice })
+        #expect(decodedAlice.name == alice.name)
+        #expect(decodedBob.name == bob.name)
+    }
+
+    /// The decoded individuals hold no IRI: an encoder without the context
+    /// writes them as blank nodes, and one given the context writes them
+    /// with the document's IRIs, the same graph.
+    @Test("The context, not the individual, holds the document's IRIs")
+    func contextHoldsTheIRIs() throws {
+        let graph = try profile()
+        let context = DocumentContext()
+        let people = try GraphDecoder(classes: [FOAF.PersonIndividual.self])
+            .decode((any FOAF.PersonStoring).self, from: graph, context: context)
+        #expect(people.allSatisfy { IRI(of: $0) == nil })
+
+        let anonymous = try GraphEncoder().encode(people)
+        #expect(anonymous.allSatisfy { if case .blankNode = $0.subject { true } else { false } })
+        #expect(anonymous.isIsomorphic(to: graph) == false)
+
+        let encoded = try GraphEncoder(context: context).encode(people)
+        #expect(encoded == graph)
+        let document = try NTriplesDecoder().decode(NTriplesEncoder().encode(encoded))
+        #expect(document == graph)
+    }
+
+    /// A named individual the decoder is given is the individual the
+    /// document names, not a new one.
+    @Test("A named individual decodes to itself")
+    func namedIndividualsDecodeToThemselves() throws {
+        let graph = try profile()
+        let context = DocumentContext()
+        let people = try GraphDecoder(classes: [FOAF.PersonIndividual.self], individuals: [bob])
+            .decode((any FOAF.PersonStoring).self, from: graph, context: context)
+        let decodedAlice = try #require(people.first { context.iri(of: $0) == IRI(of: alice) })
+        #expect(decodedAlice.knows.contains { $0 === bob })
+    }
+
+    /// A node the decoder is told the class of decodes as a member of it.
+    @Test("A node decodes as the class the caller states")
+    func decodesTheStatedClass() throws {
+        let graph = try profile()
+        let context = DocumentContext()
+        let iri = try #require(IRI(of: alice))
+        let agents = try GraphDecoder(classes: [])
+            .decode(FOAF.AgentIndividual.self, for: [iri], from: graph, context: context)
+        #expect(agents.count == 1)
+        #expect(context.iri(of: agents[0]) == iri)
+        #expect(context.individual(for: iri) === agents[0])
+        #expect(agents[0].name == alice.name)
+    }
+
+    /// The profile, as the document states it (`alice.ttl`).
+    private func profile() throws -> Graph {
+        let url = URL(filePath: #filePath).deletingLastPathComponent()
+            .appending(path: "../ParallelTests/Fixtures/AliceProfile/alice.ttl")
+        return try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
+    }
+}

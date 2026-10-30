@@ -7,7 +7,12 @@ reads them through their manifests, starting from
 `rdf/rdf12/rdf-n-triples/manifest.ttl`, `rdf/rdf12/rdf-turtle/manifest.ttl` and
 `rdf/rdf12/rdf-xml/manifest.ttl`.
 
-To refresh them from the repository's main branch, run:
+The manifests are decoded into the Swift types of the test vocabularies they
+are written in, `ns/test-manifest.ttl` and `ns/rdftest.ttl` from the same
+repository, which `RDFTranslatorPlugin` translates in the `TestManifest` and
+`RDFTest` targets (`../Vocabularies`).
+
+To refresh the suites and the vocabularies from the repository's main branch, run:
 
 ```sh
 Scripts/fetch-w3c-rdf-tests.sh
