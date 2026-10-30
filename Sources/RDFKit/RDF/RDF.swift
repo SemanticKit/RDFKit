@@ -5,7 +5,7 @@ import IRIKit
 /// The RDF ontology.
 @Ontology
 public struct RDF: Ontology {
-    public func content() -> Content {
+    public var body: some Content {
         Prefix.rdf
         Prefix.rdfs
         Prefix.owl

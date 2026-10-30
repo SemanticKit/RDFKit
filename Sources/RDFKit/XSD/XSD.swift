@@ -7,7 +7,7 @@ import RDFCore
 /// declared here.
 @Ontology
 public struct XSD: Ontology {
-    public func content() -> Content {
+    public var body: some Content {
         Namespace("http://www.w3.org/2001/XMLSchema#")
 
         Datatype("boolean") {

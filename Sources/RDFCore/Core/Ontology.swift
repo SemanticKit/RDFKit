@@ -1,15 +1,21 @@
 import Foundation
 
-/// The type returned by an ontology's `content()` function.
-///
-/// Content is an ordered list of entities — declarations (classes, properties,
-/// individuals, datatypes), their annotations, prefixes, and namespaces — that
-/// together define an ontology's vocabulary.
-public typealias Content = [any Entity]
-
 public typealias AnyEntity = any Entity
 
 public typealias Entities = [AnyEntity]
+
+/// What an ontology's `body` returns: an ordered list of entities —
+/// declarations (classes, properties, individuals, datatypes), their
+/// annotations, prefixes and namespaces — that together define an
+/// ontology's vocabulary.
+///
+/// An ontology's `body` is declared `some Content`, as a SwiftUI view's
+/// `body` is `some View`. ``ContentBuilder`` builds it as ``Entities``, which
+/// conforms.
+public protocol Content {
+    /// The entities of this content, in the order they were written.
+    var entities: Entities { get }
+}
 
 /// A declaratively authored ontology.
 ///
@@ -19,9 +25,9 @@ public typealias Entities = [AnyEntity]
 /// content and generates one Swift type per declared term, nested inside the
 /// conforming type.
 ///
-/// Conformance requires a ``content()`` function that returns ``Content`` — an
-/// ordered list of ``Entity`` values. The default ``entities`` property
-/// provides a stable, non-rebuilding view of the same declarations.
+/// Conformance requires a ``body`` property of some ``Content``, as a SwiftUI
+/// view's `body` is `some View`. The default ``entities`` property provides
+/// a stable, non-rebuilding view of the same declarations.
 ///
 /// Annotations that relate a term to another term take the related type as
 /// their argument, `Domain(People.Person)`:
@@ -29,7 +35,7 @@ public typealias Entities = [AnyEntity]
 /// ```swift
 /// @Ontology
 /// struct People: Ontology {
-///     func content() -> Content {
+///     var body: some Content {
 ///         Namespace("https://people.example.org/ontology#")
 ///         Class("Person")
 ///         Property("fullName") {
@@ -46,20 +52,25 @@ public typealias Entities = [AnyEntity]
 ///
 /// - SeeAlso: ``ContentBuilder``, ``Entity``, ``Declaration``
 public protocol Ontology: Sendable {
+    /// The type of the ontology's content, inferred from ``body``.
+    associatedtype Body: Content
+
     /// The authored ontology content.
     ///
     /// Use the `@ContentBuilder` result builder to declaratively compose the
     /// ontology's declarations — classes, properties, individuals, datatypes,
-    /// and annotations — in a flat, ordered list.
+    /// and annotations — in a flat, ordered list. A conforming `body` takes
+    /// the result builder from this requirement, as a SwiftUI view's `body`
+    /// takes `@ViewBuilder`.
     ///
-    /// Content is a function so that `@Ontology` can own its body: the
-    /// authored statements are read as syntax, and the function returns the
-    /// same declarations built from the generated types.
+    /// `@Ontology` owns the body of `body`: the authored statements are read
+    /// as syntax, and the property returns the same declarations built from
+    /// the generated types.
     ///
     /// ```swift
     /// @Ontology
     /// struct MyOntology: Ontology {
-    ///     func content() -> Content {
+    ///     var body: some Content {
     ///         Namespace("https://example.org/ontology#")
     ///         Class("Animal")
     ///         Property("age")
@@ -67,33 +78,38 @@ public protocol Ontology: Sendable {
     ///     }
     /// }
     /// ```
-    @ContentBuilder func content() -> Content
+    @ContentBuilder var body: Body { get }
 
     /// The flattened collection of all entities declared within this ontology.
     ///
-    /// Unlike ``content()``, which is evaluated by the `@ContentBuilder` result builder
+    /// Unlike ``body``, which is evaluated by the `@ContentBuilder` result builder
     /// each time it is accessed, `entities` provides a plain array that conforming
     /// types may cache or store directly. Use `entities` when you need a stable,
     /// non-rebuilding view of the ontology's declarations.
     ///
     /// - Note: Conforming types may provide a stored property backing this requirement.
-    ///   The default implementation in the extension simply returns the value of ``content()``.
+    ///   The default implementation in the extension returns the entities of ``body``.
     var entities: Entities { get }
 }
 
 extension Ontology {
     /// The flattened collection of all entities declared within this ontology.
     ///
-    /// This property exposes the same values as ``content()`` but as a stored array
-    /// rather than a re-evaluated builder closure. Use `entities` when you need
+    /// This property exposes the same values as ``body`` but as a stored array
+    /// rather than a re-evaluated builder body. Use `entities` when you need
     /// to inspect, filter, or iterate over the ontology's declarations without
     /// triggering the `@ContentBuilder` each time.
     ///
-    /// - Note: For ontologies whose `content` is derived from a builder body,
-    ///   `entities` captures the result once at access time. Prefer `content()`
+    /// - Note: For ontologies whose content is derived from a builder body,
+    ///   `entities` captures the result once at access time. Prefer `body`
     ///   for lazy or conditional composition patterns.
     public var entities: Entities {
-        return content()
+        body.entities
     }
 }
 
+extension Array: Content where Element == any Entity {
+    /// The array itself: ``ContentBuilder`` builds an ontology's `body` as
+    /// ``Entities``.
+    public var entities: Entities { self }
+}

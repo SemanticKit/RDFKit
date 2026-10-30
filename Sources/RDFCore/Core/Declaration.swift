@@ -8,17 +8,17 @@
 ///
 /// Conforming types are the declaration forms themselves (``Class``,
 /// ``Property``, ``Datatype``, ``Individual``). Inside an `@Ontology`
-/// `content()` they are qualified as `RDFCore.Class` when the body is
+/// `var body` they are qualified as `RDFCore.Class` when the body is
 /// expanded, so an ontology may declare a term of the same name (`RDFS.Class`).
 public protocol Declaration: Entity {
     /// The name the term was declared with, the spelling of its generated type.
     var localName: String { get }
 
     /// The annotations and nested content of the declaration.
-    var content: Content { get }
+    var content: Entities { get }
 
     /// Declares a term with its annotations.
-    init(_ localName: String, @ContentBuilder _ content: () -> Content)
+    init(_ localName: String, @ContentBuilder _ content: () -> Entities)
 }
 
 extension Declaration {
