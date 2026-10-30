@@ -117,10 +117,50 @@ struct DatatypeValueTests {
         #expect(sample.storage.keptLiterals(of: Samples.nonNegativeIntegerValue.self).isEmpty)
     }
 
+    /// `RDFTranslatorPlugin` reads each literal with the range's Swift type
+    /// while it translates, and writes the value it denotes as that value
+    /// type: every translated individual of `mappings.ttl` holds the values
+    /// a decoder reads from the document, each written with the same lexical
+    /// form and datatype, and keeps the same literals.
+    @Test func translatedValuesAreTheDecodedValues() throws {
+        let context = DocumentContext()
+        let decoded = try GraphDecoder(classes: [Samples.SampleIndividual.self, MappingIndividual.self, EqualIndividual.self, IllTypedIndividual.self])
+            .decode((any Samples.SampleStoring).self, from: try Self.document(), context: context)
+        let translated = ontology.compactMap { $0 as? any Samples.SampleStoring }
+        #expect(translated.count == decoded.count)
+        for individual in translated {
+            let iri = try #require(IRI(of: individual))
+            let match = try #require(decoded.first { context.iri(of: $0) == iri }, "\(iri)")
+            let values = try EncodedValues(of: individual)
+            let decodedValues = try EncodedValues(of: match)
+            #expect(values.values.count == decodedValues.values.count, "\(iri)")
+            for value in values.values {
+                #expect(decodedValues.values.contains { decodedValue in
+                    // A value that is not equal to itself (NaN) is compared by its
+                    // type and written form.
+                    value.property == decodedValue.property
+                        && type(of: value.value) == type(of: decodedValue.value)
+                        && (value.value.isEqual(to: decodedValue.value) || !value.value.isEqual(to: value.value))
+                        && value.value.literalForm.lexicalForm.unicodeScalars.elementsEqual(decodedValue.value.literalForm.lexicalForm.unicodeScalars)
+                        && value.value.literalForm.datatype == decodedValue.value.literalForm.datatype
+                }, "\(iri): \(value.property) \(value.value.literalForm.lexicalForm)")
+            }
+            #expect(Set(values.literals.map(\.literal)) == Set(decodedValues.literals.map(\.literal)), "\(iri)")
+        }
+    }
+
     /// The whole document translates back to the same graph (RDF 1.2
     /// Concepts §3.7).
     @Test func documentTranslatesBackToTheSameGraph() throws {
         let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(ontology))
         #expect(output.isIsomorphic(to: try Self.document()))
+    }
+
+    /// The samples vocabulary translates back to the graph of `samples.ttl`.
+    @Test func samplesTranslateBackToTheSameGraph() throws {
+        let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "Fixtures/Samples/samples.ttl")
+        let input = try TurtleDecoder().decode(try String(contentsOf: url, encoding: .utf8))
+        let output = try NTriplesDecoder().decode(try NTriplesEncoder().encode(Samples.ontology))
+        #expect(output.isIsomorphic(to: input))
     }
 }

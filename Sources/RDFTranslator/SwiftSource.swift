@@ -9,10 +9,12 @@ import RDFCore
 /// - `rdfs:label` and `rdfs:comment` are the declarations' documentation,
 ///   and `owl:deprecated true` is `@available(*, deprecated)`.
 /// - The literal values of a property whose range is an XSD datatype are
-///   stated as the literals they are (``RDFCore/IndividualStorage/state(_:for:)``):
-///   each that denotes a value of the datatype's Swift type,
-///   `XSD::nonNegativeInteger`, is that value, and writes back the literal;
-///   one that denotes none is kept as the literal (``RDFCore/PropertyLiterals``).
+///   read with the range's Swift type while translating, and stated with
+///   ``RDFCore/IndividualStorage/state(_:keeping:for:)``: each that denotes
+///   a value of `XSD::nonNegativeInteger` is that value,
+///   `XSD::nonNegativeInteger(lexicalForm: "02", writtenAs: XSD::integer.self)`,
+///   which writes back the literal; one that denotes none is kept as the
+///   literal (``RDFCore/PropertyLiterals``).
 /// - Each individual's values are set once, the first time any individual
 ///   of the module is read, since individuals refer to each other, cycles
 ///   included (`:alice foaf:knows :bob . :bob foaf:knows :alice .`).

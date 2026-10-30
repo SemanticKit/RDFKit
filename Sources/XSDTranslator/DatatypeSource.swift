@@ -26,7 +26,7 @@ struct DatatypeSource {
     static let module = "XSD"
 
     func render() throws -> String {
-        var declarations: [DeclSyntax] = [DeclSyntax(namespace)]
+        var declarations: [DeclSyntax] = [DeclSyntax(namespace), DeclSyntax(valueTypes)]
         for definition in definitions.datatypes {
             declarations.append(DeclSyntax(try valueType(definition)))
             declarations.append(DeclSyntax(classType(definition)))
@@ -59,6 +59,28 @@ struct DatatypeSource {
                     initializer: InitializerClauseSyntax(value: ExprSyntax.string(definitions.namespace))
                 )),
             ])
+        )
+    }
+
+    /// `public let datatypes: [any XSD::SimpleType.Type] = [string.self, ...]`:
+    /// the value types the documents define, in their order, as the module's
+    /// `ontology` is the descriptions its documents give. `RDFTranslator`
+    /// reads a literal with the value type of a property's range while it
+    /// translates, so the Swift it writes states the value the literal
+    /// denotes, not the literal.
+    private var valueTypes: VariableDeclSyntax {
+        VariableDeclSyntax(
+            leadingTrivia: .documentation([
+                "The value types of the datatypes the documents define, in their order: what",
+                "a translator reads a literal of a datatype-ranged property with.",
+            ]),
+            modifiers: .of(.public),
+            .let,
+            name: PatternSyntax(IdentifierPatternSyntax(identifier: .identifier("datatypes"))),
+            type: TypeAnnotationSyntax(type: TypeSyntax.array(of: .existential(.member("Type", of: .named(.identifier("SimpleType"), in: Self.module))))),
+            initializer: InitializerClauseSyntax(value: ExprSyntax.array(definitions.datatypes.map { definition in
+                .member(.keyword(.self), of: .reference(.escaped(definition.name)))
+            }))
         )
     }
 
@@ -132,6 +154,44 @@ struct DatatypeSource {
             body: .of([
                 .expr(.assignment(value, .try(.call(.member(.identifier("value"), of: .selfType), [("lexicalForm", .reference(.identifier("lexicalForm")))])))),
                 .expr(.assignment(.reference(.identifier("literalForm")), canonical)),
+            ])
+        ))))
+        let written = ExprSyntax.reference(.identifier("written"))
+        let writtenType = TypeSyntax.named(.identifier("Written"))
+        members.append(([
+            "The value of a lexical form in the lexical space of `written`, a datatype with",
+            "the same primitive, written as it is, with `written`'s datatype: the value a",
+            "literal `\"02\"^^xsd:integer` denotes for a property ranging over",
+            "`xsd:nonNegativeInteger`, which writes back the same literal.",
+        ], DeclSyntax(InitializerDeclSyntax(
+            modifiers: .of(.public),
+            genericParameterClause: GenericParameterClauseSyntax(parameters: GenericParameterListSyntax([GenericParameterSyntax(
+                name: .identifier("Written"),
+                colon: .colonToken(),
+                inheritedType: TypeSyntax.named(.identifier("SimpleType"), in: Self.module)
+            )])),
+            signature: FunctionSignatureSyntax(
+                parameterClause: .of([
+                    ("lexicalForm", "lexicalForm", .named(.identifier("String"), in: "Swift")),
+                    ("writtenAs", "written", TypeSyntax(MetatypeTypeSyntax(baseType: writtenType, metatypeSpecifier: .keyword(.Type)))),
+                ]),
+                effectSpecifiers: .throwing(datatypeError)
+            ),
+            genericWhereClause: GenericWhereClauseSyntax(requirements: GenericRequirementListSyntax([GenericRequirementSyntax(
+                requirement: .sameTypeRequirement(SameTypeRequirementSyntax(
+                    leftType: .type(.member("Primitive", of: writtenType)),
+                    equal: .binaryOperator("=="),
+                    rightType: .type(.named(.identifier("Primitive")))
+                ))
+            )])),
+            body: .of([
+                .expr(.assignment(value, .try(.call(.member(.identifier("checked"), of: .selfType), [
+                    (nil, .try(.call(.member(.identifier("value"), of: written), [("lexicalForm", .reference(.identifier("lexicalForm")))]))),
+                ])))),
+                .expr(.assignment(.reference(.identifier("literalForm")), .call(.reference(.identifier("LiteralForm"), in: "RDFCore"), [
+                    ("lexicalForm", .reference(.identifier("lexicalForm"))),
+                    ("datatype", .member(.identifier("datatype"), of: written)),
+                ]))),
             ])
         ))))
         members.append((["The value, when it is in the datatype's value space."], DeclSyntax(InitializerDeclSyntax(

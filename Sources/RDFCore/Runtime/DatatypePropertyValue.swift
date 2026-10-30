@@ -3,9 +3,9 @@
 /// ranges over `xsd:nonNegativeInteger`.
 ///
 /// `RDFTranslatorPlugin` gives each such property's value type this
-/// conformance, and states the literals its documents give an individual
-/// with ``IndividualStorage/state(_:for:)``, which keeps the values they
-/// denote and the literals that denote none, as a decoder does.
+/// conformance, and states what its documents give an individual with
+/// ``IndividualStorage/state(_:keeping:for:)``: the values the literals
+/// denote, and the literals that denote none, as a decoder keeps them.
 public protocol DatatypePropertyValue: PropertyValue {
     /// The Swift value type of the range.
     associatedtype Member: DatatypeValue

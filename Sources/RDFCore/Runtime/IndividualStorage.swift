@@ -70,20 +70,19 @@ public final class IndividualStorage: Sendable {
         lock.withLock { values.value(PropertyLiterals<Value>.self).value }
     }
 
-    /// States the literals a document gives one property whose range is a
-    /// datatype with a Swift value type, as a decoder reads them: each that
-    /// denotes a value of the type is that value, which writes back the
-    /// literal, and the others are kept as they are (``PropertyLiterals``).
-    public func state<Value: DatatypePropertyValue>(_ literals: [Literal], for property: Value.Type) {
+    /// States what a document gives one property whose range is a datatype
+    /// with a Swift value type, as a decoder reads it: the values its
+    /// literals denote, each of which writes back its literal, and the
+    /// literals that denote none, kept as they are (``PropertyLiterals``).
+    ///
+    /// `RDFTranslatorPlugin` reads each literal with the range's value type
+    /// while it translates, so the Swift it writes states the values as
+    /// values, and only the literals that stay literals as ``Literal``s.
+    public func state<Value: DatatypePropertyValue>(_ members: [Value.Member], keeping literals: [Literal] = [], for property: Value.Type) {
         var stated = Value()
+        stated.value = members
         var kept = PropertyLiterals<Value>()
-        for literal in literals {
-            if let member = Value.Member(literal) {
-                stated.value.append(member)
-            } else {
-                kept.value.append(literal)
-            }
-        }
+        kept.value = literals
         lock.withLock {
             if !stated.value.isEmpty { values.set(stated) }
             if !kept.value.isEmpty { values.set(kept) }
