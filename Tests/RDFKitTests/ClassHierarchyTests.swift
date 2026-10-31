@@ -39,4 +39,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class RDFList: RDF.List {}
+
+    /// rdf:Statement rdfs:subClassOf RDFS.Resource.
+    @Test func rdfStatement() {
+        let member: AnyObject = RDFStatement()
+        #expect(member is RDF.Statement)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class RDFStatement: RDF.Statement {}
 }
