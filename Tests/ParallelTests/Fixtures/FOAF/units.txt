@@ -66,3 +66,4 @@ http://xmlns.com/foaf/0.1/focus
 http://xmlns.com/foaf/0.1/isPrimaryTopicOf
 http://xmlns.com/foaf/0.1/page
 http://xmlns.com/foaf/0.1/theme
+http://xmlns.com/foaf/0.1/account
