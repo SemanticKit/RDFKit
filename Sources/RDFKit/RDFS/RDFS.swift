@@ -63,5 +63,13 @@ public struct RDFS: Ontology {
             Label("subClassOf")
             Comment("The subject is a subclass of a class.")
         }
+
+        Property("domain") {
+            Type(RDF.Property)
+            Domain(RDF.Property)
+            Range(RDFS.Class)
+            Label("domain")
+            Comment("A domain of the subject property.")
+        }
     }
 }
