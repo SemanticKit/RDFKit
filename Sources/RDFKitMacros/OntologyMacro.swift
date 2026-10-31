@@ -1,3 +1,4 @@
+import OntologyGeneration
 import SwiftSyntax
 import SwiftSyntaxMacros
 

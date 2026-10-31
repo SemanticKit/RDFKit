@@ -1,3 +1,4 @@
+import OntologyGeneration
 import SwiftSyntax
 
 /// Reads a declaration's annotations from its trailing closure:

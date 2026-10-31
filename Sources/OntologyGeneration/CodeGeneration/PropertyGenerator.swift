@@ -30,9 +30,9 @@ import SwiftSyntaxBuilder
 /// `rdfs:domain`) has no stored requirement: classes and properties are
 /// Swift types, and the encoder derives those triples from the declarations.
 /// `rdf:type` is the individual's conformance to its classes' protocols (D2).
-struct PropertyGenerator {
+public struct PropertyGenerator {
     /// The classes whose members are classes or properties.
-    static let schemaDomains: Set<String> = [
+    public static let schemaDomains: Set<String> = [
         "RDFS.Class", "RDFS.Datatype", "RDF.Property",
         "OWL.Class", "OWL.Restriction", "OWL.DeprecatedClass", "OWL.DataRange",
         "OWL.ObjectProperty", "OWL.DatatypeProperty", "OWL.AnnotationProperty",
@@ -42,10 +42,10 @@ struct PropertyGenerator {
     ]
 
     /// The root, and the names it goes by (D7).
-    static let roots: Set<String> = ["RDFS.Resource", "OWL.Thing"]
+    public static let roots: Set<String> = ["RDFS.Resource", "OWL.Thing"]
 
     /// Where a property's requirement goes.
-    enum Placement {
+    public enum Placement {
         /// No stored requirement.
         case none
         /// A member of the protocol of the named class of the same ontology.
@@ -54,7 +54,7 @@ struct PropertyGenerator {
         case ownProtocol(domain: String)
     }
 
-    static func placement(of property: ParsedEntity, in ontology: ParsedOntology) -> Placement {
+    public static func placement(of property: ParsedEntity, in ontology: ParsedOntology) -> Placement {
         let domain = property.annotationValue(named: "Domain")
         if ontology.namespace == ClassGenerator.rdf && property.name == "type" { return .none }
         if schemaDomains.contains(domain) { return .none }
@@ -67,7 +67,7 @@ struct PropertyGenerator {
     }
 
     /// The requirements that go in a class's protocol.
-    static func requirements(of entity: ParsedEntity, in ontology: ParsedOntology) -> [DeclSyntax] {
+    public static func requirements(of entity: ParsedEntity, in ontology: ParsedOntology) -> [DeclSyntax] {
         ontology.properties.compactMap { property in
             guard case .member(let owner) = placement(of: property, in: ontology), owner == entity.name else { return nil }
             return DeclSyntax(requirement(for: property))
@@ -76,7 +76,7 @@ struct PropertyGenerator {
 
     /// The protocol a property declares when its domain is the root or in
     /// another ontology.
-    static func generate(property: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax? {
+    public static func generate(property: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax? {
         guard case .ownProtocol(let domain) = placement(of: property, in: ontology) else { return nil }
         let name = property.name.prefix(1).uppercased() + property.name.dropFirst()
         return DeclSyntax(ProtocolDeclSyntax(
@@ -93,7 +93,7 @@ struct PropertyGenerator {
     }
 
     /// `var first: Values<any RDFS.Resource> { get set }`.
-    static func requirement(for property: ParsedEntity) -> VariableDeclSyntax {
+    public static func requirement(for property: ParsedEntity) -> VariableDeclSyntax {
         VariableDeclSyntax(
             leadingTrivia: ClassGenerator.documentation(of: property),
             bindingSpecifier: .keyword(.var),
@@ -110,7 +110,7 @@ struct PropertyGenerator {
 
     /// The Swift type of a property's values: its range as an existential,
     /// in `Values` or, for a functional property, an `Optional`.
-    static func valueType(of property: ParsedEntity) -> TypeSyntax {
+    public static func valueType(of property: ParsedEntity) -> TypeSyntax {
         let range = property.annotationValue(named: "Range")
         let element = range.isEmpty ? "any RDFS.Resource" : "any \(range)"
         let isFunctional = property.annotations.contains { $0.name == "Type" && $0.value == "OWL.FunctionalProperty" }

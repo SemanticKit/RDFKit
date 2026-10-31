@@ -2,6 +2,7 @@ import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacrosGenericTestSupport
 import Testing
 @testable import RDFKitMacros
+import OntologyGeneration
 
 @Suite(.tags(.codeGeneration, .property))
 struct PropertyGeneratorTests {

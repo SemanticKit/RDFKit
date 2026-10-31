@@ -56,9 +56,19 @@ let package = Package(
                 "Pending"
             ]
         ),
+        // The Swift a vocabulary's classes and properties generate, which the
+        // @Ontology macro and RDFTranslator both emit.
+        .target(
+            name: "OntologyGeneration",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
+        ),
         .macro(
             name: "RDFKitMacros",
             dependencies: [
+                "OntologyGeneration",
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")

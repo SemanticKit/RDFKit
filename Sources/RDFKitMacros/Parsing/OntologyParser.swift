@@ -1,3 +1,4 @@
+import OntologyGeneration
 import SwiftSyntax
 
 /// Reads an ontology's `body`: its namespace and its declarations.

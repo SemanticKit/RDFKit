@@ -22,12 +22,12 @@ import SwiftSyntaxBuilder
 ///
 ///     public typealias Thing = RDFS.Resource
 ///     public typealias Nothing = Never
-struct ClassGenerator {
-    static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
-    static let owl = "http://www.w3.org/2002/07/owl#"
-    static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+public struct ClassGenerator {
+    public static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+    public static let owl = "http://www.w3.org/2002/07/owl#"
+    public static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 
-    static func generate(class entity: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax {
+    public static func generate(class entity: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax {
         if ontology.namespace == owl, let aliased = ["Thing": "RDFS.Resource", "Nothing": "Never"][entity.name] {
             return DeclSyntax(TypeAliasDeclSyntax(
                 leadingTrivia: documentation(of: entity),
@@ -61,7 +61,7 @@ struct ClassGenerator {
     }
 
     /// The comment as the abstract, then the label.
-    static func documentation(of entity: ParsedEntity) -> Trivia {
+    public static func documentation(of entity: ParsedEntity) -> Trivia {
         var lines: [String] = []
         if let comment = entity.annotations.first(where: { $0.name == "Comment" }) {
             lines.append(comment.value)
