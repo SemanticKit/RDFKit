@@ -4,3 +4,5 @@ double
 float
 decimal
 integer
+hexBinary
+base64Binary

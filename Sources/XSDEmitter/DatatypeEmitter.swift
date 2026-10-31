@@ -30,6 +30,8 @@ struct DatatypeEmitter {
         "float": "Float",
         "decimal": "DecimalNumber",
         "integer": "BigInteger",
+        "hexBinary": "[UInt8]",
+        "base64Binary": "[UInt8]",
     ]
 
     /// The datatypes whose value space is exactly a Swift type: the datatype
@@ -62,6 +64,7 @@ struct DatatypeEmitter {
                     memberBlock: MemberBlockSyntax {}
                 )
             }
+            for binary in BinaryEmitter(definitions: definitions).extensions(for: names) { binary }
         }
         return file.formatted().description + "\n"
     }
