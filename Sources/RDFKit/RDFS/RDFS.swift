@@ -39,5 +39,13 @@ public struct RDFS: Ontology {
             Label("Container")
             Comment("The class of RDF containers.")
         }
+
+        Property("label") {
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Literal)
+            Label("label")
+            Comment("A human-readable name for the subject.")
+        }
     }
 }

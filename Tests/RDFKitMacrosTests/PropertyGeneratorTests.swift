@@ -80,4 +80,61 @@ struct PropertyGeneratorTests {
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
+
+    /// A property whose domain is the root is its own protocol, inheriting
+    /// its domain.
+    @Test func rootDomainIsItsOwnProtocol() {
+        assertMacroExpansion(
+            """
+            @Ontology
+            public struct RDFS: Ontology {
+                public var body: some Content {
+                    Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
+                    Property("label") {
+                        Type(RDF.Property)
+                        Domain(RDFS.Resource)
+                        Range(RDFS.Literal)
+                        Label("label")
+                        Comment("A human-readable name for the subject.")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            public struct RDFS: Ontology {
+                public var body: some Content {
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
+
+                            RDFCore.Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
+                            RDFCore.Property("label") {
+                                RDFCore.Type(RDF.Property.self)
+                                RDFCore.Domain(RDFS.Resource.self)
+                                RDFCore.Range(RDFS.Literal.self)
+                                RDFCore.Label("label")
+                                RDFCore.Comment("A human-readable name for the subject.")
+                            }
+                    }
+                    return declarations()
+                }
+
+                /// A human-readable name for the subject.
+                ///
+                /// Label: label
+                public protocol Label: RDFS.Resource {
+                    /// A human-readable name for the subject.
+                    ///
+                    /// Label: label
+                    var label: Values<any RDFS.Literal> {
+                        get
+                        set
+                    }
+                }
+            }
+            """,
+            macroSpecs: specs,
+            failureHandler: { Issue.record("\($0.message)") }
+        )
+    }
 }
