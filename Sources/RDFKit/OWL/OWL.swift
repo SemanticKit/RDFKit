@@ -236,5 +236,13 @@ public struct OWL: Ontology {
             Label("hasKey")
             Comment("The property that determines the collection of properties that jointly build a key.")
         }
+
+        Property("inverseOf") {
+            Type(RDF.Property)
+            Domain(OWL.ObjectProperty)
+            Range(OWL.ObjectProperty)
+            Label("inverseOf")
+            Comment("The property that determines that two given properties are inverse.")
+        }
     }
 }
