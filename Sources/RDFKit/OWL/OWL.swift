@@ -180,5 +180,13 @@ public struct OWL: Ontology {
             Label("equivalentClass")
             Comment("The property that determines that two given classes are equivalent, and that is used to specify datatype definitions.")
         }
+
+        Property("disjointWith") {
+            Type(RDF.Property)
+            Domain(OWL.Class)
+            Range(OWL.Class)
+            Label("disjointWith")
+            Comment("The property that determines that two given classes are disjoint.")
+        }
     }
 }
