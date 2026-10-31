@@ -81,5 +81,12 @@ public struct OWL: Ontology {
             Label("DeprecatedClass")
             Comment("The class of deprecated classes.")
         }
+
+        Class("ObjectProperty") {
+            Type(RDFS.Class)
+            SubClassOf(RDF.Property)
+            Label("ObjectProperty")
+            Comment("The class of object properties.")
+        }
     }
 }
