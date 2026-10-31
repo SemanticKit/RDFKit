@@ -23,3 +23,4 @@ http://xmlns.com/foaf/0.1/dnaChecksum
 http://xmlns.com/foaf/0.1/sha1
 http://xmlns.com/foaf/0.1/based_near
 http://xmlns.com/foaf/0.1/title
+http://xmlns.com/foaf/0.1/nick
