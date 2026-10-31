@@ -19,7 +19,19 @@ struct Vocabulary {
     let namespace: String?
     /// The vocabularies this one builds on: those of the targets it depends
     /// on, and the others of its own target.
-    var dependencies: [Vocabulary] = []
+    var dependencies: [Vocabulary] = [] {
+        didSet {
+            namespaceOwners = [:]
+            for vocabulary in all {
+                for namespace in vocabulary.namespaces where namespaceOwners[namespace] == nil {
+                    namespaceOwners[namespace] = (vocabulary.swiftNamespace, vocabulary.namespaceName(namespace))
+                }
+            }
+        }
+    }
+    /// The vocabulary that declares each namespace of this vocabulary and
+    /// those it builds on, and the name of its declaration.
+    private var namespaceOwners: [String: (owner: String, name: String)] = [:]
     /// What the statements of this vocabulary and those it builds on entail.
     var schema = Schema([])
     /// The vocabulary's terms: the subjects it owns, each with a local name
@@ -81,6 +93,10 @@ struct Vocabulary {
         termSet = Set(terms)
         termsByLocalName = [:]
         for term in terms where termsByLocalName[localName(term)] == nil { termsByLocalName[localName(term)] = term }
+        var found: [String] = []
+        var seen: Set<String> = []
+        for term in terms where seen.insert(Self.namespace(of: term)).inserted { found.append(Self.namespace(of: term)) }
+        namespaces = found.sorted { ($0 == dominantNamespace ? 0 : 1, $0) < ($1 == dominantNamespace ? 0 : 1, $1) }
     }
 
     /// Every vocabulary this one names terms of: itself and those it builds
@@ -131,11 +147,7 @@ struct Vocabulary {
     /// The namespaces the vocabulary's terms are in: the one most of them
     /// are in, `namespace`, and any other, named for the last segment of its
     /// IRI.
-    var namespaces: [String] {
-        var found: [String] = []
-        for term in terms where !found.contains(Self.namespace(of: term)) { found.append(Self.namespace(of: term)) }
-        return found.sorted { ($0 == dominantNamespace ? 0 : 1, $0) < ($1 == dominantNamespace ? 0 : 1, $1) }
-    }
+    private(set) var namespaces: [String] = []
 
     /// The Swift name of the declaration of a namespace of the vocabulary.
     func namespaceName(_ namespace: String) -> String {
@@ -170,10 +182,10 @@ struct Vocabulary {
     /// a namespace a vocabulary declares, the ontology's own IRI among them,
     /// is that declaration, `FOAF.namespace`.
     func iriExpression(of iri: String) -> ExprSyntax {
-        if let owner = all.first(where: { $0.namespaces.contains(iri) }) {
+        if let (owner, name) = namespaceOwners[iri] {
             return ExprSyntax(MemberAccessExprSyntax(
-                base: DeclReferenceExprSyntax(baseName: .identifier(owner.swiftNamespace)),
-                name: .identifier(owner.namespaceName(iri))
+                base: DeclReferenceExprSyntax(baseName: .identifier(owner)),
+                name: .identifier(name)
             ))
         }
         guard let owner = vocabulary(declaring: iri) else { return ExprSyntax(StringLiteralExprSyntax(content: iri)) }
