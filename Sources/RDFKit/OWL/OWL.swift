@@ -244,5 +244,13 @@ public struct OWL: Ontology {
             Label("inverseOf")
             Comment("The property that determines that two given properties are inverse.")
         }
+
+        Property("equivalentProperty") {
+            Type(RDF.Property)
+            Domain(RDF.Property)
+            Range(RDF.Property)
+            Label("equivalentProperty")
+            Comment("The property that determines that two given properties are equivalent.")
+        }
     }
 }
