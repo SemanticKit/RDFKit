@@ -1,9 +1,0 @@
-@prefix : <https://fauna.example.org/ontology#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-[] a :Predator ;
-    :hasHabitat [ a :Habitat ] ;
-    :hasDiet :carnivore ;
-    :commonName "Lion" ;
-    :scientificName "Panthera leo" ;
-    :averageLifespan "14"^^xsd:nonNegativeInteger .
