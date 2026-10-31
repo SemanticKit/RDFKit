@@ -116,5 +116,12 @@ public struct OWL: Ontology {
             Label("FunctionalProperty")
             Comment("The class of functional properties.")
         }
+
+        Class("DeprecatedProperty") {
+            Type(RDFS.Class)
+            SubClassOf(RDF.Property)
+            Label("DeprecatedProperty")
+            Comment("The class of deprecated properties.")
+        }
     }
 }
