@@ -49,5 +49,13 @@ public struct RDF: Ontology {
             Label("rest")
             Comment("The rest of the subject RDF list after the first item.")
         }
+
+        Property("type") {
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Class)
+            Label("type")
+            Comment("The subject is an instance of a class.")
+        }
     }
 }

@@ -137,4 +137,48 @@ struct PropertyGeneratorTests {
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
+
+    /// rdf:type is the individual's conformance to its classes' protocols
+    /// (D2), so it generates no requirement.
+    @Test func rdfTypeIsConformance() {
+        assertMacroExpansion(
+            """
+            @Ontology
+            public struct RDF: Ontology {
+                public var body: some Content {
+                    Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+
+                    Property("type") {
+                        Type(RDF.Property)
+                        Domain(RDFS.Resource)
+                        Range(RDFS.Class)
+                        Label("type")
+                        Comment("The subject is an instance of a class.")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            public struct RDF: Ontology {
+                public var body: some Content {
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
+
+                            RDFCore.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+
+                            RDFCore.Property("type") {
+                                RDFCore.Type(RDF.Property.self)
+                                RDFCore.Domain(RDFS.Resource.self)
+                                RDFCore.Range(RDFS.Class.self)
+                                RDFCore.Label("type")
+                                RDFCore.Comment("The subject is an instance of a class.")
+                            }
+                    }
+                    return declarations()
+                }
+            }
+            """,
+            macroSpecs: specs,
+            failureHandler: { Issue.record("\($0.message)") }
+        )
+    }
 }
