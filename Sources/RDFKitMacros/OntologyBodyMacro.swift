@@ -37,8 +37,8 @@ enum DSLForm {
     static let termForms: Set<String> = ["Type", "SubClassOf", "Domain", "Range"]
 }
 
-/// Rewrites `Class("Class")` as `RDFKit.Class("Class")` and `Type(RDFS.Class)`
-/// as `RDFKit.Type(RDFS.Class.self)`.
+/// Rewrites `Class("Class")` as `RDFKit.Class("Class")`, and the term
+/// `Type(RDFS.Class)` names as its metatype.
 private final class DeclarationRewriter: SyntaxRewriter {
     override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
         guard let call = super.visit(node).as(FunctionCallExprSyntax.self),

@@ -11,13 +11,13 @@ public struct Class: Content {
 }
 
 /// The class a declared term is a member of (`rdf:type`):
-/// `Type(RDFS.Class.self)`.
+/// `Type(RDFS.Class)`.
 public struct Type: Content {
     public init(_ class: Any.Type) {}
 }
 
 /// A class the declared class is a subclass of (`rdfs:subClassOf`):
-/// `SubClassOf(RDFS.Resource.self)`.
+/// `SubClassOf(RDFS.Resource)`.
 public struct SubClassOf: Content {
     public init(_ class: Any.Type) {}
 }
