@@ -98,4 +98,9 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class RDFSContainer: RDFS.Container {}
+
+    /// owl:Thing and rdfs:Resource are one root (D7).
+    @Test func owlThing() {
+        #expect(ObjectIdentifier((any OWL.Thing).self) == ObjectIdentifier((any RDFS.Resource).self))
+    }
 }

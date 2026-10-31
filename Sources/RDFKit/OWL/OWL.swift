@@ -12,5 +12,11 @@ public struct OWL: Ontology {
             Label("Class")
             Comment("The class of OWL classes.")
         }
+
+        Class("Thing") {
+            Type(OWL.Class)
+            Label("Thing")
+            Comment("The class of OWL individuals.")
+        }
     }
 }

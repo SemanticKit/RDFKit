@@ -122,4 +122,48 @@ import Testing
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
+
+    /// owl:Thing names the root protocol (D7).
+    @Test func owlThingIsTheRoot() {
+        assertMacroExpansion(
+            """
+            @Ontology
+            public struct OWL: Ontology {
+                public var body: some Content {
+                    Namespace("http://www.w3.org/2002/07/owl#")
+
+                    Class("Thing") {
+                        Type(OWL.Class)
+                        Label("Thing")
+                        Comment("The class of OWL individuals.")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            public struct OWL: Ontology {
+                public var body: some Content {
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
+
+                            RDFCore.Namespace("http://www.w3.org/2002/07/owl#")
+
+                            RDFCore.Class("Thing") {
+                                RDFCore.Type(OWL.Class.self)
+                                RDFCore.Label("Thing")
+                                RDFCore.Comment("The class of OWL individuals.")
+                            }
+                    }
+                    return declarations()
+                }
+
+                /// The class of OWL individuals.
+                ///
+                /// Label: Thing
+                public typealias Thing = RDFS.Resource
+            }
+            """,
+            macroSpecs: specs,
+            failureHandler: { Issue.record("\($0.message)") }
+        )
+    }
 }

@@ -14,10 +14,23 @@ import SwiftSyntaxBuilder
 /// Swift value type (D6) and an individual an instance of a generated class,
 /// whose identity is the object's (D3). A class that states no superclass is
 /// a subclass of `rdfs:Resource` (RDF 1.2 Semantics, rdfs8).
+///
+/// `owl:Thing` is the same root (D7), so it names `RDFS.Resource`:
+///
+///     public typealias Thing = RDFS.Resource
 struct ClassGenerator {
     static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+    static let owl = "http://www.w3.org/2002/07/owl#"
 
     static func generate(class entity: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax {
+        if ontology.namespace == owl && entity.name == "Thing" {
+            return DeclSyntax(TypeAliasDeclSyntax(
+                leadingTrivia: documentation(of: entity),
+                modifiers: [DeclModifierSyntax(name: .keyword(.public))],
+                name: .identifier(entity.name),
+                initializer: TypeInitializerClauseSyntax(value: TypeSyntax("RDFS.Resource"))
+            ))
+        }
         let isRoot = ontology.namespace == rdfs && entity.name == "Resource"
         let superclasses = entity.annotations.filter { $0.name == "SubClassOf" }.map(\.value)
         let inherited = isRoot ? [] : (superclasses.isEmpty ? ["RDFS.Resource"] : superclasses)
