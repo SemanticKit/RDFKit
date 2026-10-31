@@ -122,4 +122,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLRestriction: OWL.Restriction {}
+
+    /// owl:Axiom rdfs:subClassOf RDFS.Resource.
+    @Test func owlAxiom() {
+        let member: AnyObject = OWLAxiom()
+        #expect(member is OWL.Axiom)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLAxiom: OWL.Axiom {}
 }

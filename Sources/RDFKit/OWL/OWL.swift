@@ -32,5 +32,12 @@ public struct OWL: Ontology {
             Label("Restriction")
             Comment("The class of property restrictions.")
         }
+
+        Class("Axiom") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Axiom")
+            Comment("The class of annotated axioms for which the RDF serialization consists of an annotated subject, predicate and object.")
+        }
     }
 }
