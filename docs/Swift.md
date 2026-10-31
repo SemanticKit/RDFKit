@@ -1,110 +1,51 @@
 # Swift Integration
 
-## How Swift Types Conform to RDF Terms
+## How RDF Becomes Swift
 
-The DSL enables Swift types to conform to RDF/RDFS/OWL terms. This bridges the gap between Swift's type system and RDF's vocabulary.
+| RDF | Swift |
+|---|---|
+| A class | A protocol. `rdfs:subClassOf` is protocol inheritance (D1). |
+| `rdfs:Resource`, `owl:Thing` | The root protocol, `RDFS.Resource`. `OWL.Thing` is a typealias of it (D7). |
+| `owl:Nothing` | `Never` (D7) |
+| A property | A requirement on its domain's protocol (D4) |
+| A many-valued property | `Values<any Range>`, a set of values (D5) |
+| An `owl:FunctionalProperty` | `(any Range)?`. `nil` means no value is stated (D5). |
+| An individual | An instance of a generated final class that conforms to the protocols of its classes (D2). Its identity is the object's, `===` (D3). |
+| A literal | The Swift value type of its datatype (D6). `RDFCore.Literal` is used only at the boundary (rule 20). |
+| An annotation | DocC on the declaration (D8) |
 
-## Foundation Conformances
+## Datatypes
 
-All types should conform to standard Swift protocols where applicable:
+The XML Schema datatypes RDF uses are generated into `XSD` from the W3C documents:
 
-```swift
-// Namespace conforms to everything useful
-public struct Namespace: Node, RawRepresentable, Equatable, Hashable,
-    Sendable, Codable, Comparable, LosslessStringConvertible,
-    CustomStringConvertible, ExpressibleByStringLiteral {
-    // ...
-}
-```
+| Datatype | Swift |
+|---|---|
+| `xsd:string`, `xsd:boolean`, `xsd:double`, `xsd:float` | `String`, `Bool`, `Double`, `Float`: their value spaces are exactly these Swift types |
+| `xsd:decimal`, `xsd:integer` and its derivations | `XSD.decimal`, `XSD.integer`, `XSD.long`, …, which hold a `DecimalNumber` or `BigInteger` and check their facets in a throwing `init(_:)` |
+| `xsd:dateTime`, `xsd:date` and the other date and time types | `XSD.dateTime`, …, on the seven-property model, with a `Date` view where one exists |
+| `xsd:duration` and its derivations | `XSD.duration`, `XSD.dayTimeDuration`, `XSD.yearMonthDuration` |
+| `xsd:hexBinary`, `xsd:base64Binary` | `XSD.hexBinary`, `XSD.base64Binary`, holding `[UInt8]` |
+| `xsd:anyURI` | `XSD.anyURI`, with a `URL` view |
 
-**Minimum conformance set for all types:**
-- `Sendable` — concurrency
-- `Equatable` — comparison
-- `Hashable` — collections
-- `Codable` — serialization
-- `CustomStringConvertible` — display
+Each has `init(lexicalForm:)`, the datatype's lexical mapping.
 
-## Collection Conformances
+## Values
 
-Swift collections can conform to RDF terms using the DSL:
-
-```swift
-// A list of resources conforms to rdf:List
-extension Array where Element: Resource {
-    var rdfList: RDFList<Element> { RDFList(self) }
-}
-
-// A set of resources conforms to owl:AllDifferent
-extension Set where Element: NamedIndividual {
-    var owlAllDifferent: OWLAllDifferent<Element> { OWLAllDifferent(self) }
-}
-```
-
-## Type Mapping
-
-| Swift Type | RDF Term | Description |
-|------------|----------|-------------|
-| `String` | `rdfs:Literal` | Literal values |
-| `Int`, `Double`, etc. | `xsd:*` datatypes | Numeric datatypes |
-| `URL` | `xsd:anyURI` | URI references |
-| `Date` | `xsd:dateTime` | Date/time values |
-| `Data` | `xsd:hexBinary` | Binary data |
-| `Array<T>` | `rdf:List` | Ordered collections |
-| `Set<T>` | `owl:AllDifferent` | Unordered collections |
-| `Dictionary<K,V>` | `rdf:Property` | Key-value relationships |
-
-## Protocol Conformances
+`Values<Element>` keeps a set's meaning without hashing. Swift 6.4.2 cannot hash an existential such as `any FOAF.Person`, so a `Set` of one does not compile (SE-0309). Two individuals are the same value when they are the same object, and two literals when their Swift values are equal.
 
 ```swift
-// A type that can be an RDF subject
-protocol RDFSubject: Node, Subject {}
-
-// A type that can be an RDF object
-protocol RDFObject: Node, Object {}
-
-// A type that can be an RDF predicate
-protocol RDFPredicate: Node, Predicate {}
+alice.knows.insert(bob)
+alice.knows.contains { $0 === bob }
 ```
 
-## Custom Type Conformances
+## Usage
 
 ```swift
-// Define a custom type that conforms to RDF terms
-struct Person: Resource, NamedIndividual {
-    let name: String
-    let age: Int
-    
-    // Conform to RDF terms
-    var rdfType: RDFS.Class { .Person }
-    var rdfLabel: String { name }
-    var rdfComment: String { "A person named \(name)" }
-}
+import AliceProfile
+import FOAF
+
+alice.knows.contains { $0 === bob }   // true
+let triples = try NTriplesEncoder().encode(alice)
 ```
 
-## Usage Patterns
-
-```swift
-// Create an RDF list from a Swift array
-let resources: [Resource] = [person1, person2, person3]
-let rdfList = resources.rdfList
-
-// Create an OWL AllDifferent from a Swift set
-let individuals: Set<NamedIndividual> = [person1, person2, person3]
-let allDifferent = individuals.owlAllDifferent
-
-// Use custom types in ontologies
-let ontology = MyOntology {
-    Class("Person") {
-        Type(RDFS.Class)
-        Label("Person")
-        Comment("A person entity.")
-    }
-    
-    Property("knows") {
-        Domain(Person.self)
-        Range(Person.self)
-        Label("knows")
-        Comment("knows another person.")
-    }
-}
-```
+A property whose range is a class takes the individuals of that class, and the compiler checks the range.

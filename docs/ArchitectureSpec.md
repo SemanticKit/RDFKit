@@ -2,9 +2,9 @@
 
 ## Vision
 
-Define an ontology once in Swift using a DSL. The DSL maps 1:1 to RDF/RDFS/OWL standards. At compile time, a macro reads the ontology and generates real Swift types. Those types are what users build with.
+Define an ontology once, in its published RDF documents or in the Swift DSL. At build time, RDFKit translates it into real Swift types under the published semantics of RDF and OWL. Those types are what users build with.
 
-Swift becomes the new OWL-like language. Protocols carry behaviors. The type system does the work.
+Swift becomes the new OWL-like language. Protocols carry the class hierarchy. The type system does the work.
 
 ---
 
@@ -20,157 +20,74 @@ The RDF/RDFS/OWL standards define everything. We don't invent — we implement.
 | RDFS 1.2 | `http://www.w3.org/2000/01/rdf-schema#` | Schema vocabulary — how things RELATE |
 | OWL 2 | `http://www.w3.org/2002/07/owl#` | Ontology language — how things BEHAVE |
 
-### Layer 2: RDFCore (Swift API for Standards)
+The vocabularies are their published documents (`rdf.ttl`, `rdfs.ttl`, `owl.ttl`), stored unedited. Their semantics are read from the W3C documents themselves: the RDFS entailment patterns of RDF 1.2 Semantics, the OWL 2 RL rules of OWL 2 Profiles, and the parts and class extensions of OWL 2 RDF-Based Semantics.
 
-Implements the standards in Swift. This is the foundation everything builds on.
+### Layer 2: RDFCore (The Data Model at the Boundary)
 
-**Infrastructure:**
-- `Node` — base type for everything in RDF
-- `IRI` — identity system (from IRIKit)
-- `Ontology` — protocol for building ontologies (like SwiftUI's View)
+- `Graph`, `Dataset`, `Triple`, `SubjectTerm`, `ObjectTerm`, `Literal`, `BlankNode` — the RDF 1.2 abstract syntax, with isomorphism
+- `IRI` — identity of terms (from IRIKit)
+- `Values` — the set of a many-valued property's values (D5)
+- `Ontology`, `Content`, `ContentBuilder` — what a vocabulary declared in Swift conforms to
 
-**Declaration Protocols — what gets generated:**
-- `Class` — generates a Swift class
-- `Property` — generates a property on a type
-- `Individual` — generates an individual instance
-- `Datatype` — generates a datatype
+`Literal` is used only at the boundary, where documents are read and written (rule 20).
 
-**Relationship Protocols — what modifies generated types:**
-- `Domain` — adds domain property
-- `Range` — adds range property
-- `SubClassOf` — generates class inheritance
-- `SubPropertyOf` — generates property inheritance
-- `Type` — declares what something IS
+### Layer 3: Semantics (OntologyGeneration)
 
-**Annotation Protocols — metadata on generated types:**
-- `Label` — display name (how something is named) → DocC documentation
-- `Comment` — documentation comment (DocC) → DocC documentation
-- `SeeAlso` — related information → DocC documentation
-- `IsDefinedBy` — definition source → DocC documentation
+`Schema` closes a vocabulary's statements, and those of the vocabularies it builds on, under the published semantics. What each term is comes from what they entail: a class, a property, the root, an empty class, a literal class, a functional property or an annotation property. Nothing in the generators names a term.
 
-**Property Characteristic Protocols — behaviors from OWL:**
-- `FunctionalProperty` — at most one value per subject
-- `TransitiveProperty` — if A→B and B→C, then A→C
-- `InverseFunctionalProperty` — at most one subject per value
-- `SymmetricProperty` — if A→B, then B→A
-- `AsymmetricProperty` — if A→B, then not B→A
-- `ReflexiveProperty` — every individual relates to itself
-- `IrreflexiveProperty` — no individual relates to itself
+### Layer 4: Code Generation (RDFTranslator and @Ontology)
 
-### Layer 3: RDFKit (DSL for Defining Ontologies)
+`RDFTranslatorPlugin` runs `RDFTranslator` over a target's `.ttl` and `.rdf` documents. `@Ontology` reads a Swift ontology's `body` as syntax. Both use `ClassGenerator` and `PropertyGenerator`:
 
-Users write ontologies using the DSL. The DSL maps 1:1 to the standards.
-
-**Components:**
-- ContentBuilder — result builder for content
-- DSL functions — Class(), Property(), Individual(), Datatype()
-- Content modifiers — .deprecated(), .isDeclaredBy()
-
-### Layer 4: Code Generation (Macro)
-
-Reads the DSL and generates Swift types. Reads protocol conformance to determine what to generate.
-
-**How it works:**
-1. User writes `Class("Person")` → returns `TermDeclaration` conforming to `Class`
-2. Macro reads `Class` conformance → knows to generate a Swift class
-3. User writes `Domain(FOAF.Person)` → macro reads `Domain` conformance → adds domain property
-4. Generated type conforms to protocols → has behaviors from standards
+1. Each class generates a protocol, and `rdfs:subClassOf` is protocol inheritance (D1).
+2. Each property generates a requirement on its domain's protocol, typed by its range (D4). A many-valued property is `Values<any Range>`, and a functional one is `(any Range)?` (D5).
+3. Annotations generate DocC (D8).
+4. The individuals in the data generate one final class per set of classes they belong to, which conforms to those classes' protocols (D2). The individuals are its instances, and their identity is the object's (D3).
 
 ### Layer 5: Generated Types (What Users Interact With)
 
-**Consumer types** — real Swift types with properties:
-- Generated at module level, not nested
-- Properties derived from Domain/Range annotations
-- Conform to standard Swift protocols (Equatable, Codable, etc.)
-
-**Nested Term** — metadata carrier (like CodingKeys):
-- Each type has a nested `Term` that carries RDF metadata
-- `Term` protocol unifies them
+- Protocols for classes, such as `FOAF.Person`, nested in a namespace when a module holds several vocabularies (`RDFS.Class`)
+- Requirements for properties, such as `alice.knows`
+- Individuals, such as `alice` and `bob`, instances of `PersonIndividual`
+- `ontology`, which encodes the vocabulary's statements back to RDF, with IRIs derived from the declarations (rule 17)
 
 ---
 
 ## Protocol-Oriented Architecture
 
-Every term in the standards has meaning — that meaning IS the behavior.
+Every class in the standards has meaning, and that meaning is a protocol.
 
 ### How It Works
-1. The standard declares what each term means
-2. That meaning becomes a protocol in RDFCore
-3. Types conform to the protocol to get that behavior
-4. The macro reads protocol conformance to generate code
-5. Types that conform share behavior, even if they differ in other ways
-
-### Extensibility
-
-Common behaviors go in RDFCore — the shared API consumed by the macro. These are "different but identical" — same interface, different implementations. Extensibility comes through content modifiers or other means, allowing custom behaviors without changing the core.
+1. The documents declare a class and what it is a subclass of.
+2. The class becomes a protocol that inherits its superclasses' protocols, so a class with several superclasses inherits several protocols.
+3. The root, `rdfs:Resource`, which `owl:Thing` equals, is the protocol every other one inherits (D7). `owl:Nothing` is `Never`.
+4. Classes whose members are individuals inherit `AnyObject`, so `===` is identity. Literal classes don't, because their members are Swift value types (D6).
+5. An individual's class conforms to the protocols of all its classes (D2).
 
 ---
 
-## Core API Surface (RDFCore)
+## Core API Surface
 
-### What RDFCore Must Provide
+### What RDFCore Provides
 
-**1. Declaration Protocols — what gets generated**
-- `Class` — generates a Swift class
-- `Property` — generates a property on a type
-- `Individual` — generates an individual instance
-- `Datatype` — generates a datatype
-
-**2. Relationship Protocols — what modifies generated types**
-- `Domain` — adds domain property
-- `Range` — adds range property
-- `SubClassOf` — generates class inheritance
-- `SubPropertyOf` — generates property inheritance
-- `Type` — declares what something IS
-
-**3. Annotation Protocols — metadata on generated types**
-- `Label` — display name (how something is named) → DocC documentation
-- `Comment` — documentation comment (DocC) → DocC documentation
-- `SeeAlso` — related information → DocC documentation
-- `IsDefinedBy` — definition source → DocC documentation
-
-These are metadata about the types. They should be generated as DocC comments on the generated types, not as stored properties.
-
-**4. Property Characteristic Protocols — behaviors from OWL**
-- `FunctionalProperty` — at most one value per subject
-- `TransitiveProperty` — if A→B and B→C, then A→C
-- `InverseFunctionalProperty` — at most one subject per value
-- `SymmetricProperty` — if A→B, then B→A
-- `AsymmetricProperty` — if A→B, then not B→A
-- `ReflexiveProperty` — every individual relates to itself
-- `IrreflexiveProperty` — no individual relates to itself
-
-**5. Infrastructure**
-- `Node` — base type for all RDF nodes
-- `IRI` — internationalized resource identifier (from IRIKit)
-- `Term` — metadata carrier (like CodingKeys)
-- `Ontology` — what ontologies conform to
+- The RDF 1.2 data model: `Graph`, `Dataset`, `Triple`, `SubjectTerm`, `ObjectTerm`, `Literal`, `BlankNode`
+- `Values`, set semantics with `===` identity for individuals and `==` for literal values
+- `Ontology`, `Content`, `ContentBuilder`, for vocabularies declared in Swift
 
 ### What RDFCore Does NOT Provide
 
-- Code generation logic (that's the macro)
-- DSL functions (that's RDFKit)
-- Concrete implementations (that's the generated code)
+- Code generation (that's OntologyGeneration, RDFTranslator and RDFKitMacros)
+- The vocabularies (that's RDFKit, generated from their documents)
+- Formats (that's RDFFormats)
 
 ### Type Conformances
 
-All types should conform to standard Swift protocols where applicable. This makes them work everywhere — in collections, as dictionary keys, for serialization, etc.
+The data model's types conform to the standard Swift protocols that fit them:
 
-**Minimum conformance set:**
-- `Sendable` — for concurrency
-- `Equatable` — for comparison
-- `Hashable` — for collections
-- `Codable` — for serialization
-- `CustomStringConvertible` — for display
+- `Graph`: `SetAlgebra`, `RandomAccessCollection`, `Hashable`, `Sendable`, `CustomStringConvertible`
+- `Literal`, `BlankNode`: `Hashable`, `Sendable`, `Comparable`, `CustomStringConvertible`
 
-**Example from `Namespace`:**
-```swift
-public struct Namespace: Node, RawRepresentable, Equatable, Hashable,
-    Sendable, Codable, Comparable, LosslessStringConvertible,
-    CustomStringConvertible, ExpressibleByStringLiteral {
-    // ...
-}
-```
+A generated individual's class is `Encodable`. It is not `Hashable` or `Equatable`, because its identity is the object's (D3).
 
 ### Swift API Design Guidelines
 
@@ -187,114 +104,45 @@ Follow Swift API Design Guidelines strictly:
 - `var label: String?` — not `func getLabel() -> String?`
 - `func subClassOf() -> Node?` — not `func getSuperclass() -> Node?`
 
+
 ### Swift Language Features
 
-Leverage modern Swift features for clean, expressive code:
+Use the Swift 6.4 features the sources of truth in `CLAUDE.md` give, where they fit:
 
-**Protocol-Oriented Design:**
-- Protocols define behaviors, not implementations
-- Protocol extensions provide default implementations
-- Protocol conformance drives code generation
-
-**Value Types:**
-- Structs for immutable data (terms, annotations)
-- Enums for fixed sets (term kinds, if needed)
-- Avoid classes unless reference semantics are required
-
-**Result Builders:**
-- `@ContentBuilder` for composing ontology content
-- `@TermContentBuilder` for composing term annotations
-- Parameter packs for variadic content
-
-**Opaque Return Types:**
-- `some Node` for type-safe return values
-- Preserve type information through the call chain
-
-**Property Wrappers:**
-- Consider for computed properties that need storage control
-
-**Macros:**
-- `@Vocabulary` for code generation
-- Compile-time processing of DSL declarations
-
-**Sendable/Concurrency:**
-- All types should be `Sendable` for safe concurrent access
-- Immutable value types are naturally sendable
-
-**Pattern Matching:**
-- `switch` statements for handling different term types
-- `if let` for optional unwrapping
-
-**Extensions:**
-- Add functionality to existing types without modification
-- Protocol extensions for shared behavior
-
-**Rule:** If a type can reasonably conform to a standard Swift protocol, it should. This makes the type usable everywhere without extra work.
-
-### File Organization
-
-Each protocol gets its own clean file. Special protocols carry conforming types in the same file. Each protocol gets its own test file.
-
-| Protocol | File | Test File | Notes |
-|----------|------|-----------|-------|
-| `Node` | `Node.swift` | `NodeTests.swift` | Carries `IRI` conformance |
-| `Ontology` | `Ontology.swift` | `OntologyTests.swift` | |
-| `Class` | `Class.swift` | `ClassTests.swift` | |
-| `Property` | `Property.swift` | `PropertyTests.swift` | |
-| `Individual` | `Individual.swift` | `IndividualTests.swift` | |
-| `Datatype` | `Datatype.swift` | `DatatypeTests.swift` | |
-| `Domain` | `Domain.swift` | `DomainTests.swift` | |
-| `Range` | `Range.swift` | `RangeTests.swift` | |
-| `SubClassOf` | `SubClassOf.swift` | `SubClassOfTests.swift` | |
-| `SubPropertyOf` | `SubPropertyOf.swift` | `SubPropertyOfTests.swift` | |
-| `Type` | `Type.swift` | `TypeTests.swift` | |
-| `Label` | `Label.swift` | `LabelTests.swift` | |
-| `Comment` | `Comment.swift` | `CommentTests.swift` | |
-| `SeeAlso` | `SeeAlso.swift` | `SeeAlsoTests.swift` | |
-| `IsDefinedBy` | `IsDefinedBy.swift` | `IsDefinedByTests.swift` | |
-| `FunctionalProperty` | `FunctionalProperty.swift` | `FunctionalPropertyTests.swift` | |
-| `TransitiveProperty` | `TransitiveProperty.swift` | `TransitivePropertyTests.swift` | |
-| `InverseFunctionalProperty` | `InverseFunctionalProperty.swift` | `InverseFunctionalPropertyTests.swift` | |
-| `SymmetricProperty` | `SymmetricProperty.swift` | `SymmetricPropertyTests.swift` | |
-| `AsymmetricProperty` | `AsymmetricProperty.swift` | `AsymmetricPropertyTests.swift` | |
-| `ReflexiveProperty` | `ReflexiveProperty.swift` | `ReflexivePropertyTests.swift` | |
-| `IrreflexiveProperty` | `IrreflexiveProperty.swift` | `IrreflexivePropertyTests.swift` | |
+- **Protocols and protocol inheritance** for classes and the class hierarchy (D1)
+- **Existentials** (`any FOAF.Person`) for the range of a property
+- **Classes** (`final class`) for individuals, whose identity is the object's (D3)
+- **Value types** for literals: the XSD datatypes (D6)
+- **Macros** (`@Ontology`) for vocabularies declared in Swift
+- **Build tool plugins** for vocabularies in RDF documents (`RDFTranslatorPlugin`)
+- **SwiftSyntaxBuilder** for all generated Swift (rule 16)
+- **`Sendable`** throughout
 
 ---
 
 ## What Describes vs What Defines
 
-**Ontology side (describes):**
-- `Class("Person")` — declares a class named "Person"
-- `Type(RDFS.Class)` — describes that Person IS a class
-- `SubClassOf(FOAF.Agent)` — describes that Person inherits from Agent
-- `Domain(FOAF.Person)` — describes that knows has Person as domain
-- `Range(FOAF.Person)` — describes that knows has Person as range
+**RDF side (describes):**
+- `foaf:Person rdf:type rdfs:Class` — Person is a class
+- `foaf:Person rdfs:subClassOf foaf:Agent` — Person is a subclass of Agent
+- `foaf:knows rdfs:domain foaf:Person` — knows has Person as domain
+- `foaf:knows rdfs:range foaf:Person` — knows has Person as range
 
 **Swift side (defines):**
-- `class Person` — defines a Swift class
-- `Type` → generates class declaration
-- `SubClassOf` → generates class inheritance
-- `Domain` → generates property with domain type
-- `Range` → generates property with range type
-
----
-
-## Protocol Conformances
-
-Generated types should conform to standard Swift protocols:
-- `Equatable` — for comparison
-- `Codable` — for serialization
-- `Hashable` — for hashing
-- `Sendable` — for concurrency
-- `CustomStringConvertible` — for display
+- `protocol Person: FOAF.Agent` — the class and its superclass
+- `var knows: Values<any FOAF.Person>` on `Person` — the property, its domain and its range
+- `final class PersonIndividual: FOAF.Person` — the individuals' class
 
 ---
 
 ## Module Split
 
-- **RDFCore** = API / building blocks (Node, IRI, protocols, generated type APIs)
-- **RDFKit** = DSL support (Ontology protocol, ContentBuilder, DSL functions, annotation types, macro)
+- **RDFCore** = the data model at the boundary, `Values`, `Ontology`
+- **RDFKit** = RDF, RDFS, OWL, and the `@Ontology` DSL
+- **OntologyGeneration** = the semantics and the generators
+- **RDFTranslator** = RDF documents to Swift
+- **RDFFormats** = N-Triples, Turtle, RDF/XML
+- **XSD** = the XML Schema datatypes
 
 ---
 

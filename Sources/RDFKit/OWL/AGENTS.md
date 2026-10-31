@@ -5,7 +5,7 @@ This directory contains OWL standard-defined vocabulary and ontology-language sh
 
 Use OWL 2 Web Ontology Language, Second Edition, as the latest W3C Recommendation family for OWL. Namespace IRIs identify OWL terms; the source documents below define the standard.
 
-OWL is self-describing. Its ontology-language vocabulary and mapping to RDF must drive the DSL pieces used to represent OWL in RDFKit.
+OWL is self-describing. RDFTranslatorPlugin translates `owl.ttl`, the published OWL 2 vocabulary stored unedited, into the OWL terms of RDFKit, under the OWL 2 RDF-Based Semantics (D7). No OWL term is written by hand.
 
 ## Latest OWL Standard Documents
 The latest OWL standard family is OWL 2 Web Ontology Language, Second Edition. Use the latest W3C `/TR/` URLs:
@@ -40,6 +40,6 @@ The latest OWL standard family is OWL 2 Web Ontology Language, Second Edition. U
 ## Rules
 - Use OWL 2 Second Edition documents as source authority.
 - Keep stable vocabulary namespace IRIs separate from standards-source document IRIs.
-- Treat OWL as a self-describing DSL vocabulary.
-- OWL is an RDF-based ontology language; model OWL terms through RDFKit RDF/ontology DSL components.
-- User-facing DSL work must operate at OWL concept level, not triple-authoring level.
+- Translate `owl.ttl`; never hand-write or edit the generated terms (rule 0).
+- OWL is an RDF-based ontology language: its terms are translated like RDF's and RDFS's. `owl:Thing` is the root, `RDFS.Resource`, and `owl:Nothing` is `Never` (D7).
+- User-facing Swift works at the OWL concept level, not the triple-authoring level.

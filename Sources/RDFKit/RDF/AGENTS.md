@@ -5,7 +5,7 @@ This directory contains RDF standard-defined shapes and RDF model types only.
 
 Use the latest RDF 1.2 document set as the standards authority. Do not treat legacy namespace dates as the version of the standard. Namespace IRIs identify vocabularies; the source documents below define the current standard.
 
-RDF is self-describing. Its schema and vocabulary content must drive the DSL pieces used to represent RDF in RDFKit.
+RDF is self-describing. RDFTranslatorPlugin translates `rdf.ttl`, the published RDF 1.2 vocabulary stored unedited, into the RDF terms of RDFKit: each class becomes a protocol and each property a requirement on its domain's protocol. No RDF term is written by hand.
 
 ## Latest RDF Standard Documents
 The current RDF standard family is RDF 1.2. Use the latest W3C `/TR/` URLs:
@@ -34,6 +34,6 @@ The current RDF standard family is RDF 1.2. Use the latest W3C `/TR/` URLs:
 ## Rules
 - Use RDF 1.2 documents as source authority.
 - Keep stable vocabulary namespace IRIs separate from standards-source document IRIs.
-- Treat RDF as a self-describing DSL vocabulary.
-- User-facing DSL work must operate at RDF concept level, not triple-authoring level.
-- Triples are RDF model output from materialization, not DSL declarations.
+- Translate `rdf.ttl`; never hand-write or edit the generated terms (rule 0).
+- User-facing Swift works at the RDF concept level, not the triple-authoring level.
+- Triples are what a vocabulary or individual encodes to, not declarations.

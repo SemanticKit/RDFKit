@@ -1,41 +1,20 @@
-# ContentModifier Design
+# Declarations and Their Annotations
 
-## Pattern (like SwiftUI's ViewModifier)
-
-In SwiftUI:
-```swift
-Text("Hello")
-    .padding()
-    .foregroundColor(.red)
-    .background(.blue)
-```
-
-Each modifier is a method on the view that returns a modified view.
-
-For RDFKit, modifiers are methods on the target that return modified targets:
-```swift
-Class("Foo")
-    .addLabel("Foo")
-    .addComment("Bar")
-    .deprecated()
-    .isDeclaredBy(namespace: OWL.namespace)
-```
-
-## Protocol
-
-`ContentModifier` — defines how NEW modifiers can be created externally.
+RDFKit has no content modifiers. A declaration's annotations are written inside its block, and nothing is chained on a declaration:
 
 ```swift
-protocol ContentModifier {
-    associatedtype Target
-    func apply(to target: Target) -> Target
+Class("Person") {
+    Type(RDFS.Class)
+    SubClassOf(FOAF.Agent)
+    Label("Person")
+    Comment("A person.")
 }
 ```
 
+Chained `.add…(…)` modifiers are a rejected shape (DESIGN-CONTRACT.md, rules 1 and 6), and CI fails when generated Swift contains one.
+
 ## Rules
 
-- Modifiers are methods on the target type (like SwiftUI)
-- `ContentModifier` protocol allows external code to define new modifiers
-- Modifiers return modified targets (not void)
-- Modifiers have zero knowledge of aggregation mechanics
-- Modifiers only decorate things they can apply to
+- A declaration's annotations go in its block, one declaration per annotation.
+- The declarations carry no data at run time. `@Ontology` reads them as syntax and generates the protocols they declare ([MacroDesign.md](MacroDesign.md)).
+- `owl:deprecated`, `rdfs:seeAlso`, `rdfs:isDefinedBy` and the other annotation properties of a translated vocabulary become DocC on the generated declaration (D8).

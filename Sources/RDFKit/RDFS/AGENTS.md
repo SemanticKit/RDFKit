@@ -5,7 +5,7 @@ This directory contains RDF Schema standard-defined vocabulary shapes only.
 
 RDFS is defined by RDF 1.2 Schema. RDF 1.2 Schema is part of the RDF 1.2 document set. Do not use old RDFS/RDF namespace-date strings as evidence of the current standards version. Namespace IRIs identify terms; the source documents below define the current standard.
 
-RDFS is self-describing. Its schema and vocabulary content must drive the DSL pieces used to represent RDFS in RDFKit.
+RDFS is self-describing. RDFTranslatorPlugin translates `rdfs.ttl`, the published RDF 1.2 Schema vocabulary stored unedited, into the RDFS terms of RDFKit. No RDFS term is written by hand.
 
 ## Latest RDFS Standard Document
 Primary source:
@@ -38,6 +38,6 @@ RDFS work may require these RDF 1.2 documents for concepts, semantics, and seria
 ## Rules
 - Use RDF 1.2 Schema as the authoritative RDFS source.
 - Keep stable vocabulary namespace IRIs separate from standards-source document IRIs.
-- Treat RDFS as a self-describing DSL vocabulary.
-- User-facing DSL work must operate at RDFS concept level, not triple-authoring level.
-- RDFS properties and classes should be modeled through protocols and conformances.
+- Translate `rdfs.ttl`; never hand-write or edit the generated terms (rule 0).
+- User-facing Swift works at the RDFS concept level, not the triple-authoring level.
+- An RDFS class is a protocol and `rdfs:subClassOf` is protocol inheritance (D1); a property is a requirement on its domain's protocol (D4).

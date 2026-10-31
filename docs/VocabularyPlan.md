@@ -2,60 +2,33 @@
 
 ## Current State
 
-The DSL works. You can write ontologies:
-
-```swift
-public struct OWL: Ontology {
-    public var content: Content {
-        Namespace("http://www.w3.org/2002/07/owl#")
-        Class("Thing") { Type(RDFSTerm.Class) ... }
-        Property("sameAs") { Type(RDFTerm.Property) ... }
-    }
-}
-```
-
-But the term references (`OWLTerm.Class`, `RDFSTerm.Class`) are hand-written enums. That's scaffolding.
+RDF, RDFS and OWL describe themselves: `rdfs:Class rdf:type rdfs:Class`. RDFKit translates their published documents, `rdf.ttl`, `rdfs.ttl` and `owl.ttl`, into Swift the same way it translates any other vocabulary, under the OWL 2 RDF-Based Semantics (D7). There are no hand-written term references, term enums or `+Terms.swift` files.
 
 ## The Loop
 
-The ontology content tree already contains everything needed:
-- Term names (`"Thing"`, `"sameAs"`)
-- Term types (via `Type(RDFSTerm.Class)`)
-- Relationships (`SubClassOf`, `Domain`, `Range`)
-- Namespace (`"http://www.w3.org/2002/07/owl#"`)
+1. The vocabulary's documents state its terms, their types, superclasses, domains, ranges and annotations.
+2. `Schema` closes those statements under the published semantics, read from the W3C documents themselves.
+3. `RDFTranslator` generates a protocol for each class and a requirement for each property, with DocC from the annotations.
+4. The generated protocols are the vocabulary, in Swift. A vocabulary that builds on another (`--layer`) uses the other's protocols.
 
-A macro reads this metadata at compile time and generates the type-safe term references. The hand-written `+Terms.swift` files come down.
-
-## What the Macro Generates
-
-From the ontology content, the macro produces static properties with IRI values:
+## What the Translator Generates
 
 ```swift
-// Auto-generated from OWL ontology content
-extension OWL {
-    /// owl:Thing — The class of OWL individuals.
-    public static let Thing: IRI = "http://www.w3.org/2002/07/owl#Thing"
-    
-    /// owl:sameAs — The property that determines that two given individuals are equal.
-    public static let sameAs: IRI = "http://www.w3.org/2002/07/owl#sameAs"
+/// The class of classes.
+///
+/// Label: Class
+public protocol Class: RDFS.Resource, AnyObject {
 }
 ```
 
-## What This Eliminates
-
-- Hand-written `OWL+Terms.swift`, `RDF+Terms.swift`, `RDFS+Terms.swift`
-- Generic `TermDeclaration` scaffolding (the DSL methods still return it, but it's internal)
-- Runtime string concatenation for IRI resolution
-- Resolver structs (the type system provides identity via `Identifiable` on `IRI`)
+IRIs are not stored. A term's IRI is derived from its declaration when it is asked for (rule 17): its namespace plus its local name.
 
 ## What Stays
 
-- The DSL syntax (unchanged)
-- The protocol hierarchy (defines what something IS)
-- The result builders (compose content)
-- The content tree (the ontology IS the tree)
-- `IRI: Identifiable` (identity is the IRI)
+- The published documents, stored unedited, with their provenance.
+- The DSL (`@Ontology`), for vocabularies declared in Swift. It generates the same protocols as the translator.
+- `RDFCore`'s data model at the boundary (rule 20).
 
 ## Testing Approach
 
-Don't test scaffolding types. Build a new ontology using the DSL. Prove it works end-to-end. The consumer test library depends on RDFKit, declares new ontologies, and verifies the DSL is self-describing.
+Translate published vocabularies end to end and use the result as a consumer would. FOAF and an Alice profile are translated from their documents in `Tests/ParallelTests/Fixtures`, and `ParallelTests` checks the Swift they give. Don't test scaffolding types.

@@ -1,126 +1,87 @@
-# The @Vocabulary Macro
+# The @Ontology Macro
 
 ## What It Does
 
-`@Vocabulary` reads the ontology's DSL content tree and generates typed term structs with protocol conformances. It bridges the DSL declarations to a type-safe API.
+`@Ontology` reads the declarations in an ontology's `body` and generates the Swift types they declare, nested in the ontology. It uses the same generators as `RDFTranslator` (`OntologyGeneration`):
+
+- each class becomes a protocol, and its `SubClassOf` classes become the protocols it inherits (D1)
+- each property becomes a requirement on its domain's protocol (D4)
+- labels and comments become DocC (D8)
+
+It generates no structs, no term values and no stored IRIs.
 
 ## How It Works
 
 ```swift
-@Vocabulary
-public struct OWL: Ontology {
-    public var content: Content {
-        Namespace("http://www.w3.org/2002/07/owl#")
+@Ontology
+public struct RDF: Ontology {
+    public var body: some Content {
+        Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
-        Class("Thing") {
-            Type(OWLTerm.Class)
-            Label("Thing")
-            Comment("The class of OWL individuals.")
+        Class("List") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("List")
+            Comment("The class of RDF Lists.")
         }
 
-        Property("sameAs") {
-            Type(RDFTerm.Property)
-            Domain(OWLTerm.Thing)
-            Range(OWLTerm.Thing)
-            Label("sameAs")
-            Comment("The property that determines that two given individuals are equal.")
+        Property("first") {
+            Type(RDF.Property)
+            Domain(RDF.List)
+            Range(RDFS.Resource)
+            Label("first")
+            Comment("The first item in the subject RDF list.")
         }
     }
 }
 ```
 
-The macro generates:
+The macro adds, as members of `RDF`:
 
 ```swift
-extension OWL {
-    public struct ThingTerm: OntologyTerm, TypedTerm, SubClassedTerm, LabeledTerm, CommentedTerm {
-        public let name = "Thing"
-        public let iri = IRI("http://www.w3.org/2002/07/owl#Thing")
-        public let kind: TermKind = .class
-        public let children: [any Node]
+public struct RDF: Ontology {
+    public var body: some Content { … }
 
-        public init() {
-            self.children = [
-                TypeAnnotationValue(OWLTerm.Class),
-                LabelAnnotationValue("Thing"),
-                CommentAnnotationValue("The class of OWL individuals.")
-            ]
+    /// The class of RDF Lists.
+    ///
+    /// Label: List
+    public protocol List: RDFS.Resource, AnyObject {
+        /// The first item in the subject RDF list.
+        ///
+        /// Label: first
+        var first: Values<any RDFS.Resource> {
+            get
+            set
         }
     }
-
-    public static let Thing = ThingTerm()
-
-    public struct SameAsTerm: OntologyTerm, TypedTerm, DomainTerm, RangeTerm, LabeledTerm, CommentedTerm {
-        public let name = "sameAs"
-        public let iri = IRI("http://www.w3.org/2002/07/owl#sameAs")
-        public let kind: TermKind = .property
-        public let children: [any Node]
-
-        public init() {
-            self.children = [
-                TypeAnnotationValue(RDFTerm.Property),
-                DomainAnnotationValue(OWLTerm.Thing),
-                RangeAnnotationValue(OWLTerm.Thing),
-                LabelAnnotationValue("sameAs"),
-                CommentAnnotationValue("The property that determines that two given individuals are equal.")
-            ]
-        }
-    }
-
-    public static let sameAs = SameAsTerm()
 }
 ```
 
-## Generated Types
+`@Ontology` also attaches `@OntologyBody` to `var body`. That macro owns the authored body, so the declarations are read only as syntax. The terms the body names, such as `RDFS.Class` in `Type(RDFS.Class)`, are checked by the compiler as types through typealiases (`typealias _RDFS_Class = RDFS.Class`). The declarations themselves take no arguments at run time: `Type()`, `SubClassOf()`, `Domain()`, `Range()`.
 
-For each `Class("Name")`, `Property("Name")`, `Individual("Name")`, or `Datatype("Name")` in the content body:
+## What the Declarations Generate
 
-1. **`{Name}Term` struct** — conforms to `OntologyTerm` plus contribution protocols based on annotations present
-2. **`{Name}` static property** — returns an instance of the struct
+| Declaration | Generates |
+|---|---|
+| `Class("Name") { … }` | `public protocol Name`, nested in the ontology (D1) |
+| `SubClassOf(X)` | `Name` inherits `X`. A class with no `SubClassOf` inherits the root, `RDFS.Resource` (rdfs8). |
+| `Type(X)` | Whether the term is a class or a property, as the published semantics entail from it |
+| `Property("name") { … }` | A requirement `var name` on its domain's protocol, or its own protocol inheriting its domain when the domain is the root or in another ontology (D4) |
+| `Domain(X)` | The protocol the requirement goes on |
+| `Range(Y)` | The requirement's type: `Values<any Y>`, or `(any Y)?` for a functional property (D5) |
+| `Label("…")`, `Comment("…")` | DocC on the declaration (D8) |
 
-### Contribution Protocols
-
-The macro reads annotations and generates conformances:
-
-| DSL Annotation | Protocol | Computed Property |
-|---|---|---|
-| `Type(...)` | `TypedTerm` | `type`, `types` |
-| `Label("...")` | `LabeledTerm` | `label` |
-| `Comment("...")` | `CommentedTerm` | `comment` |
-| `SubClassOf(...)` | `SubClassedTerm` | `subClassOf` |
-| `SubPropertyOf(...)` | `SubPropertyOfTerm` | `subPropertyOf` |
-| `Domain(...)` | `DomainTerm` | `domain` |
-| `Range(...)` | `RangeTerm` | `range` |
-| `SeeAlso("...")` | `SeeAlsoTerm` | `seeAlso` |
-| `OWLDeprecated()` | `DeprecatedTerm` | `isDeprecated` |
-| `.isDeclaredBy(...)` | `DeclaredByTerm` | `declaredIn` |
-
-## Naming Conflicts
-
-DSL method names (`Class`, `Property`, `Individual`, `Datatype`) conflict with generated static properties. The macro skips static property generation for these four names. Access the struct directly instead: `OWL.ClassTerm`.
+Whether a term is a class, a property, the root, a literal class or functional is decided by `Schema`, from the published semantics, not by the macro (see [CodeGeneration.md](CodeGeneration.md)). A literal class's protocol does not inherit `AnyObject`, because its members are Swift value types (D6).
 
 ## Cross-Ontology References
 
-Annotations reference other ontologies' terms directly:
+Declarations name other ontologies' terms as types:
 
 ```swift
 Class("AllDifferent") {
-    Type(RDFSTerm.Class)        // references RDFS ontology
-    SubClassOf(RDFSTerm.Resource)
+    Type(RDFS.Class)
+    SubClassOf(RDFS.Resource)
 }
 ```
 
-The generated code preserves these references as-is.
-
-## Content Modifiers
-
-Domain-specific modifiers chain on term declarations:
-
-```swift
-Class("PlainLiteral") {
-    Type(RDFSTerm.Datatype)
-    Label("PlainLiteral")
-}.deprecated()                    // adds OWLDeprecatedAnnotationValue
-```
-
-The macro recognizes `.deprecated()` and `.isDeclaredBy(namespace:)` as chained method calls.
+The generated protocol inherits `RDFS.Resource` as written.

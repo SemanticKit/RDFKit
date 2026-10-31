@@ -1,144 +1,82 @@
 # RDFKit
 
-A protocol-oriented RDF ontology DSL for Swift.
+RDF vocabularies as Swift types, generated from their published documents.
 
 ## What This Is
 
-RDFKit is a Swift library for defining RDF ontologies using a declarative DSL. You write ontologies the way you think about them — classes, properties, relationships — and the Swift compiler validates the structure.
+Give RDFKit an ontology's documents (Turtle or RDF/XML) and it generates the Swift they describe:
+
+- each class becomes a protocol in the class hierarchy
+- each property becomes a requirement on its domain's protocol
+- each individual in the data becomes an instance of a generated class
+
+The published semantics decide what each term is: the RDFS entailment patterns, the OWL 2 RL rules and the OWL 2 RDF-Based Semantics, read from the W3C documents.
 
 ```swift
-public struct OWL: Ontology {
-    public var content: Content {
-        Namespace("http://www.w3.org/2002/07/owl#")
-
-        Class("Thing") {
-            Type(RDFSTerm.Class)
-            Label("Thing")
-            Comment("The class of OWL individuals.")
-        }
-
-        Property("sameAs") {
-            Type(RDFTerm.Property)
-            Domain(OWLTerm.Thing)
-            Range(OWLTerm.Thing)
-            Label("sameAs")
-        }
-    }
+// FOAF, translated from index.rdf
+public protocol Person: FOAF.SpatialThing, FOAF.Agent, AnyObject {
+    var firstName: Values<any RDFS.Literal> { get set }
 }
+
+// alice.ttl, translated to FOAF individuals
+alice.knows.contains { $0 === bob }   // true
 ```
 
-This reads like RDF. It IS RDF. The compiler enforces the structure.
+## Translating an Ontology
 
-## Architecture
-
-### Two Targets
-
-- **RDFCore** — the DSL machinery: protocols, result builders, node types
-- **RDFKit** — the standard ontologies: RDF, RDFS, OWL defined using the DSL
-
-### Protocol Hierarchy
-
-```
-Node
-  ├─ Term
-  │    ├─ Subject
-  │    ├─ Predicate
-  │    └─ Object
-  ├─ TermContent (can appear as child of a term declaration)
-  │    ├─ ClassDeclaration
-  │    ├─ PropertyDeclaration
-  │    ├─ IndividualDeclaration
-  │    ├─ DatatypeDeclaration
-  │    ├─ TypeAnnotation
-  │    ├─ SubClassOfAnnotation
-  │    ├─ SubPropertyOfAnnotation
-  │    ├─ DomainAnnotation
-  │    ├─ RangeAnnotation
-  │    ├─ LabelProtocol
-  │    ├─ CommentProtocol
-  │    ├─ SeeAlsoProtocol
-  │    └─ OWLDeprecatedProtocol
-  ├─ Namespace
-  └─ Prefix
-```
-
-### How It Works
-
-1. **Protocols define what something IS** — `ClassDeclaration`, `TypeAnnotation`, etc.
-2. **Extensions provide behavior** — `Ontology` gets `Class()`, `Property()` etc. for free via protocol extension
-3. **Structs hold data** — `TermDeclaration`, `LabelAnnotationValue` etc.
-4. **Result builders compose content** — `@ContentBuilder` and `@TermContentBuilder` use parameter packs
-
-### The Content Tree
-
-An ontology's `content` property produces a `[any Node]` — an ordered list of declarations, prefixes, and namespaces. Consumers walk this tree to find terms, annotations, and namespace context.
+Put the documents in a target and add the plugin:
 
 ```swift
-// The content tree contains:
-// - Prefix declarations (alias + namespace IRI)
-// - Namespace declaration (the ontology's own namespace IRI)
-// - Term declarations (class, property, individual, datatype)
-//   └─ Each term has children (annotations: Type, SubClassOf, Label, etc.)
+.target(
+    name: "MyVocabulary",
+    dependencies: ["IRIKit", "RDFKit", "RDFCore"],
+    plugins: ["RDFTranslatorPlugin"]
+)
 ```
 
-### Key Design Rules
+Or run the translator yourself:
 
-See `DSL_INVARIANTS.md` for the full set. The essential ones:
+```
+swift run RDFTranslator <output.swift> <module> <namespace|-> <document>... [--layer <module> <namespace|-> <document>...]...
+```
 
-- **DSL terms match RDF/RDFS/OWL vocabulary names 1:1** — `Class` = `rdfs:Class`, `Label` = `rdfs:label`
-- **Ontology declarations are the source of truth** — not generated types
-- **Child declarations do not know parent context** — consumers walking the tree determine namespace, aliases, parent ontology
-- **Term identity is RDF IRI identity** — Swift type identity is never term identity
-- **Protocol-oriented, not class-per-term** — protocols define roles, structs conform
+Each `--layer` is a vocabulary this one builds on. RDF, RDFS and OWL are always available from `RDFKit`.
+
+## Design
+
+The design decisions D1 to D8 come from the standards:
+
+- **D1.** A class is a protocol, and `rdfs:subClassOf` is protocol inheritance.
+- **D2.** An individual conforms to the protocols of all its classes.
+- **D3.** An individual's identity is the object's, `===`.
+- **D4.** A property is a requirement on its domain's protocol.
+- **D5.** A many-valued property is `Values`, a set. A functional property is an `Optional`.
+- **D6.** A datatype is a Swift value type built from its lexical form (`XSD`), and `Literal` stays at the boundary.
+- **D7.** RDF-Based Semantics: `rdfs:Resource` and `owl:Thing` are one root protocol, and `owl:Nothing` is `Never`.
+- **D8.** Annotations become DocC.
+
+See [docs/CodeGeneration.md](docs/CodeGeneration.md) for how the Swift is generated.
 
 ## Package Structure
 
 ```
 RDFKit/
 ├── Package.swift
-├── AGENTS.md                    # Agent instructions
-├── DSL_INVARIANTS.md            # DSL design rules
+├── AGENTS.md, CLAUDE.md          # Agent instructions
+├── docs/                         # Architecture docs
+├── Plugins/                      # RDFTranslatorPlugin, SemanticsEmitterPlugin, XSDEmitterPlugin
 ├── Sources/
-│   ├── RDFCore/                 # DSL machinery
-│   │   ├── API/
-│   │   │   ├── DefinedBy.swift
-│   │   │   └── Namespaced.swift
-│   │   ├── Node.swift           # Node, Subject, Predicate, Object protocols
-│   │   ├── Term.swift           # Term protocol
-│   │   ├── Ontology.swift       # Ontology protocol + DSL methods
-│   │   ├── Vocabulary.swift     # Protocols, concrete types, free functions
-│   │   ├── ContentBuilder.swift # @resultBuilder with parameter packs
-│   │   ├── ContentModifier.swift # Modifier protocol + tree walker
-│   │   ├── Namespace.swift      # Namespace type
-│   │   ├── Prefix.swift         # Prefix type
-│   │   ├── IRI+Identifiable.swift
-│   │   ├── IRI+Term.swift
-│   │   ├── Literal.swift
-│   │   ├── BlankNode.swift
-│   │   ├── Triple.swift
-│   │   └── ...
-│   └── RDFKit/                  # Standard ontologies
-│       ├── RDFKit.swift         # @_exported import RDFCore
-│       ├── RDF/                 # RDF ontology
-│       ├── RDFS/                # RDFS ontology
-│       └── OWL/                 # OWL ontology
+│   ├── RDFCore/                  # The RDF 1.2 data model at the boundary, Values, Ontology
+│   ├── RDFKit/                   # RDF, RDFS, OWL from rdf.ttl, rdfs.ttl, owl.ttl; @Ontology
+│   ├── RDFKitMacros/             # @Ontology
+│   ├── OntologyGeneration/       # Schema, the published semantics, the generators
+│   ├── SemanticsEmitter/         # Reads the W3C semantics tables
+│   ├── RDFTranslator/            # RDF documents → Swift
+│   ├── RDFFormats/               # N-Triples, Turtle, RDF/XML; GraphEncoder
+│   ├── XSD/                      # XML Schema datatypes as Swift value types
+│   └── XSDDefinitions/, XSDEmitter/
 └── Tests/
-    └── RDFKitTests/             # Consumer-driven tests
+    └── ParallelTests/            # FOAF and an Alice profile, translated and used
 ```
 
-## Status
-
-### Done
-- Protocol hierarchy and concrete types
-- Parameter pack result builders (no manual arity overloads)
-- Content modifier system (type-safe, target-specific)
-- RDF, RDFS, OWL ontologies defined using the DSL
-- Namespace extraction from content tree
-
-### In Progress
-- Eliminating scaffolding via compiler-generated types
-- Consumer test library
-
-### Next
-- Macros that read ontology metadata and generate type-safe term references
-- Self-describing loop: DSL defines ontology → compiler generates types → types ARE the DSL
+See [docs/OrganizationPattern.md](docs/OrganizationPattern.md) for what each target holds.
