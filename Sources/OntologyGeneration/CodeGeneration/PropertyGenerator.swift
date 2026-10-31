@@ -31,19 +31,6 @@ import SwiftSyntaxBuilder
 /// Swift types, and the encoder derives those triples from the declarations.
 /// `rdf:type` is the individual's conformance to its classes' protocols (D2).
 public struct PropertyGenerator {
-    /// The classes whose members are classes or properties.
-    public static let schemaDomains: Set<String> = [
-        "RDFS.Class", "RDFS.Datatype", "RDF.Property",
-        "OWL.Class", "OWL.Restriction", "OWL.DeprecatedClass", "OWL.DataRange",
-        "OWL.ObjectProperty", "OWL.DatatypeProperty", "OWL.AnnotationProperty",
-        "OWL.OntologyProperty", "OWL.FunctionalProperty", "OWL.DeprecatedProperty",
-        "OWL.InverseFunctionalProperty", "OWL.TransitiveProperty", "OWL.SymmetricProperty",
-        "OWL.AsymmetricProperty", "OWL.ReflexiveProperty", "OWL.IrreflexiveProperty",
-    ]
-
-    /// The root, and the names it goes by (D7).
-    public static let roots: Set<String> = ["RDFS.Resource", "OWL.Thing"]
-
     /// Where a property's requirement goes.
     public enum Placement {
         /// No stored requirement.
@@ -55,10 +42,13 @@ public struct PropertyGenerator {
     }
 
     public static func placement(of property: ParsedEntity, in ontology: ParsedOntology) -> Placement {
+        let schema = ontology.schema
         let domain = property.annotationValue(named: "Domain")
-        if ontology.namespace == ClassGenerator.rdf && property.name == "type" { return .none }
-        if schemaDomains.contains(domain) { return .none }
-        if domain.isEmpty || roots.contains(domain) { return .ownProtocol(domain: "RDFS.Resource") }
+        if "\(ontology.name).\(property.name)" == schema.typeProperty { return .none }
+        if schema.typeDescribingClasses.contains(domain) { return .none }
+        if domain.isEmpty || domain == schema.root || (schema.root != nil && schema.aliases[domain] == schema.root) {
+            return .ownProtocol(domain: schema.root ?? domain)
+        }
         let local = domain.hasPrefix("\(ontology.name).") ? String(domain.dropFirst(ontology.name.count + 1)) : domain
         if !local.contains("."), ontology.classes.contains(where: { $0.name == local }) {
             return .member(of: local)
@@ -70,7 +60,7 @@ public struct PropertyGenerator {
     public static func requirements(of entity: ParsedEntity, in ontology: ParsedOntology) -> [DeclSyntax] {
         ontology.properties.compactMap { property in
             guard case .member(let owner) = placement(of: property, in: ontology), owner == entity.name else { return nil }
-            return DeclSyntax(requirement(for: property))
+            return DeclSyntax(requirement(for: property, in: ontology))
         }
     }
 
@@ -87,19 +77,19 @@ public struct PropertyGenerator {
                 InheritedTypeSyntax(type: TypeSyntax(stringLiteral: domain))
             },
             memberBlock: MemberBlockSyntax {
-                requirement(for: property)
+                requirement(for: property, in: ontology)
             }
         ))
     }
 
     /// `var first: Values<any RDFS.Resource> { get set }`.
-    public static func requirement(for property: ParsedEntity) -> VariableDeclSyntax {
+    public static func requirement(for property: ParsedEntity, in ontology: ParsedOntology) -> VariableDeclSyntax {
         VariableDeclSyntax(
             leadingTrivia: ClassGenerator.documentation(of: property),
             bindingSpecifier: .keyword(.var),
             bindings: [PatternBindingSyntax(
                 pattern: IdentifierPatternSyntax(identifier: .identifier(property.name)),
-                typeAnnotation: TypeAnnotationSyntax(type: valueType(of: property)),
+                typeAnnotation: TypeAnnotationSyntax(type: valueType(of: property, in: ontology)),
                 accessorBlock: AccessorBlockSyntax(accessors: .accessors([
                     AccessorDeclSyntax(accessorSpecifier: .keyword(.get)),
                     AccessorDeclSyntax(accessorSpecifier: .keyword(.set)),
@@ -110,10 +100,11 @@ public struct PropertyGenerator {
 
     /// The Swift type of a property's values: its range as an existential,
     /// in `Values` or, for a functional property, an `Optional`.
-    public static func valueType(of property: ParsedEntity) -> TypeSyntax {
+    public static func valueType(of property: ParsedEntity, in ontology: ParsedOntology) -> TypeSyntax {
+        let schema = ontology.schema
         let range = property.annotationValue(named: "Range")
-        let element = range.isEmpty ? "any RDFS.Resource" : "any \(range)"
-        let isFunctional = property.annotations.contains { $0.name == "Type" && $0.value == "OWL.FunctionalProperty" }
+        let element = "any \(range.isEmpty ? schema.root ?? "Any" : range)"
+        let isFunctional = property.annotations.contains { $0.name == "Type" && schema.functionalClasses.contains($0.value) }
         return isFunctional ? TypeSyntax("(\(raw: element))?") : TypeSyntax("Values<\(raw: element)>")
     }
 }

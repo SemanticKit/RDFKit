@@ -17,18 +17,20 @@ import SwiftSyntaxBuilder
 /// compiles; `rdfs:Literal` and its subclasses do not. A class that states no
 /// superclass is a subclass of `rdfs:Resource` (RDF 1.2 Semantics, rdfs8).
 ///
-/// `owl:Thing` is the same root (D7), so it names `RDFS.Resource`, and
-/// `owl:Nothing`, the empty class, names `Never`:
+/// A class whose extension is the universe is the root (D7), so it names it,
+/// and a class whose extension is empty names `Never`, as OWL 2 RDF-Based
+/// Semantics §5.2 states (`owl:Thing ∈ IC, = IR`, `owl:Nothing ∈ IC, = ∅`):
 ///
 ///     public typealias Thing = RDFS.Resource
 ///     public typealias Nothing = Never
+///
+/// The root, the literal classes and the aliases are the ontology's
+/// `schema`, which the published semantics entail.
 public struct ClassGenerator {
-    public static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
-    public static let owl = "http://www.w3.org/2002/07/owl#"
-    public static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-
     public static func generate(class entity: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax {
-        if ontology.namespace == owl, let aliased = ["Thing": "RDFS.Resource", "Nothing": "Never"][entity.name] {
+        let schema = ontology.schema
+        let name = "\(ontology.name).\(entity.name)"
+        if let aliased = schema.aliases[name] {
             return DeclSyntax(TypeAliasDeclSyntax(
                 leadingTrivia: documentation(of: entity),
                 modifiers: [DeclModifierSyntax(name: .keyword(.public))],
@@ -36,10 +38,10 @@ public struct ClassGenerator {
                 initializer: TypeInitializerClauseSyntax(value: TypeSyntax(stringLiteral: aliased))
             ))
         }
-        let isRoot = ontology.namespace == rdfs && entity.name == "Resource"
-        let superclasses = entity.annotations.filter { $0.name == "SubClassOf" }.map(\.value)
-        let isLiteral = (ontology.namespace == rdfs && entity.name == "Literal") || superclasses.contains("RDFS.Literal")
-        var inherited = isRoot ? [] : (superclasses.isEmpty ? ["RDFS.Resource"] : superclasses)
+        let isRoot = name == schema.root
+        let superclasses = entity.annotations.filter { $0.name == "SubClassOf" }.map(\.value).filter { $0 != name }
+        let isLiteral = schema.literalClasses.contains(name) || !schema.literalClasses.isDisjoint(with: superclasses)
+        var inherited = isRoot ? [] : (superclasses.isEmpty ? (schema.root.map { [$0] } ?? []) : superclasses)
         if !isRoot && !isLiteral { inherited.append("AnyObject") }
 
         let declaration = ProtocolDeclSyntax(
@@ -69,6 +71,10 @@ public struct ClassGenerator {
         if let label = entity.annotations.first(where: { $0.name == "Label" }) {
             if !lines.isEmpty { lines.append("") }
             lines.append("Label: \(label.value)")
+        }
+        for note in entity.annotations where note.name == "Annotation" {
+            if !lines.isEmpty { lines.append("") }
+            lines.append(note.value)
         }
         return Trivia(pieces: lines.flatMap { line in
             [TriviaPiece.docLineComment(line.isEmpty ? "///" : "/// \(line)"), .newlines(1)]

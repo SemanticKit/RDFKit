@@ -1,3 +1,0 @@
-https://alice.example/profile#
-https://alice.example/profile#alice
-https://alice.example/profile#bob

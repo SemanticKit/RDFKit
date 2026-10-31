@@ -8,11 +8,14 @@ public struct ParsedOntology {
     public let classes: [ParsedEntity]
     /// The ontology's properties, in declaration order.
     public let properties: [ParsedEntity]
+    /// What the published semantics entail about the terms it uses.
+    public var schema: SwiftSchema
 
-    public init(name: String, namespace: String, classes: [ParsedEntity], properties: [ParsedEntity]) {
+    public init(name: String, namespace: String, classes: [ParsedEntity], properties: [ParsedEntity], schema: SwiftSchema = SwiftSchema()) {
         self.name = name
         self.namespace = namespace
         self.classes = classes
         self.properties = properties
+        self.schema = schema
     }
 }

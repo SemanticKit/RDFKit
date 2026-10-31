@@ -46,15 +46,15 @@ let package = Package(
             exclude: [
                 "OWL/AGENTS.md",
                 "OWL/README.md",
-                "OWL/owl.ttl",
                 "RDF/AGENTS.md",
                 "RDF/README.md",
-                "RDF/rdf.ttl",
                 "RDFS/AGENTS.md",
                 "RDFS/README.md",
-                "RDFS/rdfs.ttl",
                 "DSL_INVARIANTS.md"
-            ]
+            ],
+            // RDF, RDFS and OWL, translated from rdf.ttl, rdfs.ttl and
+            // owl.ttl as published.
+            plugins: ["RDFTranslatorPlugin"]
         ),
         // The Swift a vocabulary's classes and properties generate, which the
         // @Ontology macro and RDFTranslator both emit.
@@ -64,7 +64,23 @@ let package = Package(
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
             ],
-            exclude: ["W3C"]
+            exclude: ["W3C"],
+            plugins: ["SemanticsEmitterPlugin"]
+        ),
+        // The semantic tables of RDF 1.2 Semantics, OWL 2 Profiles and OWL 2
+        // RDF-Based Semantics (Sources/OntologyGeneration/W3C), translated to
+        // the Semantics OntologyGeneration reads on every build.
+        .executableTarget(
+            name: "SemanticsEmitter",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
+        ),
+        .plugin(
+            name: "SemanticsEmitterPlugin",
+            capability: .buildTool(),
+            dependencies: ["SemanticsEmitter"]
         ),
         .macro(
             name: "RDFKitMacros",

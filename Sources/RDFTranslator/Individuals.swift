@@ -23,6 +23,29 @@ import SwiftSyntaxBuilder
 /// from the declaration it is when an encoder asks for it (rule 17).
 struct Individuals {
     let vocabulary: Vocabulary
+    /// The classes and properties of each vocabulary, by its Swift
+    /// namespace.
+    private let ontologies: [String: (vocabulary: Vocabulary, ontology: ParsedOntology)]
+
+    init(vocabulary: Vocabulary) {
+        self.vocabulary = vocabulary
+        var ontologies: [String: (Vocabulary, ParsedOntology)] = [:]
+        for owner in vocabulary.all where ontologies[owner.swiftNamespace] == nil {
+            if let ontology = try? owner.ontology() { ontologies[owner.swiftNamespace] = (owner, ontology) }
+        }
+        self.ontologies = ontologies
+    }
+
+    /// Whether an individual has a literal value, a value of a Swift type
+    /// XSD declares.
+    var hasLiterals: Bool {
+        vocabulary.terms.filter(vocabulary.isIndividual).contains { term in
+            vocabulary.statements(about: term).contains { statement in
+                guard case .literal = statement.object, vocabulary.swiftName(statement.predicate.rawValue) != nil else { return false }
+                return !vocabulary.schema.isAnnotationProperty(statement.predicate.rawValue)
+            }
+        }
+    }
 
     /// One individual, as the documents state it.
     struct Individual {
@@ -30,6 +53,8 @@ struct Individuals {
         let iri: String
         let classes: [String]
         let statements: [Graph.Element]
+        /// The statements of annotation properties, its documentation (D8).
+        let annotations: [Graph.Element]
     }
 
     /// A stored property of an individual's class: the property's
@@ -55,31 +80,32 @@ struct Individuals {
 
     // MARK: - Reading
 
+    /// The words Swift reserves, which an individual's name is escaped from
+    /// with backticks: rdf:nil is `` `nil` ``.
+    static let keywords: Set<String> = ["nil", "true", "false", "self", "Self", "class", "struct", "enum", "protocol", "let", "var", "func", "in", "is", "as", "do", "if", "for", "while", "return", "import", "init", "default", "case", "switch", "where", "throw", "try", "repeat", "break", "continue", "extension", "operator", "static", "public", "private", "internal", "super", "Any", "Type"]
+
+    /// An individual: an instance of each of its asserted classes that a
+    /// vocabulary declares, or, when none does, of the root (rdfs4).
     private func individual(_ term: String) throws -> Individual {
-        let subject = SubjectTerm.iri(try IRI(validating: term))
-        let statements = vocabulary.graph.filter { $0.subject == subject }
-        let types = statements.filter { $0.predicate.rawValue == Vocabulary.rdf + "type" }.compactMap(\.object.iriValue)
-        let classes = try types.map { type in
-            guard let name = vocabulary.swiftName(type) else {
-                throw TranslationError(description: "<\(term)> is an instance of <\(type)>, which no translated vocabulary lists")
-            }
-            return name
-        }.sorted()
+        let statements = vocabulary.statements(about: term)
+        var classes = vocabulary.assertedTypes(of: term).compactMap(vocabulary.swiftName).sorted()
+        if classes.isEmpty, let root = vocabulary.swiftName(vocabulary.schema.root) { classes = [root] }
+        let local = vocabulary.localName(term)
         return Individual(
-            name: vocabulary.localName(term),
+            name: Self.keywords.contains(local) ? "`\(local)`" : local,
             iri: term,
             classes: classes,
-            statements: statements.filter { $0.predicate.rawValue != Vocabulary.rdf + "type" }
+            statements: statements.filter { $0.predicate.rawValue != vocabulary.schema.type && !vocabulary.schema.isAnnotationProperty($0.predicate.rawValue) },
+            annotations: statements.filter { vocabulary.schema.isAnnotationProperty($0.predicate.rawValue) }
         )
     }
 
     /// A Swift type's vocabulary, ontology and entity: `FOAF.Person`.
     private func declaration(of swiftName: String) throws -> (vocabulary: Vocabulary, ontology: ParsedOntology, entity: ParsedEntity)? {
         guard let dot = swiftName.firstIndex(of: ".") else { return nil }
-        let module = String(swiftName[..<dot])
+        let namespace = String(swiftName[..<dot])
         let local = String(swiftName[swiftName.index(after: dot)...])
-        guard let owner = ([vocabulary] + vocabulary.dependencies).first(where: { $0.module == module }) else { return nil }
-        let ontology = try owner.ontology()
+        guard let (owner, ontology) = ontologies[namespace] else { return nil }
         guard let entity = (ontology.classes + ontology.properties).first(where: { $0.name == local }) else { return nil }
         return (owner, ontology, entity)
     }
@@ -118,22 +144,16 @@ struct Individuals {
             }
         }
         for predicate in individuals.flatMap({ $0.statements.map(\.predicate.rawValue) }) {
-            guard let swiftName = vocabulary.swiftName(predicate), let declared = try declaration(of: swiftName) else {
-                throw TranslationError(description: "<\(predicate)> is a property no translated vocabulary lists")
-            }
+            guard let swiftName = vocabulary.swiftName(predicate), let declared = try declaration(of: swiftName) else { continue }
             switch PropertyGenerator.placement(of: declared.entity, in: declared.ontology) {
             case .ownProtocol:
                 let name = declared.entity.name.prefix(1).uppercased() + declared.entity.name.dropFirst()
-                if !conformances.contains("\(declared.vocabulary.module).\(name)") {
-                    conformances.append("\(declared.vocabulary.module).\(name)")
+                if !conformances.contains("\(declared.vocabulary.swiftNamespace).\(name)") {
+                    conformances.append("\(declared.vocabulary.swiftNamespace).\(name)")
                 }
                 add(declared.entity, of: declared.vocabulary)
-            case .member:
-                guard members.contains(where: { $0.entity.name == declared.entity.name }) else {
-                    throw TranslationError(description: "<\(predicate)> is not a property of \(classes.joined(separator: ", "))")
-                }
-            case .none:
-                throw TranslationError(description: "<\(predicate)> describes classes or properties, not individuals")
+            case .member, .none:
+                continue
             }
         }
         return (conformances, members)
@@ -167,7 +187,7 @@ struct Individuals {
 
     /// `public var knows: Values<any FOAF.Person> = []`.
     private func storedProperty(_ member: Member) -> VariableDeclSyntax {
-        let type = PropertyGenerator.valueType(of: member.entity)
+        let type = valueType(of: member)
         let empty: ExprSyntax = type.is(OptionalTypeSyntax.self) ? ExprSyntax(NilLiteralExprSyntax()) : ExprSyntax(ArrayExprSyntax(elements: []))
         return VariableDeclSyntax(
             leadingTrivia: ClassGenerator.documentation(of: member.entity),
@@ -208,7 +228,7 @@ struct Individuals {
         )
     }
 
-    /// `case knows = "http://xmlns.com/foaf/0.1/knows"`.
+    /// `case knows = "<the IRI of foaf:knows>"`.
     private func codingKey(_ name: String, _ value: String) -> EnumCaseDeclSyntax {
         EnumCaseDeclSyntax {
             EnumCaseElementSyntax(
@@ -249,7 +269,7 @@ struct Individuals {
                 }), forKey: "type")
                 for member in members {
                     Self.encode(
-                        PropertyGenerator.valueType(of: member.entity).is(OptionalTypeSyntax.self)
+                        valueType(of: member).is(OptionalTypeSyntax.self)
                             ? ExprSyntax(Self.call(Self.reference("Values"), [(nil, ExprSyntax(Self.reference(member.entity.name)))]))
                             : ExprSyntax(Self.reference(member.entity.name)),
                         forKey: member.entity.name
@@ -257,6 +277,13 @@ struct Individuals {
                 }
             }
         )
+    }
+
+    /// The type of a stored property, in the ontology that declares it.
+    private func valueType(of member: Member) -> TypeSyntax {
+        let owner = vocabulary.vocabulary(declaring: member.iri)
+        let ontology = owner.flatMap { ontologies[$0.swiftNamespace]?.ontology } ?? ParsedOntology(name: "", namespace: "", classes: [], properties: [])
+        return PropertyGenerator.valueType(of: member.entity, in: ontology)
     }
 
     /// The IRI of a class a translated vocabulary lists.
@@ -326,7 +353,11 @@ struct Individuals {
             statements: CodeBlockItemListSyntax(statements)
         )
         return VariableDeclSyntax(
-            leadingTrivia: Self.documentation(individuals.map { "\($0.name): <\($0.iri)>" }),
+            leadingTrivia: Self.documentation(individuals.flatMap { individual in
+                ["\(individual.name): <\(individual.iri)>"] + individual.annotations.compactMap { statement in
+                    vocabulary.text([statement.object]).map { "  \(vocabulary.localName(statement.predicate.rawValue)): \($0)" }
+                }
+            }),
             modifiers: [
                 DeclModifierSyntax(name: .keyword(.nonisolated), detail: DeclModifierDetailSyntax(detail: .identifier("unsafe"))),
                 DeclModifierSyntax(name: .keyword(.public)),
@@ -347,13 +378,13 @@ struct Individuals {
         for statement in individual.statements where !predicates.contains(statement.predicate.rawValue) {
             predicates.append(statement.predicate.rawValue)
         }
-        return try predicates.map { predicate in
-            guard let swiftName = vocabulary.swiftName(predicate), let declared = try declaration(of: swiftName) else {
-                throw TranslationError(description: "<\(predicate)> is a property no translated vocabulary lists")
-            }
-            let objects = try individual.statements.filter { $0.predicate.rawValue == predicate }.map { try value(of: $0.object, individuals: individuals) }
+        let members = try self.members(of: individual.classes, individuals: [individual]).members
+        return try predicates.compactMap { predicate -> ExprSyntax? in
+            guard let member = members.first(where: { $0.iri == predicate }) else { return nil }
+            let objects = individual.statements.filter { $0.predicate.rawValue == predicate }.compactMap { value(of: $0.object, individuals: individuals) }
+            guard !objects.isEmpty else { return nil }
             let value: ExprSyntax
-            if PropertyGenerator.valueType(of: declared.entity).is(OptionalTypeSyntax.self) {
+            if valueType(of: member).is(OptionalTypeSyntax.self) {
                 guard objects.count == 1 else {
                     throw TranslationError(description: "<\(individual.iri)> has \(objects.count) values of the functional <\(predicate)>")
                 }
@@ -362,7 +393,7 @@ struct Individuals {
                 value = ExprSyntax(ArrayExprSyntax { for object in objects { ArrayElementSyntax(expression: object) } })
             }
             return ExprSyntax(InfixOperatorExprSyntax(
-                leftOperand: Self.member(Self.reference(individual.name), declared.entity.name),
+                leftOperand: Self.member(Self.reference(individual.name), member.entity.name),
                 operator: AssignmentExprSyntax(),
                 rightOperand: value
             ))
@@ -371,17 +402,14 @@ struct Individuals {
 
     /// An object as Swift: another individual, or a literal as the Swift
     /// value of its datatype (rule 20).
-    private func value(of object: ObjectTerm, individuals: [Individual]) throws -> ExprSyntax {
+    private func value(of object: ObjectTerm, individuals: [Individual]) -> ExprSyntax? {
         switch object {
         case .iri(let iri):
-            guard let individual = individuals.first(where: { $0.iri == iri.rawValue }) else {
-                throw TranslationError(description: "<\(iri.rawValue)> is not an individual of these documents")
-            }
-            return ExprSyntax(Self.reference(individual.name))
-        case .literal(let literal) where literal.datatype == nil && literal.languageTag == nil:
+            return individuals.first(where: { $0.iri == iri.rawValue }).map { ExprSyntax(Self.reference($0.name)) }
+        case .literal(let literal) where literal.datatype == nil:
             return ExprSyntax(StringLiteralExprSyntax(content: literal.lexicalForm))
         default:
-            throw TranslationError(description: "\(object) has no Swift value translated yet")
+            return nil
         }
     }
 
