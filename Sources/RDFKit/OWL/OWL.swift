@@ -158,5 +158,12 @@ public struct OWL: Ontology {
             Label("ReflexiveProperty")
             Comment("The class of reflexive properties.")
         }
+
+        Class("IrreflexiveProperty") {
+            Type(RDFS.Class)
+            SubClassOf(OWL.ObjectProperty)
+            Label("IrreflexiveProperty")
+            Comment("The class of irreflexive properties.")
+        }
     }
 }
