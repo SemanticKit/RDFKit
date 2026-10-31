@@ -47,3 +47,4 @@ http://xmlns.com/foaf/0.1/made
 http://xmlns.com/foaf/0.1/maker
 http://xmlns.com/foaf/0.1/img
 http://xmlns.com/foaf/0.1/depiction
+http://xmlns.com/foaf/0.1/depicts
