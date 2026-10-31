@@ -63,3 +63,4 @@ http://xmlns.com/foaf/0.1/logo
 http://xmlns.com/foaf/0.1/topic
 http://xmlns.com/foaf/0.1/primaryTopic
 http://xmlns.com/foaf/0.1/focus
+http://xmlns.com/foaf/0.1/isPrimaryTopicOf
