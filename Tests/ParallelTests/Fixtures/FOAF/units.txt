@@ -5,3 +5,4 @@ http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing
 http://xmlns.com/foaf/0.1/Person
 http://xmlns.com/foaf/0.1/Document
 http://xmlns.com/foaf/0.1/Organization
+http://xmlns.com/foaf/0.1/Project
