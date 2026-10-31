@@ -196,5 +196,13 @@ public struct OWL: Ontology {
             Label("complementOf")
             Comment("The property that determines that a given class is the complement of another class.")
         }
+
+        Property("unionOf") {
+            Type(RDF.Property)
+            Domain(RDFS.Class)
+            Range(RDF.List)
+            Label("unionOf")
+            Comment("The property that determines the collection of classes or data ranges that build a union.")
+        }
     }
 }
