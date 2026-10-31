@@ -6,3 +6,6 @@ decimal
 integer
 hexBinary
 base64Binary
+duration
+dayTimeDuration
+yearMonthDuration

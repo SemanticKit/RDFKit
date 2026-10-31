@@ -32,6 +32,7 @@ struct DatatypeEmitter {
         "integer": "BigInteger",
         "hexBinary": "[UInt8]",
         "base64Binary": "[UInt8]",
+        "duration": "DurationValue",
     ]
 
     /// The datatypes whose value space is exactly a Swift type: the datatype
@@ -83,6 +84,9 @@ struct DatatypeEmitter {
     private func datatype(named name: String) throws -> DeclSyntax {
         if Self.swiftTypes.contains(name), let type = Self.valueSpaces[name] {
             return typeAlias(name, for: type, source: definitions.datatype(named: name)?.source)
+        }
+        if let duration = try DurationEmitter(definitions: definitions).datatype(named: name) {
+            return duration
         }
         return DeclSyntax(try valueType(named: name))
     }
