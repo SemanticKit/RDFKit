@@ -34,3 +34,4 @@ http://xmlns.com/foaf/0.1/firstName
 http://xmlns.com/foaf/0.1/lastName
 http://xmlns.com/foaf/0.1/givenName
 http://xmlns.com/foaf/0.1/givenname
+http://xmlns.com/foaf/0.1/surname
