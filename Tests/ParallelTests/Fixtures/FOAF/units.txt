@@ -31,3 +31,4 @@ http://xmlns.com/foaf/0.1/icqChatID
 http://xmlns.com/foaf/0.1/yahooChatID
 http://xmlns.com/foaf/0.1/msnChatID
 http://xmlns.com/foaf/0.1/firstName
+http://xmlns.com/foaf/0.1/lastName
