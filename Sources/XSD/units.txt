@@ -9,3 +9,13 @@ base64Binary
 duration
 dayTimeDuration
 yearMonthDuration
+dateTime
+date
+time
+dateTimeStamp
+gYear
+gMonth
+gDay
+gYearMonth
+gMonthDay
+anyURI
