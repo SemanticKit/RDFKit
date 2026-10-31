@@ -71,5 +71,12 @@ public struct RDF: Ontology {
             Label("langString")
             Comment("The datatype of language-tagged string values")
         }
+
+        Datatype("dirLangString") {
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
+            Label("dirLangString")
+            Comment("The datatype of directional language-tagged string values, which includes a language tag and a base direction (either 'ltr' or 'rtl')")
+        }
     }
 }
