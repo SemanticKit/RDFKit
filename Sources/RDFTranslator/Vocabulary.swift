@@ -84,6 +84,7 @@ struct Vocabulary {
         let ontology = try self.ontology()
         var declarations = ontology.classes.map { ClassGenerator.generate(class: $0, in: ontology) }
             + ontology.properties.compactMap { PropertyGenerator.generate(property: $0, in: ontology) }
+            + namespaceDeclarations()
         if let namespace {
             declarations = [
                 DeclSyntax(EnumDeclSyntax(
@@ -112,6 +113,57 @@ struct Vocabulary {
             for declaration in declarations + instances + description { declaration }
         }
         return file.formatted().description + "\n"
+    }
+
+    /// The namespaces the vocabulary's terms are in: the one most of them
+    /// are in, `namespace`, and any other, named for the last segment of its
+    /// IRI.
+    var namespaces: [String] {
+        var found: [String] = []
+        for term in terms where !found.contains(Self.namespace(of: term)) { found.append(Self.namespace(of: term)) }
+        return found.sorted { ($0 == dominantNamespace ? 0 : 1, $0) < ($1 == dominantNamespace ? 0 : 1, $1) }
+    }
+
+    /// The Swift name of the declaration of a namespace of the vocabulary.
+    func namespaceName(_ namespace: String) -> String {
+        guard namespace != dominantNamespace else { return "namespace" }
+        let segment = namespace.dropLast().split(whereSeparator: { $0 == "/" || $0 == "#" }).last.map(String.init) ?? ""
+        let name = String(segment.map { $0.isLetter || $0.isNumber ? $0 : "_" })
+        return (name.first?.isLetter == true ? name : "namespace" + name) + "Namespace"
+    }
+
+    /// `public var namespace: String { "…" }`, once for each namespace the
+    /// document declares terms in: the declaration an IRI is derived from
+    /// when a coder asks for it, with the term's name (rule 17).
+    func namespaceDeclarations() -> [DeclSyntax] {
+        namespaces.map { namespace in
+            DeclSyntax(VariableDeclSyntax(
+                leadingTrivia: Individuals.documentation(["The namespace the documents declare these terms in."]),
+                modifiers: [DeclModifierSyntax(name: .keyword(.public))] + (self.namespace == nil ? [] : [DeclModifierSyntax(name: .keyword(.static))]),
+                bindingSpecifier: .keyword(.var),
+                bindings: [PatternBindingSyntax(
+                    pattern: IdentifierPatternSyntax(identifier: .identifier(namespaceName(namespace))),
+                    typeAnnotation: TypeAnnotationSyntax(type: TypeSyntax("String")),
+                    accessorBlock: AccessorBlockSyntax(accessors: .getter(CodeBlockItemListSyntax {
+                        StringLiteralExprSyntax(content: namespace)
+                    }))
+                )]
+            ))
+        }
+    }
+
+    /// The IRI of a term as Swift derives it when asked: its vocabulary's
+    /// declaration of its namespace, and its name, `FOAF.namespace + "knows"`.
+    func iriExpression(of iri: String) -> ExprSyntax {
+        guard let owner = vocabulary(declaring: iri) else { return ExprSyntax(StringLiteralExprSyntax(content: iri)) }
+        return ExprSyntax(InfixOperatorExprSyntax(
+            leftOperand: MemberAccessExprSyntax(
+                base: DeclReferenceExprSyntax(baseName: .identifier(owner.swiftNamespace)),
+                name: .identifier(owner.namespaceName(Self.namespace(of: iri)))
+            ),
+            operator: BinaryOperatorExprSyntax(operator: .binaryOperator("+")),
+            rightOperand: StringLiteralExprSyntax(content: localName(iri))
+        ))
     }
 
     /// The vocabulary's classes and properties, and the schema, by the

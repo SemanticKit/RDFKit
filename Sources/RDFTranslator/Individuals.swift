@@ -210,32 +210,71 @@ struct Individuals {
         )
     }
 
-    /// The keys an individual encodes with: `@id`, `@type` and the IRIs of
-    /// its properties.
+    /// The keys an individual encodes with: `@id`, `@type` and its
+    /// properties, each named for its property. A property's key is its IRI,
+    /// derived when the encoder asks for it from the namespace its
+    /// vocabulary declares and its name (rule 17).
     private func codingKeys(_ members: [Member]) -> EnumDeclSyntax {
         EnumDeclSyntax(
             modifiers: [DeclModifierSyntax(name: .keyword(.private))],
             name: .identifier("CodingKeys"),
             inheritanceClause: InheritanceClauseSyntax {
-                InheritedTypeSyntax(type: TypeSyntax("String"))
                 InheritedTypeSyntax(type: TypeSyntax("CodingKey"))
             },
             memberBlock: MemberBlockSyntax {
-                codingKey("id", "@id")
-                codingKey("type", "@type")
-                for member in members { codingKey(member.entity.name, member.iri) }
+                for name in ["id", "type"] + members.map(\.entity.name) {
+                    EnumCaseDeclSyntax { EnumCaseElementSyntax(name: .identifier(name)) }
+                }
+                keyString(members)
+                initializer(from: "stringValue", type: "String")
+                VariableDeclSyntax(
+                    bindingSpecifier: .keyword(.var),
+                    bindings: [PatternBindingSyntax(
+                        pattern: IdentifierPatternSyntax(identifier: .identifier("intValue")),
+                        typeAnnotation: TypeAnnotationSyntax(type: TypeSyntax("Int?")),
+                        accessorBlock: AccessorBlockSyntax(accessors: .getter(CodeBlockItemListSyntax { NilLiteralExprSyntax() }))
+                    )]
+                )
+                initializer(from: "intValue", type: "Int")
             }
         )
     }
 
-    /// `case knows = "<the IRI of foaf:knows>"`.
-    private func codingKey(_ name: String, _ value: String) -> EnumCaseDeclSyntax {
-        EnumCaseDeclSyntax {
-            EnumCaseElementSyntax(
-                name: .identifier(name),
-                rawValue: InitializerClauseSyntax(value: StringLiteralExprSyntax(content: value))
-            )
-        }
+    /// `var stringValue: String { switch self { case .knows: FOAF.namespace + "knows" … } }`.
+    private func keyString(_ members: [Member]) -> VariableDeclSyntax {
+        let cases: [(String, ExprSyntax)] = [
+            ("id", ExprSyntax(StringLiteralExprSyntax(content: "@id"))),
+            ("type", ExprSyntax(StringLiteralExprSyntax(content: "@type"))),
+        ] + members.map { ($0.entity.name, vocabulary.iriExpression(of: $0.iri)) }
+        return VariableDeclSyntax(
+            bindingSpecifier: .keyword(.var),
+            bindings: [PatternBindingSyntax(
+                pattern: IdentifierPatternSyntax(identifier: .identifier("stringValue")),
+                typeAnnotation: TypeAnnotationSyntax(type: TypeSyntax("String")),
+                accessorBlock: AccessorBlockSyntax(accessors: .getter(CodeBlockItemListSyntax {
+                    SwitchExprSyntax(subject: DeclReferenceExprSyntax(baseName: .keyword(.self))) {
+                        for (name, value) in cases {
+                            SwitchCaseSyntax(label: .case(SwitchCaseLabelSyntax {
+                                SwitchCaseItemSyntax(pattern: ExpressionPatternSyntax(expression: MemberAccessExprSyntax(name: .identifier(name))))
+                            })) {
+                                value
+                            }
+                        }
+                    }
+                }))
+            )]
+        )
+    }
+
+    /// `init?(stringValue: String) { nil }`: an individual is only encoded.
+    private func initializer(from label: String, type: String) -> InitializerDeclSyntax {
+        InitializerDeclSyntax(
+            optionalMark: .postfixQuestionMarkToken(),
+            signature: FunctionSignatureSyntax(parameterClause: FunctionParameterClauseSyntax {
+                FunctionParameterSyntax(firstName: .identifier(label), type: TypeSyntax(stringLiteral: type))
+            }),
+            body: CodeBlockSyntax { ReturnStmtSyntax(expression: NilLiteralExprSyntax()) }
+        )
     }
 
     /// `encode(to:)`: the individual's IRI, its classes and its values.
@@ -264,7 +303,7 @@ struct Individuals {
                 identity(individuals)
                 Self.encode(ExprSyntax(ArrayExprSyntax {
                     for type in classes {
-                        ArrayElementSyntax(expression: StringLiteralExprSyntax(content: (try? iri(ofType: type)) ?? type))
+                        ArrayElementSyntax(expression: (try? iri(ofType: type)).map(vocabulary.iriExpression) ?? ExprSyntax(StringLiteralExprSyntax(content: type)))
                     }
                 }), forKey: "type")
                 for member in members {
@@ -306,7 +345,7 @@ struct Individuals {
                     rightOperand: Self.reference(individual.name)
                 ))))],
                 body: CodeBlockSyntax {
-                    Self.encode(ExprSyntax(StringLiteralExprSyntax(content: individual.iri)), forKey: "id")
+                    Self.encode(vocabulary.iriExpression(of: individual.iri), forKey: "id")
                 },
                 elseKeyword: chain == nil ? nil : .keyword(.else),
                 elseBody: chain.map { .ifExpr($0) }
