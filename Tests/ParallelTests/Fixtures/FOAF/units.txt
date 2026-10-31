@@ -16,3 +16,4 @@ http://xmlns.com/foaf/0.1/OnlineGamingAccount
 http://xmlns.com/foaf/0.1/OnlineEcommerceAccount
 http://xmlns.com/foaf/0.1/OnlineChatAccount
 http://xmlns.com/foaf/0.1/mbox
+http://xmlns.com/foaf/0.1/mbox_sha1sum
