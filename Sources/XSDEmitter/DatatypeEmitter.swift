@@ -28,21 +28,56 @@ struct DatatypeEmitter {
         "integer": "BigInteger",
     ]
 
+    /// The datatypes whose value space is exactly a Swift type: the datatype
+    /// is that type (rule 20), which is a literal.
+    static let swiftTypes: Set<String> = [
+        "string",
+    ]
+
     func emit(_ names: [String]) throws -> String {
-        let structs = try names.map { try datatype(named: $0) }
+        let declarations = try names.map { try datatype(named: $0) }
+        let literals = names.filter(Self.swiftTypes.contains).compactMap { Self.valueSpaces[$0] }
         let file = SourceFileSyntax {
             ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("RDFKit"))])
             ExtensionDeclSyntax(
                 extendedType: TypeSyntax("XSD"),
                 memberBlock: MemberBlockSyntax {
-                    for type in structs { type }
+                    for declaration in declarations { declaration }
                 }
             )
+            for type in literals {
+                ExtensionDeclSyntax(
+                    leadingTrivia: doc(["A \(type) is a literal: the value space of an XML Schema datatype (RDF 1.2 Concepts §5.1)."]),
+                    extendedType: TypeSyntax(stringLiteral: type),
+                    inheritanceClause: InheritanceClauseSyntax {
+                        InheritedTypeSyntax(type: TypeSyntax("RDFS.Literal"))
+                    },
+                    memberBlock: MemberBlockSyntax {}
+                )
+            }
         }
         return file.formatted().description + "\n"
     }
 
-    private func datatype(named name: String) throws -> StructDeclSyntax {
+    /// `public typealias string = String`, for a datatype whose value space is
+    /// exactly a Swift type.
+    private func typeAlias(_ name: String, for type: String, source: String?) -> DeclSyntax {
+        DeclSyntax(TypeAliasDeclSyntax(
+            leadingTrivia: doc(["xsd:\(name)" + (source.map { " (\($0))" } ?? "")]),
+            modifiers: [DeclModifierSyntax(name: .keyword(.public))],
+            name: .identifier(name),
+            initializer: TypeInitializerClauseSyntax(value: TypeSyntax(stringLiteral: type))
+        ))
+    }
+
+    private func datatype(named name: String) throws -> DeclSyntax {
+        if Self.swiftTypes.contains(name), let type = Self.valueSpaces[name] {
+            return typeAlias(name, for: type, source: definitions.datatype(named: name)?.source)
+        }
+        return DeclSyntax(try valueType(named: name))
+    }
+
+    private func valueType(named name: String) throws -> StructDeclSyntax {
         guard let definition = definitions.datatype(named: name) else {
             throw EmitError(description: "RDF 1.2 Concepts lists no xsd:\(name)")
         }
