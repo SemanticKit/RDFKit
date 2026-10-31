@@ -130,5 +130,12 @@ public struct OWL: Ontology {
             Label("InverseFunctionalProperty")
             Comment("The class of inverse-functional properties.")
         }
+
+        Class("TransitiveProperty") {
+            Type(RDFS.Class)
+            SubClassOf(OWL.ObjectProperty)
+            Label("TransitiveProperty")
+            Comment("The class of transitive properties.")
+        }
     }
 }
