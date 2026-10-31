@@ -2,3 +2,4 @@ string
 boolean
 double
 float
+decimal
