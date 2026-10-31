@@ -71,5 +71,13 @@ public struct RDFS: Ontology {
             Label("domain")
             Comment("A domain of the subject property.")
         }
+
+        Property("range") {
+            Type(RDF.Property)
+            Domain(RDF.Property)
+            Range(RDFS.Class)
+            Label("range")
+            Comment("A range of the subject property.")
+        }
     }
 }
