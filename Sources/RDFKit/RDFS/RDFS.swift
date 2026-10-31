@@ -18,5 +18,12 @@ public struct RDFS: Ontology {
             Label("Class")
             Comment("The class of classes.")
         }
+
+        Class("Literal") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Literal")
+            Comment("The class of literal values, eg. textual strings and integers.")
+        }
     }
 }
