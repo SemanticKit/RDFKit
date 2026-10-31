@@ -188,5 +188,13 @@ public struct OWL: Ontology {
             Label("disjointWith")
             Comment("The property that determines that two given classes are disjoint.")
         }
+
+        Property("complementOf") {
+            Type(RDF.Property)
+            Domain(OWL.Class)
+            Range(OWL.Class)
+            Label("complementOf")
+            Comment("The property that determines that a given class is the complement of another class.")
+        }
     }
 }
