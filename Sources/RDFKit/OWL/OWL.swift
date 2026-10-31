@@ -204,5 +204,13 @@ public struct OWL: Ontology {
             Label("unionOf")
             Comment("The property that determines the collection of classes or data ranges that build a union.")
         }
+
+        Property("intersectionOf") {
+            Type(RDF.Property)
+            Domain(RDFS.Class)
+            Range(RDF.List)
+            Label("intersectionOf")
+            Comment("The property that determines the collection of classes or data ranges that build an intersection.")
+        }
     }
 }
