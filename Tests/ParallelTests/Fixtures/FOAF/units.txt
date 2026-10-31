@@ -20,3 +20,4 @@ http://xmlns.com/foaf/0.1/mbox_sha1sum
 http://xmlns.com/foaf/0.1/gender
 http://xmlns.com/foaf/0.1/geekcode
 http://xmlns.com/foaf/0.1/dnaChecksum
+http://xmlns.com/foaf/0.1/sha1
