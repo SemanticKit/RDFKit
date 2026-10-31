@@ -57,3 +57,4 @@ http://xmlns.com/foaf/0.1/interest
 http://xmlns.com/foaf/0.1/topic_interest
 http://xmlns.com/foaf/0.1/publications
 http://xmlns.com/foaf/0.1/currentProject
+http://xmlns.com/foaf/0.1/pastProject
