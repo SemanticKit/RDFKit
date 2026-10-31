@@ -3,7 +3,8 @@ import SwiftSyntaxMacrosGenericTestSupport
 import Testing
 @testable import RDFKitMacros
 
-@Suite struct ClassGeneratorTests {
+@Suite(.tags(.codeGeneration))
+struct ClassGeneratorTests {
     let specs: [String: MacroSpec] = [
         "Ontology": MacroSpec(type: OntologyMacro.self),
         "OntologyBody": MacroSpec(type: OntologyBodyMacro.self),
