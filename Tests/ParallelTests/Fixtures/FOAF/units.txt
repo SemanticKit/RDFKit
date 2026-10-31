@@ -38,3 +38,4 @@ http://xmlns.com/foaf/0.1/surname
 http://xmlns.com/foaf/0.1/family_name
 http://xmlns.com/foaf/0.1/familyName
 http://xmlns.com/foaf/0.1/phone
+http://xmlns.com/foaf/0.1/homepage
