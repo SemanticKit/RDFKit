@@ -19,6 +19,7 @@ struct DatatypeEmitter {
     /// The Swift type of each primitive's value space translated so far.
     static let valueSpaces: [String: String] = [
         "string": "String",
+        "boolean": "Bool",
     ]
 
     func emit(_ names: [String]) throws -> String {
