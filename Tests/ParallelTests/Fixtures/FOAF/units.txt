@@ -40,3 +40,4 @@ http://xmlns.com/foaf/0.1/familyName
 http://xmlns.com/foaf/0.1/phone
 http://xmlns.com/foaf/0.1/homepage
 http://xmlns.com/foaf/0.1/weblog
+http://xmlns.com/foaf/0.1/openid
