@@ -15,4 +15,6 @@ extension Tag {
     @Tag static var codeGeneration: Self
     /// The XML Schema datatypes.
     @Tag static var xsd: Self
+    /// The FOAF vocabulary.
+    @Tag static var foaf: Self
 }
