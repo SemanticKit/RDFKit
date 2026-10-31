@@ -14,12 +14,25 @@ private final class OWLClass: OWL.Class {}
         #expect(member is RDFS.Resource)
     }
 
-    /// A resource is a Swift object, and its identity is the object's (D3).
-    @Test func resourceIdentityIsObjectIdentity() {
-        let first: any RDFS.Resource = OWLClass()
-        let second: any RDFS.Resource = OWLClass()
+    /// An individual is an instance of a generated class, and its identity is
+    /// the object's (D3).
+    @Test func individualIdentityIsObjectIdentity() {
+        let first = OWLClass()
+        let second = OWLClass()
         #expect(first === first)
         #expect(first !== second)
+    }
+
+    /// A literal is a Swift value type (D6), and rdfs:Literal rdfs:subClassOf
+    /// rdfs:Resource holds for it.
+    @Test func literalIsAValueTypeResource() {
+        let literal: Any = Text(value: "Alice")
+        #expect(literal is RDFS.Literal)
+        #expect(literal is RDFS.Resource)
+    }
+
+    private struct Text: RDFS.Literal {
+        let value: String
     }
 
     /// rdf:Property rdfs:subClassOf RDFS.Resource.

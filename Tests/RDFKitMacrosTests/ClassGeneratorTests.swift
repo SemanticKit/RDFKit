@@ -61,7 +61,7 @@ import Testing
                 /// The class resource, everything.
                 ///
                 /// Label: Resource
-                public protocol Resource: AnyObject {
+                public protocol Resource {
                 }
 
                 /// The class of classes.
