@@ -18,7 +18,7 @@ extension Array: Content where Element == any Content {}
 ///     public var body: some Content {
 ///         Namespace("http://xmlns.com/foaf/0.1/")
 ///         Class("Person") {
-///             Type(RDFS.Class.self)
+///             Type(RDFS.Class)
 ///             Label("Person")
 ///             Comment("A person.")
 ///         }

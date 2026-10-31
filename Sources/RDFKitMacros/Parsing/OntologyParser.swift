@@ -17,7 +17,7 @@ struct OntologyParser {
             case "Namespace":
                 namespace = name
             case "Class":
-                classes.append(ParsedEntity(name: name, kind: form, annotations: AnnotationParser.parse(from: call)))
+                classes.append(ParsedEntity(name: name, kind: form, annotations: try AnnotationParser.parse(from: call)))
             default:
                 continue
             }
@@ -50,13 +50,24 @@ struct OntologyParser {
         return value
     }
 
+    /// Whether a member is the ontology's `var body`.
+    static func isBody(_ variable: VariableDeclSyntax) -> Bool {
+        variable.bindings.contains { $0.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "body" }
+    }
+
     private static func bodyStatements(of declaration: some DeclGroupSyntax) -> CodeBlockItemListSyntax? {
         for member in declaration.memberBlock.members {
-            guard let variable = member.decl.as(VariableDeclSyntax.self) else { continue }
+            guard let variable = member.decl.as(VariableDeclSyntax.self), isBody(variable) else { continue }
             for binding in variable.bindings {
-                guard binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "body" else { continue }
-                if case .getter(let statements) = binding.accessorBlock?.accessors {
+                switch binding.accessorBlock?.accessors {
+                case .getter(let statements):
                     return statements
+                case .accessors(let accessors):
+                    if let statements = accessors.first(where: { $0.accessorSpecifier.tokenKind == .keyword(.get) })?.body?.statements {
+                        return statements
+                    }
+                default:
+                    continue
                 }
             }
         }

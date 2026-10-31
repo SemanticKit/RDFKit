@@ -6,15 +6,15 @@ public struct RDFS: Ontology {
     public var body: some Content {
         Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-        RDFCore.Class("Resource") {
-            Type(RDFS.Class.self)
+        Class("Resource") {
+            Type(RDFS.Class)
             Label("Resource")
             Comment("The class resource, everything.")
         }
 
-        RDFCore.Class("Class") {
-            Type(RDFS.Class.self)
-            SubClassOf(RDFS.Resource.self)
+        Class("Class") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
             Label("Class")
             Comment("The class of classes.")
         }

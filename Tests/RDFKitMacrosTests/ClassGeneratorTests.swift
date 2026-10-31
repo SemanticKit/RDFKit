@@ -4,7 +4,14 @@ import Testing
 @testable import RDFKitMacros
 
 @Suite struct ClassGeneratorTests {
-    /// rdfs:Resource is the root protocol, and rdfs:Class inherits it.
+    let specs: [String: MacroSpec] = [
+        "Ontology": MacroSpec(type: OntologyMacro.self),
+        "OntologyBody": MacroSpec(type: OntologyBodyMacro.self),
+    ]
+
+    /// rdfs:Resource is the root protocol, and rdfs:Class inherits it. The
+    /// body is written as authored, `Type(RDFS.Class)` and `Class(...)`, and
+    /// read before it is type-checked.
     @Test func rdfsClassesBecomeProtocols() {
         assertMacroExpansion(
             """
@@ -13,15 +20,15 @@ import Testing
                 public var body: some Content {
                     Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-                    RDFCore.Class("Resource") {
-                        Type(RDFS.Class.self)
+                    Class("Resource") {
+                        Type(RDFS.Class)
                         Label("Resource")
                         Comment("The class resource, everything.")
                     }
 
-                    RDFCore.Class("Class") {
-                        Type(RDFS.Class.self)
-                        SubClassOf(RDFS.Resource.self)
+                    Class("Class") {
+                        Type(RDFS.Class)
+                        SubClassOf(RDFS.Resource)
                         Label("Class")
                         Comment("The class of classes.")
                     }
@@ -31,20 +38,24 @@ import Testing
             expandedSource: """
             public struct RDFS: Ontology {
                 public var body: some Content {
-                    Namespace("http://www.w3.org/2000/01/rdf-schema#")
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                    RDFCore.Class("Resource") {
-                        Type(RDFS.Class.self)
-                        Label("Resource")
-                        Comment("The class resource, everything.")
-                    }
+                            RDFCore.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-                    RDFCore.Class("Class") {
-                        Type(RDFS.Class.self)
-                        SubClassOf(RDFS.Resource.self)
-                        Label("Class")
-                        Comment("The class of classes.")
+                            RDFCore.Class("Resource") {
+                                RDFCore.Type(RDFS.Class.self)
+                                RDFCore.Label("Resource")
+                                RDFCore.Comment("The class resource, everything.")
+                            }
+
+                            RDFCore.Class("Class") {
+                                RDFCore.Type(RDFS.Class.self)
+                                RDFCore.SubClassOf(RDFS.Resource.self)
+                                RDFCore.Label("Class")
+                                RDFCore.Comment("The class of classes.")
+                            }
                     }
+                    return declarations()
                 }
 
                 /// The class resource, everything.
@@ -60,7 +71,7 @@ import Testing
                 }
             }
             """,
-            macroSpecs: ["Ontology": MacroSpec(type: OntologyMacro.self)],
+            macroSpecs: specs,
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
@@ -74,9 +85,9 @@ import Testing
                 public var body: some Content {
                     Namespace("http://www.w3.org/2002/07/owl#")
 
-                    RDFCore.Class("Class") {
-                        Type(RDFS.Class.self)
-                        SubClassOf(RDFS.Class.self)
+                    Class("Class") {
+                        Type(RDFS.Class)
+                        SubClassOf(RDFS.Class)
                         Label("Class")
                         Comment("The class of OWL classes.")
                     }
@@ -86,14 +97,18 @@ import Testing
             expandedSource: """
             public struct OWL: Ontology {
                 public var body: some Content {
-                    Namespace("http://www.w3.org/2002/07/owl#")
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                    RDFCore.Class("Class") {
-                        Type(RDFS.Class.self)
-                        SubClassOf(RDFS.Class.self)
-                        Label("Class")
-                        Comment("The class of OWL classes.")
+                            RDFCore.Namespace("http://www.w3.org/2002/07/owl#")
+
+                            RDFCore.Class("Class") {
+                                RDFCore.Type(RDFS.Class.self)
+                                RDFCore.SubClassOf(RDFS.Class.self)
+                                RDFCore.Label("Class")
+                                RDFCore.Comment("The class of OWL classes.")
+                            }
                     }
+                    return declarations()
                 }
 
                 /// The class of OWL classes.
@@ -103,7 +118,7 @@ import Testing
                 }
             }
             """,
-            macroSpecs: ["Ontology": MacroSpec(type: OntologyMacro.self)],
+            macroSpecs: specs,
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
