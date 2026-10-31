@@ -47,5 +47,13 @@ public struct RDFS: Ontology {
             Label("label")
             Comment("A human-readable name for the subject.")
         }
+
+        Property("comment") {
+            Type(RDF.Property)
+            Domain(RDFS.Resource)
+            Range(RDFS.Literal)
+            Label("comment")
+            Comment("A description of the subject resource.")
+        }
     }
 }
