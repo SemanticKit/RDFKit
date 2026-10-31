@@ -39,7 +39,7 @@ public struct ClassGenerator {
             ))
         }
         let isRoot = name == schema.root
-        let superclasses = entity.annotations.filter { $0.name == "SubClassOf" }.map(\.value).filter { $0 != name }
+        let superclasses = entity.annotations.compactMap { $0.name == "SubClassOf" && $0.value != name ? $0.value : nil }
         let isLiteral = schema.literalClasses.contains(name) || !schema.literalClasses.isDisjoint(with: superclasses)
         var inherited = isRoot ? [] : (superclasses.isEmpty ? (schema.root.map { [$0] } ?? []) : superclasses)
         if !isRoot && !isLiteral { inherited.append("AnyObject") }

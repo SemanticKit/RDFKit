@@ -28,7 +28,7 @@ do {
     let output = target.removeFirst()
     let vocabularies = try ([target] + groups).map { group in
         guard group.count >= 2 else { throw TranslationError(description: "a vocabulary takes <module> <namespace|-> <document>...") }
-        return try Vocabulary.read(module: group[0], namespace: group[1] == "-" ? nil : group[1], documents: Array(group.dropFirst(2)))
+        return try Vocabulary.read(module: group[0], namespace: group[1] == "-" ? nil : group[1], documents: group.dropFirst(2))
     }
     try Catalog(vocabularies).vocabularies[0].source().write(to: URL(filePath: output), atomically: true, encoding: .utf8)
 } catch {
@@ -38,7 +38,7 @@ do {
 
 extension Vocabulary {
     /// A vocabulary as its documents give it.
-    static func read(module: String, namespace: String?, documents: [String]) throws -> Vocabulary {
+    static func read(module: String, namespace: String?, documents: some Sequence<String>) throws -> Vocabulary {
         var graph = Graph()
         for path in documents {
             let document = try String(contentsOf: URL(filePath: path), encoding: .utf8)
@@ -66,16 +66,15 @@ struct Catalog {
     init(_ vocabularies: [Vocabulary]) {
         var vocabularies = vocabularies
         let order = Array(vocabularies.indices.dropFirst()) + [0]
-        let dominant = vocabularies.map(\.dominantNamespace)
         var owner: [String: Int] = [:]
         for index in order {
-            for subject in vocabularies[index].subjects where owner[subject] == nil || Vocabulary.namespace(of: subject) == dominant[index] {
-                if let current = owner[subject], Vocabulary.namespace(of: subject) == dominant[current] { continue }
+            for subject in vocabularies[index].subjects where owner[subject] == nil || Vocabulary.namespace(of: subject) == vocabularies[index].dominantNamespace {
+                if let current = owner[subject], Vocabulary.namespace(of: subject) == vocabularies[current].dominantNamespace { continue }
                 owner[subject] = index
             }
         }
         for index in vocabularies.indices {
-            let owned = vocabularies[index].subjects.filter { owner[$0] == index }
+            let owned = vocabularies[index].subjects.lazy.filter { owner[$0] == index }
             vocabularies[index].own(owned)
         }
         var names: [String: String] = [:]
@@ -84,7 +83,7 @@ struct Catalog {
                 names[term] = "\(vocabulary.swiftNamespace).\(vocabulary.localName(term))"
             }
         }
-        let schema = Schema(vocabularies.map(\.graph))
+        let schema = Schema(vocabularies.lazy.map(\.graph))
         for index in vocabularies.indices {
             vocabularies[index].names = names
             vocabularies[index].schema = schema

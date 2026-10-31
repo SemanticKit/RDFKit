@@ -22,10 +22,9 @@ struct Description {
 
     func declarations() throws -> [DeclSyntax] {
         let graph = vocabulary.graph
-        var subjects: [SubjectTerm] = []
+        let subjects = vocabulary.subjectTerms
         var references: [BlankNode: Int] = [:]
         for triple in graph {
-            if !subjects.contains(triple.subject) { subjects.append(triple.subject) }
             if case .blankNode(let node) = triple.object { references[node, default: 0] += 1 }
         }
         if let shared = references.first(where: { $0.value > 1 }) {
@@ -132,15 +131,18 @@ struct Description {
         if case .iri(let iri) = subject {
             statements.append(Self.item(Self.encode(in: "node", vocabulary.iriExpression(of: iri.rawValue), forKey: "id")))
         }
-        let triples = vocabulary.graph.filter { $0.subject == subject }
         var predicates: [IRI] = []
-        for triple in triples where !predicates.contains(triple.predicate) { predicates.append(triple.predicate) }
+        var objects: [IRI: [ObjectTerm]] = [:]
+        for triple in vocabulary.statements(of: subject) {
+            if objects[triple.predicate] == nil { predicates.append(triple.predicate) }
+            objects[triple.predicate, default: []].append(triple.object)
+        }
         for predicate in predicates {
             var scoped = [Self.variable("objects", Individuals.call(Individuals.member(Individuals.reference("node"), "nestedUnkeyedContainer"), [
                 ("forKey", ExprSyntax(MemberAccessExprSyntax(name: .identifier(keys.names[predicate]!)))),
             ]))]
-            for triple in triples where triple.predicate == predicate {
-                scoped += try object(triple.object, keys: keys)
+            for object in objects[predicate]! {
+                scoped += try self.object(object, keys: keys)
             }
             statements.append(Self.scope(scoped))
         }

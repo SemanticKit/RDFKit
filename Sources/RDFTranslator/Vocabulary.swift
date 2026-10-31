@@ -26,40 +26,51 @@ struct Vocabulary {
     /// of its own (`Catalog`).
     var terms: [String] = []
     private(set) var termSet: Set<String> = []
+    /// Each term, by its local name.
+    private(set) var termsByLocalName: [String: String] = [:]
     /// The Swift name of every term of this vocabulary and those it builds
     /// on.
     var names: [String: String] = [:]
+
+    /// The subjects of the documents, in the order they are first stated.
+    let subjectTerms: [SubjectTerm]
+    /// The subjects named by IRIs, in the order they are first stated.
+    let subjects: [String]
+    /// Each subject's statements, in the order the documents state them.
+    private let statementsBySubject: [SubjectTerm: [Graph.Element]]
+    /// The namespace most of the vocabulary's subjects are in.
+    let dominantNamespace: String?
 
     init(graph: Graph, module: String, namespace: String?) {
         self.graph = graph
         self.module = module
         self.namespace = namespace
+        var subjectTerms: [SubjectTerm] = []
+        var statementsBySubject: [SubjectTerm: [Graph.Element]] = [:]
+        for triple in graph {
+            if statementsBySubject[triple.subject] == nil { subjectTerms.append(triple.subject) }
+            statementsBySubject[triple.subject, default: []].append(triple)
+        }
+        let subjects = subjectTerms.compactMap { subject -> String? in
+            guard case .iri(let iri) = subject else { return nil }
+            return iri.rawValue
+        }
+        var counts: [String: Int] = [:]
+        for subject in subjects { counts[Self.namespace(of: subject), default: 0] += 1 }
+        self.subjectTerms = subjectTerms
+        self.subjects = subjects
+        self.statementsBySubject = statementsBySubject
+        self.dominantNamespace = counts.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
     }
 
     /// The name terms are qualified with: the namespace, or the module.
     var swiftNamespace: String { namespace ?? module }
 
-    /// The subjects of the documents, in the order they are first stated.
-    var subjects: [String] {
-        var seen: Set<String> = []
-        return graph.compactMap { triple -> String? in
-            guard case .iri(let iri) = triple.subject, seen.insert(iri.rawValue).inserted else { return nil }
-            return iri.rawValue
-        }
-    }
-
-    /// The namespace most of the vocabulary's subjects are in.
-    var dominantNamespace: String? {
-        var counts: [String: Int] = [:]
-        for subject in subjects { counts[Self.namespace(of: subject), default: 0] += 1 }
-        return counts.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
-    }
-
     /// The terms of the subjects the vocabulary owns: those whose local
     /// names are Swift identifiers, and of those whose local names are the
     /// same, the one in its dominant namespace, so that each term's Swift
     /// name is its own.
-    mutating func own(_ owned: [String]) {
+    mutating func own(_ owned: some Sequence<String>) {
         let candidates = owned.filter { Self.isIdentifier(localName($0)) }
         let dominant = dominantNamespace
         let byName = Dictionary(grouping: candidates, by: localName)
@@ -68,6 +79,8 @@ struct Vocabulary {
             return rivals.count == 1 || Self.namespace(of: term) == dominant || !rivals.contains { Self.namespace(of: $0) == dominant } && rivals.first == term
         }
         termSet = Set(terms)
+        termsByLocalName = [:]
+        for term in terms where termsByLocalName[localName(term)] == nil { termsByLocalName[localName(term)] = term }
     }
 
     /// Every vocabulary this one names terms of: itself and those it builds
@@ -186,7 +199,9 @@ struct Vocabulary {
                 properties.append(entity(term, kind: "Property"))
             }
         }
-        let known = all.flatMap(\.terms) + Array(schema.universal) + Array(schema.empty)
+        var known = all.flatMap(\.terms)
+        known += schema.universal
+        known += schema.empty
         return ParsedOntology(
             name: swiftNamespace,
             namespace: "",
@@ -199,15 +214,21 @@ struct Vocabulary {
     /// Whether a term is an individual: an instance of some class that is
     /// neither a class nor a property.
     func isIndividual(_ term: String) -> Bool {
-        !schema.isClass(term) && !schema.isProperty(term) && !assertedTypes(of: term).isEmpty
+        !schema.isClass(term) && !schema.isProperty(term)
+            && statements(about: term).contains { $0.predicate.rawValue == schema.type && $0.object.iriValue != nil }
     }
 
-    func assertedTypes(of term: String) -> [String] {
-        statements(about: term).filter { $0.predicate.rawValue == schema.type }.compactMap(\.object.iriValue)
+    func assertedTypes(of term: String) -> some Sequence<String> {
+        statements(about: term).lazy.compactMap { [type = schema.type] in $0.predicate.rawValue == type ? $0.object.iriValue : nil }
     }
 
     func statements(about term: String) -> [Graph.Element] {
-        graph.filter { if case .iri(let iri) = $0.subject { return iri.rawValue == term } else { return false } }
+        IRI(rawValue: term).flatMap { statements(of: .iri($0)) } ?? []
+    }
+
+    /// A subject's statements, in the order the documents state them.
+    func statements(of subject: SubjectTerm) -> [Graph.Element] {
+        statementsBySubject[subject] ?? []
     }
 
     /// A term's class or property declaration: its types, superclasses,
@@ -218,7 +239,7 @@ struct Vocabulary {
     func entity(_ term: String, kind: String) -> ParsedEntity {
         let statements = statements(about: term)
         func objects(_ predicate: String) -> [String] {
-            statements.filter { $0.predicate.rawValue == predicate }.compactMap(\.object.iriValue).sorted()
+            statements.lazy.filter { $0.predicate.rawValue == predicate }.compactMap(\.object.iriValue).sorted()
         }
         var annotations: [ParsedAnnotation] = []
         for type in objects(schema.type) {
@@ -232,19 +253,20 @@ struct Vocabulary {
             // The domain and range the statements entail, a superproperty's
             // included, of those a vocabulary declares the most specific.
             for (form, predicate) in [("Domain", schema.domain), ("Range", schema.range)] {
-                let declared = schema.objects(of: term, predicate).filter { swiftName($0) != nil }.sorted()
+                let declared = schema.objects(of: term, predicate).lazy.filter { swiftName($0) != nil }.sorted()
                 if let most = schema.mostSpecific(of: declared), let name = swiftName(most) {
                     annotations.append(ParsedAnnotation(name: form, value: name))
                 }
             }
         }
         var predicates: [String] = []
-        for statement in statements where !predicates.contains(statement.predicate.rawValue) && schema.isAnnotationProperty(statement.predicate.rawValue) {
-            predicates.append(statement.predicate.rawValue)
+        var objects: [String: [ObjectTerm]] = [:]
+        for statement in statements where schema.isAnnotationProperty(statement.predicate.rawValue) {
+            if objects[statement.predicate.rawValue] == nil { predicates.append(statement.predicate.rawValue) }
+            objects[statement.predicate.rawValue, default: []].append(statement.object)
         }
         for predicate in predicates {
-            let values = statements.filter { $0.predicate.rawValue == predicate }.map(\.object)
-            if let value = text(values) {
+            if let value = text(objects[predicate]!) {
                 annotations.append(ParsedAnnotation(name: "Annotation", value: "\(localName(predicate)): \(value)"))
             }
         }
@@ -278,13 +300,13 @@ struct Vocabulary {
 
     /// The text of an annotation: the literal with no language tag, or in
     /// English, or the first.
-    func text(_ objects: [ObjectTerm]) -> String? {
-        let literals = objects.compactMap { object -> Literal? in
+    func text(_ objects: some Collection<ObjectTerm>) -> String? {
+        let literals = objects.lazy.compactMap { object -> Literal? in
             if case .literal(let literal) = object { return literal }
             return nil
         }
         let chosen = literals.first { $0.languageTag == nil } ?? literals.first { $0.languageTag?.lowercased().hasPrefix("en") == true } ?? literals.first
-        return chosen?.lexicalForm.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+        return chosen?.lexicalForm.split(whereSeparator: \.isNewline).lazy.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
     }
 }
 
@@ -297,7 +319,7 @@ extension ObjectTerm {
 
 extension Schema {
     /// The schema the statements of these graphs entail.
-    init(_ graphs: [Graph]) {
+    init(_ graphs: some Sequence<Graph>) {
         var triples: [Triple] = []
         for graph in graphs {
             for triple in graph {

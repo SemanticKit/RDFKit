@@ -39,8 +39,8 @@ struct Individuals {
     /// Whether an individual has a literal value, a value of a Swift type
     /// XSD declares.
     var hasLiterals: Bool {
-        vocabulary.terms.filter(vocabulary.isIndividual).contains { term in
-            vocabulary.statements(about: term).contains { statement in
+        vocabulary.terms.contains { term in
+            vocabulary.isIndividual(term) && vocabulary.statements(about: term).contains { statement in
                 guard case .literal = statement.object, vocabulary.swiftName(statement.predicate.rawValue) != nil else { return false }
                 return !vocabulary.schema.isAnnotationProperty(statement.predicate.rawValue)
             }
@@ -65,14 +65,19 @@ struct Individuals {
     }
 
     func declarations() throws -> [DeclSyntax] {
-        let individuals = try vocabulary.terms.filter(vocabulary.isIndividual).map(individual)
+        let individuals = try vocabulary.terms.compactMap { vocabulary.isIndividual($0) ? try individual($0) : nil }
         guard !individuals.isEmpty else { return [] }
+        // The individuals of each set of classes, the sets in the order an
+        // individual first has them.
         var sets: [[String]] = []
-        for individual in individuals where !sets.contains(individual.classes) { sets.append(individual.classes) }
+        var members: [[String]: [Individual]] = [:]
+        for individual in individuals {
+            if members[individual.classes] == nil { sets.append(individual.classes) }
+            members[individual.classes, default: []].append(individual)
+        }
         var declarations: [DeclSyntax] = []
         for classes in sets {
-            let members = individuals.filter { $0.classes == classes }
-            declarations.append(DeclSyntax(try classDeclaration(classes, individuals: members)))
+            declarations.append(DeclSyntax(try classDeclaration(classes, individuals: members[classes]!)))
         }
         declarations.append(DeclSyntax(try instances(individuals)))
         return declarations
@@ -87,16 +92,25 @@ struct Individuals {
     /// An individual: an instance of each of its asserted classes that a
     /// vocabulary declares, or, when none does, of the root (rdfs4).
     private func individual(_ term: String) throws -> Individual {
-        let statements = vocabulary.statements(about: term)
-        var classes = vocabulary.assertedTypes(of: term).compactMap(vocabulary.swiftName).sorted()
+        // The statements of annotation properties, and the others but rdf:type.
+        var values: [Graph.Element] = []
+        var annotations: [Graph.Element] = []
+        for statement in vocabulary.statements(about: term) {
+            if vocabulary.schema.isAnnotationProperty(statement.predicate.rawValue) {
+                annotations.append(statement)
+            } else if statement.predicate.rawValue != vocabulary.schema.type {
+                values.append(statement)
+            }
+        }
+        var classes = vocabulary.assertedTypes(of: term).lazy.compactMap(vocabulary.swiftName).sorted()
         if classes.isEmpty, let root = vocabulary.swiftName(vocabulary.schema.root) { classes = [root] }
         let local = vocabulary.localName(term)
         return Individual(
             name: Self.keywords.contains(local) ? "`\(local)`" : local,
             iri: term,
             classes: classes,
-            statements: statements.filter { $0.predicate.rawValue != vocabulary.schema.type && !vocabulary.schema.isAnnotationProperty($0.predicate.rawValue) },
-            annotations: statements.filter { vocabulary.schema.isAnnotationProperty($0.predicate.rawValue) }
+            statements: values,
+            annotations: annotations
         )
     }
 
@@ -106,7 +120,7 @@ struct Individuals {
         let namespace = String(swiftName[..<dot])
         let local = String(swiftName[swiftName.index(after: dot)...])
         guard let (owner, ontology) = ontologies[namespace] else { return nil }
-        guard let entity = (ontology.classes + ontology.properties).first(where: { $0.name == local }) else { return nil }
+        guard let entity = ontology.classes.first(where: { $0.name == local }) ?? ontology.properties.first(where: { $0.name == local }) else { return nil }
         return (owner, ontology, entity)
     }
 
@@ -119,7 +133,7 @@ struct Individuals {
             guard !found.contains(next) else { continue }
             found.append(next)
             if let declared = try declaration(of: next) {
-                pending += declared.entity.annotations.filter { $0.name == "SubClassOf" }.map(\.value)
+                pending += declared.entity.annotations.lazy.filter { $0.name == "SubClassOf" }.map(\.value)
             }
         }
         return found
@@ -132,7 +146,7 @@ struct Individuals {
         var members: [Member] = []
         func add(_ entity: ParsedEntity, of owner: Vocabulary) {
             guard !members.contains(where: { $0.entity.name == entity.name }),
-                  let iri = owner.terms.first(where: { owner.localName($0) == entity.name }) else { return }
+                  let iri = owner.termsByLocalName[entity.name] else { return }
             members.append(Member(iri: iri, entity: entity))
         }
         for type in try superclasses(of: classes) {
@@ -143,7 +157,7 @@ struct Individuals {
                 }
             }
         }
-        for predicate in individuals.flatMap({ $0.statements.map(\.predicate.rawValue) }) {
+        for predicate in individuals.lazy.flatMap(\.statements).map(\.predicate.rawValue) {
             guard let swiftName = vocabulary.swiftName(predicate), let declared = try declaration(of: swiftName) else { continue }
             switch PropertyGenerator.placement(of: declared.entity, in: declared.ontology) {
             case .ownProtocol:
@@ -162,7 +176,7 @@ struct Individuals {
     // MARK: - The class
 
     private func className(_ classes: [String]) -> String {
-        classes.map { String($0[$0.index(after: $0.firstIndex(of: ".")!)...]) }.joined() + "Individual"
+        classes.lazy.map { $0[$0.index(after: $0.firstIndex(of: ".")!)...] }.joined() + "Individual"
     }
 
     private func classDeclaration(_ classes: [String], individuals: [Individual]) throws -> ClassDeclSyntax {
@@ -372,7 +386,6 @@ struct Individuals {
         let pattern: PatternSyntax = individuals.count == 1 ? PatternSyntax(IdentifierPatternSyntax(identifier: .identifier(individuals[0].name))) : PatternSyntax(TuplePatternSyntax(elements: TuplePatternElementListSyntax {
             for individual in individuals { TuplePatternElementSyntax(pattern: IdentifierPatternSyntax(identifier: .identifier(individual.name))) }
         }))
-        let names = individuals.map(\.name)
         var statements: [CodeBlockItemSyntax] = []
         for (individual, type) in zip(individuals, types) {
             statements.append(CodeBlockItemSyntax(item: .decl(DeclSyntax(VariableDeclSyntax(
@@ -383,11 +396,12 @@ struct Individuals {
                 )]
             )))))
         }
+        let namesByIRI = Dictionary(individuals.lazy.map { ($0.iri, $0.name) }) { first, _ in first }
         for individual in individuals {
-            statements += try assignments(of: individual, individuals: individuals).map { CodeBlockItemSyntax(item: .expr($0)) }
+            statements += try assignments(of: individual, names: namesByIRI).lazy.map { CodeBlockItemSyntax(item: .expr($0)) }
         }
-        let result: ExprSyntax = individuals.count == 1 ? ExprSyntax(Self.reference(names[0])) : ExprSyntax(TupleExprSyntax(elements: LabeledExprListSyntax {
-            for name in names { LabeledExprSyntax(expression: Self.reference(name)) }
+        let result: ExprSyntax = individuals.count == 1 ? ExprSyntax(Self.reference(individuals[0].name)) : ExprSyntax(TupleExprSyntax(elements: LabeledExprListSyntax {
+            for individual in individuals { LabeledExprSyntax(expression: Self.reference(individual.name)) }
         }))
         statements.append(CodeBlockItemSyntax(item: .stmt(StmtSyntax(ReturnStmtSyntax(expression: result)))))
         let closure = ClosureExprSyntax(
@@ -400,7 +414,7 @@ struct Individuals {
         return VariableDeclSyntax(
             leadingTrivia: Self.documentation(individuals.flatMap { individual in
                 ["\(individual.name): <\(individual.iri)>"] + individual.annotations.compactMap { statement in
-                    vocabulary.text([statement.object]).map { "  \(vocabulary.localName(statement.predicate.rawValue)): \($0)" }
+                    vocabulary.text(CollectionOfOne(statement.object)).map { "  \(vocabulary.localName(statement.predicate.rawValue)): \($0)" }
                 }
             }),
             modifiers: [
@@ -418,16 +432,21 @@ struct Individuals {
 
     /// `alice.name = ["Alice"]` and `alice.knows = [bob]`, one per property
     /// the documents give the individual.
-    private func assignments(of individual: Individual, individuals: [Individual]) throws -> [ExprSyntax] {
+    private func assignments(of individual: Individual, names: [String: String]) throws -> [ExprSyntax] {
         var predicates: [String] = []
-        for statement in individual.statements where !predicates.contains(statement.predicate.rawValue) {
-            predicates.append(statement.predicate.rawValue)
+        var values: [String: [ExprSyntax]] = [:]
+        for statement in individual.statements {
+            let predicate = statement.predicate.rawValue
+            if values[predicate] == nil {
+                predicates.append(predicate)
+                values[predicate] = []
+            }
+            if let value = value(of: statement.object, names: names) { values[predicate]!.append(value) }
         }
         let members = try self.members(of: individual.classes, individuals: [individual]).members
         return try predicates.compactMap { predicate -> ExprSyntax? in
             guard let member = members.first(where: { $0.iri == predicate }) else { return nil }
-            let objects = individual.statements.filter { $0.predicate.rawValue == predicate }.compactMap { value(of: $0.object, individuals: individuals) }
-            guard !objects.isEmpty else { return nil }
+            guard let objects = values[predicate], !objects.isEmpty else { return nil }
             let value: ExprSyntax
             if valueType(of: member).is(OptionalTypeSyntax.self) {
                 guard objects.count == 1 else {
@@ -447,10 +466,10 @@ struct Individuals {
 
     /// An object as Swift: another individual, or a literal as the Swift
     /// value of its datatype (rule 20).
-    private func value(of object: ObjectTerm, individuals: [Individual]) -> ExprSyntax? {
+    private func value(of object: ObjectTerm, names: [String: String]) -> ExprSyntax? {
         switch object {
         case .iri(let iri):
-            return individuals.first(where: { $0.iri == iri.rawValue }).map { ExprSyntax(Self.reference($0.name)) }
+            return names[iri.rawValue].map { ExprSyntax(Self.reference($0)) }
         case .literal(let literal) where literal.datatype == nil:
             return ExprSyntax(StringLiteralExprSyntax(content: literal.lexicalForm))
         default:

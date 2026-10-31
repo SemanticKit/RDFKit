@@ -42,9 +42,9 @@ public struct SwiftSchema: Sendable {
         self.init(
             root: root,
             aliases: aliases,
-            literalClasses: Set(terms.filter(schema.isLiteralClass).compactMap(swiftName)),
-            typeDescribingClasses: Set(terms.filter(schema.describesTypes).compactMap(swiftName)),
-            functionalClasses: Set(schema.functional.compactMap(swiftName)),
+            literalClasses: Set(terms.lazy.filter(schema.isLiteralClass).compactMap(swiftName)),
+            typeDescribingClasses: Set(terms.lazy.filter(schema.describesTypes).compactMap(swiftName)),
+            functionalClasses: Set(schema.functional.lazy.compactMap(swiftName)),
             typeProperty: swiftName(schema.type)
         )
     }

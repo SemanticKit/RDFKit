@@ -27,7 +27,10 @@ public struct Schema: Sendable {
     }
 
     /// The statements and what they entail.
-    public let triples: Set<Triple>
+    public var triples: Set<Triple> { index.set }
+
+    /// The statements and what they entail, indexed for lookups.
+    private let index: TripleIndex
 
     /// `rdf:type`, `rdfs:subClassOf`, `rdfs:domain` and `rdfs:range`.
     public let type: String
@@ -99,16 +102,14 @@ public struct Schema: Sendable {
         // OWL 2 RL scm-dom2 and scm-rng2.
         let inheritance = ["scm-dom2", "scm-rng2"].compactMap(semantics.rule(named:))
         let closure = Self.closure(of: axioms, under: semantics.rdfsEntailment + inheritance)
-        triples = closure
+        index = closure
 
         let subClassOf = subClassOf
         let root = root
         let type = type
-        universal = Set(closure.filter { $0.predicate == subClassOf && $0.object == root }.map(\.subject).filter {
-            closure.contains(Triple(root, subClassOf, $0))
-        }).union([root])
+        universal = closure.subjects(subClassOf, root).filter { closure.contains(Triple(root, subClassOf, $0)) }.union([root])
         functional = Set(semantics.rule(named: "prp-fp").map { rule in
-            rule.premises.filter { $0.predicate.iri == type }.compactMap(\.object.iri)
+            rule.premises.lazy.filter { $0.predicate.iri == type }.compactMap(\.object.iri)
         } ?? [])
     }
 
@@ -117,7 +118,7 @@ public struct Schema: Sendable {
     /// premise of a rule with the triples the previous pass derived and the
     /// others with all triples, so no instantiation is found twice, until a
     /// pass derives nothing new.
-    static func closure(of statements: [Triple], under rules: [EntailmentRule]) -> Set<Triple> {
+    static func closure(of statements: [Triple], under rules: [EntailmentRule]) -> TripleIndex {
         let rules = rules.filter { !$0.isInconsistency && !$0.premises.isEmpty }
         var all = TripleIndex(statements)
         var delta = all
@@ -136,7 +137,7 @@ public struct Schema: Sendable {
             for triple in derived.triples { all.insert(triple) }
             delta = derived
         }
-        return all.set
+        return all
     }
 
     /// The bindings of the variables under which every premise is a triple,
@@ -159,10 +160,10 @@ public struct Schema: Sendable {
 
     /// How many of a pattern's terms are IRIs or variables bound.
     private static func boundTerms(_ pattern: TriplePattern, _ binding: [String: String]) -> Int {
-        [pattern.subject, pattern.predicate, pattern.object].filter { term in
+        [pattern.subject, pattern.predicate, pattern.object].count { term in
             if case .variable(let name) = term { return binding[name] != nil }
             return true
-        }.count
+        }
     }
 
     private static func match(_ pattern: TriplePattern, _ triple: Triple, _ binding: [String: String]) -> [String: String]? {
@@ -198,7 +199,7 @@ public struct Schema: Sendable {
     /// The objects of a term's statements of a predicate, entailed ones
     /// included: a subproperty's inherited domain and range.
     public func objects(of term: String, _ predicate: String) -> Set<String> {
-        Set(triples.filter { $0.subject == term && $0.predicate == predicate }.map(\.object))
+        index.objects(term, predicate)
     }
 
     /// Of a set of classes, the most specific: the one that is a subclass
@@ -209,21 +210,26 @@ public struct Schema: Sendable {
 
     /// The classes a term is an instance of.
     public func types(of term: String) -> Set<String> {
-        Set(triples.filter { $0.subject == term && $0.predicate == type }.map(\.object))
+        index.objects(term, type)
     }
 
     public func isSubclass(_ term: String, of superclass: String) -> Bool {
-        triples.contains(Triple(term, subClassOf, superclass))
+        index.contains(Triple(term, subClassOf, superclass))
+    }
+
+    /// Whether a term is an instance of a class.
+    public func isInstance(_ term: String, of `class`: String) -> Bool {
+        index.contains(Triple(term, type, `class`))
     }
 
     /// Whether a term is a class: an instance of the class of classes.
     public func isClass(_ term: String) -> Bool {
-        types(of: term).contains(classOfClasses)
+        isInstance(term, of: classOfClasses)
     }
 
     /// Whether a term is a property: an instance of the class of properties.
     public func isProperty(_ term: String) -> Bool {
-        types(of: term).contains(classOfProperties)
+        isInstance(term, of: classOfProperties)
     }
 
     /// Whether a class's members are classes or properties, so that a
@@ -239,17 +245,18 @@ public struct Schema: Sendable {
 
     /// Whether a property has at most one value (D5).
     public func isFunctional(_ property: String) -> Bool {
-        !types(of: property).isDisjoint(with: functional)
+        functional.contains { isInstance(property, of: $0) }
     }
 
     /// Whether a property is an annotation property, documentation (D8).
     public func isAnnotationProperty(_ property: String) -> Bool {
-        classOfAnnotationProperties.map { types(of: property).contains($0) } ?? false
+        classOfAnnotationProperties.map { isInstance(property, of: $0) } ?? false
     }
 }
 
 /// Triples indexed for the joins of a closure: by predicate, predicate and
-/// subject, predicate and object, subject, and object.
+/// subject, predicate and object, subject, and object; and their objects by
+/// subject and predicate, and subjects by predicate and object, for lookups.
 struct TripleIndex {
     private struct Key: Hashable {
         let first: String
@@ -263,6 +270,8 @@ struct TripleIndex {
     private var byPredicateObject: [Key: [Schema.Triple]] = [:]
     private var bySubject: [String: [Schema.Triple]] = [:]
     private var byObject: [String: [Schema.Triple]] = [:]
+    private var objects: [Key: Set<String>] = [:]
+    private var subjects: [Key: Set<String>] = [:]
 
     init(_ triples: [Schema.Triple]) {
         for triple in triples { insert(triple) }
@@ -280,6 +289,18 @@ struct TripleIndex {
         byPredicateObject[Key(first: triple.predicate, second: triple.object), default: []].append(triple)
         bySubject[triple.subject, default: []].append(triple)
         byObject[triple.object, default: []].append(triple)
+        objects[Key(first: triple.subject, second: triple.predicate), default: []].insert(triple.object)
+        subjects[Key(first: triple.predicate, second: triple.object), default: []].insert(triple.subject)
+    }
+
+    /// The objects of a subject's triples of a predicate.
+    func objects(_ subject: String, _ predicate: String) -> Set<String> {
+        objects[Key(first: subject, second: predicate)] ?? []
+    }
+
+    /// The subjects of the triples of a predicate and an object.
+    func subjects(_ predicate: String, _ object: String) -> Set<String> {
+        subjects[Key(first: predicate, second: object)] ?? []
     }
 
     /// The triples a pattern can match under a binding, through the most
