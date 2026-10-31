@@ -172,5 +172,13 @@ public struct OWL: Ontology {
             Label("Nothing")
             Comment("This is the empty class.")
         }
+
+        Property("equivalentClass") {
+            Type(RDF.Property)
+            Domain(RDFS.Class)
+            Range(RDFS.Class)
+            Label("equivalentClass")
+            Comment("The property that determines that two given classes are equivalent, and that is used to specify datatype definitions.")
+        }
     }
 }
