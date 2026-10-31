@@ -30,7 +30,7 @@ struct DatatypeEmitter {
         "float": "Float",
         "decimal": "DecimalNumber",
         "integer": "BigInteger",
-    ]
+    ].merging(TemporalEmitter.valueSpaces) { declared, _ in declared }
 
     /// The datatypes whose value space is exactly a Swift type: the datatype
     /// is that type (rule 20), which is a literal.
@@ -45,6 +45,7 @@ struct DatatypeEmitter {
         let declarations = try names.map { try datatype(named: $0) }
         let literals = names.filter(Self.swiftTypes.contains).compactMap { Self.valueSpaces[$0] }
         let file = SourceFileSyntax {
+            ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("Foundation"))])
             ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("RDFKit"))])
             ExtensionDeclSyntax(
                 extendedType: TypeSyntax("XSD"),
@@ -126,6 +127,7 @@ struct DatatypeEmitter {
                         )
                     }
                 )
+                for member in TemporalEmitter(definitions: definitions).members(of: definition, primitive: primitive) { member }
             }
         )
     }

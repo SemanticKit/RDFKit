@@ -4,3 +4,13 @@ double
 float
 decimal
 integer
+dateTime
+date
+time
+dateTimeStamp
+gYear
+gMonth
+gDay
+gYearMonth
+gMonthDay
+anyURI
