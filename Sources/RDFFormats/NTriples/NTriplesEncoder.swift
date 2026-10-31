@@ -25,4 +25,12 @@ public struct NTriplesEncoder: Sendable {
         var labels = BlankNodeLabelling(graph)
         return graph.map { triple in labels.nTriples(triple) + " .\n" }.joined()
     }
+
+    /// Encodes the graph Swift values describe, as `GraphEncoder` reads
+    /// them, as a canonical N-Triples document.
+    ///
+    ///     let document = try NTriplesEncoder().encode([alice, bob])
+    public func encode(_ value: some Encodable) throws -> String {
+        encode(try GraphEncoder().encode(value))
+    }
 }
