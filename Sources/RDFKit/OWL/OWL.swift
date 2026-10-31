@@ -212,5 +212,13 @@ public struct OWL: Ontology {
             Label("intersectionOf")
             Comment("The property that determines the collection of classes or data ranges that build an intersection.")
         }
+
+        Property("oneOf") {
+            Type(RDF.Property)
+            Domain(RDFS.Class)
+            Range(RDF.List)
+            Label("oneOf")
+            Comment("The property that determines the collection of individuals or data values that build an enumeration.")
+        }
     }
 }
