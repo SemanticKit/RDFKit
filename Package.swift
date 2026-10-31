@@ -215,6 +215,17 @@ let package = Package(
             plugins: ["RDFTranslatorPlugin"]
         ),
 
+        // Direction step 1's example: an ontology authored with the DSL.
+        .target(
+            name: "Fauna",
+            dependencies: ["RDFKit", "RDFCore", "RDF", "OWL", "XSD"]
+        ),
+        .testTarget(
+            name: "FaunaTests",
+            dependencies: ["Fauna", "RDFKit", "RDFCore", "RDFFormats", "XSD"],
+            exclude: ["Fixtures"]
+        ),
+
         .testTarget(
             name: "RDFKitTests",
             dependencies: [
