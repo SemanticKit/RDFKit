@@ -89,4 +89,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class RDFSDatatype: RDFS.Datatype {}
+
+    /// rdfs:Container rdfs:subClassOf RDFS.Resource.
+    @Test func rdfsContainer() {
+        let member: AnyObject = RDFSContainer()
+        #expect(member is RDFS.Container)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class RDFSContainer: RDFS.Container {}
 }

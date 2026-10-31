@@ -32,5 +32,12 @@ public struct RDFS: Ontology {
             Label("Datatype")
             Comment("The class of RDF datatypes.")
         }
+
+        Class("Container") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Container")
+            Comment("The class of RDF containers.")
+        }
     }
 }
