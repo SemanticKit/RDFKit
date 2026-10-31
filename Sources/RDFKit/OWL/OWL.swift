@@ -220,5 +220,13 @@ public struct OWL: Ontology {
             Label("oneOf")
             Comment("The property that determines the collection of individuals or data values that build an enumeration.")
         }
+
+        Property("disjointUnionOf") {
+            Type(RDF.Property)
+            Domain(OWL.Class)
+            Range(RDF.List)
+            Label("disjointUnionOf")
+            Comment("The property that determines that a given class is equivalent to the disjoint union of a collection of other classes.")
+        }
     }
 }
