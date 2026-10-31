@@ -117,3 +117,32 @@ extension Values: ExpressibleByArrayLiteral {
 }
 
 extension Values: Sendable where Element: Sendable {}
+
+extension Values {
+    /// The values of a functional property: its one value, or none
+    /// (D5).
+    public init(_ value: Element?) {
+        self.init()
+        if let value { insert(value) }
+    }
+}
+
+extension Values: Encodable {
+    /// Writes the values as a sequence, each as it encodes itself. The range
+    /// of a property is a class's protocol, `any FOAF.Person`, which a Swift
+    /// existential does not make `Encodable`, so each value is asked for its
+    /// own conformance: the class generated for an individual and every
+    /// literal's Swift type have one.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        for value in self {
+            guard let value = value as? any Encodable else {
+                throw EncodingError.invalidValue(value, EncodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "\(type(of: value)) does not say how it encodes"
+                ))
+            }
+            try container.encode(value)
+        }
+    }
+}

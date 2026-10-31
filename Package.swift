@@ -137,9 +137,24 @@ let package = Package(
         // FOAF as published (index.rdf, RDF/XML), translated term by term.
         .target(
             name: "FOAF",
-            dependencies: ["RDFKit", "RDFCore"],
+            dependencies: ["IRIKit", "RDFKit", "RDFCore"],
             path: "Tests/ParallelTests/Fixtures/FOAF",
             plugins: ["RDFTranslatorPlugin"]
+        ),
+        // Alice's profile (alice.ttl), translated to the FOAF individuals it
+        // states.
+        .target(
+            name: "AliceProfile",
+            dependencies: ["FOAF", "IRIKit", "RDFKit", "RDFCore", "XSD"],
+            path: "Tests/ParallelTests/Fixtures/AliceProfile",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        // The parallel, RDF in and Swift out and back, frozen by checksum.
+        .testTarget(
+            name: "ParallelTests",
+            dependencies: ["AliceProfile", "FOAF", "RDFCore", "RDFFormats"],
+            path: "Tests/ParallelTests",
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "FOAFTests",

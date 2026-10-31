@@ -11,6 +11,9 @@ struct Vocabulary {
     let module: String
     let namespace: String
     let terms: [String]
+    /// The vocabularies of the targets this one depends on, whose terms it
+    /// names by their Swift types.
+    var dependencies: [Vocabulary] = []
 
     static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
@@ -22,23 +25,51 @@ struct Vocabulary {
     /// The classes whose members are classes.
     static let classTypes: Set<String> = [rdfs + "Class", owl + "Class", rdfs + "Datatype"]
 
-    /// The Swift that the listed terms generate.
+    /// The Swift that the listed terms generate: the protocols of its
+    /// classes and properties, the classes and instances of its individuals,
+    /// and, for a vocabulary, the description it encodes back to.
     func source() throws -> String {
+        let ontology = try self.ontology()
+        let declarations = ontology.classes.map { ClassGenerator.generate(class: $0, in: ontology) }
+            + ontology.properties.compactMap { PropertyGenerator.generate(property: $0, in: ontology) }
+        let individuals = try Individuals(vocabulary: self).declarations()
+        let description = ontology.classes.isEmpty && ontology.properties.isEmpty ? [] : try Description(vocabulary: self).declarations()
+        let file = SourceFileSyntax {
+            // An individual's literal values are values of the Swift types
+            // of their datatypes, which XSD declares (D6).
+            for module in ["IRIKit", "RDFCore", "RDFKit"] + (individuals.isEmpty ? [] : ["XSD"]) + dependencies.map(\.module) {
+                ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier(module))])
+            }
+            for declaration in declarations + individuals + description { declaration }
+        }
+        return file.formatted().description + "\n"
+    }
+
+    /// The listed classes and properties, read into the model the
+    /// generators take.
+    func ontology() throws -> ParsedOntology {
         var classes: [ParsedEntity] = []
         var properties: [ParsedEntity] = []
-        for term in terms {
+        for term in try terms.filter({ try !isIndividual($0) }) {
             let entity = try self.entity(term)
             if entity.kind == "Class" { classes.append(entity) } else { properties.append(entity) }
         }
-        let ontology = ParsedOntology(name: module, namespace: namespace, classes: classes, properties: properties)
-        let declarations = classes.map { ClassGenerator.generate(class: $0, in: ontology) }
-            + properties.compactMap { PropertyGenerator.generate(property: $0, in: ontology) }
-        let file = SourceFileSyntax {
-            ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("RDFCore"))])
-            ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("RDFKit"))])
-            for declaration in declarations { declaration }
-        }
-        return file.formatted().description + "\n"
+        return ParsedOntology(name: module, namespace: namespace, classes: classes, properties: properties)
+    }
+
+    /// Whether a term is an individual: an instance of none of the classes
+    /// whose instances are classes or properties, which RDF, RDFS and OWL
+    /// declare.
+    func isIndividual(_ term: String) throws -> Bool {
+        let subject = SubjectTerm.iri(try IRI(validating: term))
+        let types = graph.filter { $0.subject == subject && $0.predicate.rawValue == Self.rdf + "type" }.compactMap(\.object.iriValue)
+        return !types.isEmpty && !types.contains { type in Self.layers.keys.contains { type.hasPrefix($0) } }
+    }
+
+    /// The vocabulary, this one or a dependency, that lists a term.
+    func vocabulary(listing iri: String) -> Vocabulary? {
+        if terms.contains(iri) { return self }
+        return dependencies.lazy.compactMap { $0.vocabulary(listing: iri) }.first
     }
 
     /// A term's class or property declaration: its types, superclasses,
@@ -74,7 +105,7 @@ struct Vocabulary {
     /// The Swift type that declares a term: `RDFS.Resource`, or
     /// `FOAF.Person` for a term of this vocabulary's units.
     func swiftName(_ iri: String) -> String? {
-        if terms.contains(iri) { return "\(module).\(localName(iri))" }
+        if let vocabulary = vocabulary(listing: iri) { return "\(vocabulary.module).\(localName(iri))" }
         for (namespace, layer) in Self.layers where iri.hasPrefix(namespace) {
             return "\(layer).\(iri.dropFirst(namespace.count))"
         }
