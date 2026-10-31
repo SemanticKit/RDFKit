@@ -216,10 +216,18 @@ struct Vocabulary {
         for type in objects(schema.type) {
             if let name = swiftName(type) { annotations.append(ParsedAnnotation(name: "Type", value: name)) }
         }
-        let related = kind == "Class" ? [("SubClassOf", schema.subClassOf)] : [("Domain", schema.domain), ("Range", schema.range)]
-        for (form, predicate) in related {
-            for object in objects(predicate) {
-                if let name = swiftName(object) { annotations.append(ParsedAnnotation(name: form, value: name)) }
+        if kind == "Class" {
+            for object in objects(schema.subClassOf) {
+                if let name = swiftName(object) { annotations.append(ParsedAnnotation(name: "SubClassOf", value: name)) }
+            }
+        } else {
+            // The domain and range the statements entail, a superproperty's
+            // included, of those a vocabulary declares the most specific.
+            for (form, predicate) in [("Domain", schema.domain), ("Range", schema.range)] {
+                let declared = schema.objects(of: term, predicate).filter { swiftName($0) != nil }.sorted()
+                if let most = schema.mostSpecific(of: declared), let name = swiftName(most) {
+                    annotations.append(ParsedAnnotation(name: form, value: name))
+                }
             }
         }
         var predicates: [String] = []

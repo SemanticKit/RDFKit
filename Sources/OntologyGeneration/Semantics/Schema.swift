@@ -94,7 +94,11 @@ public struct Schema: Sendable {
             }
         }
         self.empty = empty
-        let closure = Self.closure(of: axioms, under: semantics.rdfsEntailment)
+        // A subproperty's subjects and objects are its superproperty's
+        // (rdfs7 with rdfs2 and rdfs3), so it has its domain and range:
+        // OWL 2 RL scm-dom2 and scm-rng2.
+        let inheritance = ["scm-dom2", "scm-rng2"].compactMap(semantics.rule(named:))
+        let closure = Self.closure(of: axioms, under: semantics.rdfsEntailment + inheritance)
         triples = closure
 
         let subClassOf = subClassOf
@@ -175,6 +179,18 @@ public struct Schema: Sendable {
     }
 
     // MARK: - What the statements entail
+
+    /// The objects of a term's statements of a predicate, entailed ones
+    /// included: a subproperty's inherited domain and range.
+    public func objects(of term: String, _ predicate: String) -> Set<String> {
+        Set(triples.filter { $0.subject == term && $0.predicate == predicate }.map(\.object))
+    }
+
+    /// Of a set of classes, the most specific: the one that is a subclass
+    /// of all the others.
+    public func mostSpecific(of classes: [String]) -> String? {
+        classes.first { candidate in classes.allSatisfy { isSubclass(candidate, of: $0) || $0 == candidate } } ?? classes.first
+    }
 
     /// The classes a term is an instance of.
     public func types(of term: String) -> Set<String> {
