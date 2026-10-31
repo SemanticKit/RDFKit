@@ -33,6 +33,7 @@ struct DatatypeEmitter {
     static let swiftTypes: Set<String> = [
         "string",
         "boolean",
+        "double",
     ]
 
     func emit(_ names: [String]) throws -> String {
