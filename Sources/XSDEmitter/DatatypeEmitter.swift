@@ -93,6 +93,7 @@ struct DatatypeEmitter {
             throw EmitError(description: "xsd:\(name) has no value space translated yet")
         }
         let valueType = TypeSyntax(stringLiteral: value)
+        let checks = try FacetEmitter(definitions: definitions).checks(for: definition, valueSpace: primitive, valueType: value)
         return StructDeclSyntax(
             leadingTrivia: doc(["xsd:\(name)" + (definition.source.map { " (\($0))" } ?? "")]),
             modifiers: [DeclModifierSyntax(name: .keyword(.public))],
@@ -105,7 +106,10 @@ struct DatatypeEmitter {
             memberBlock: MemberBlockSyntax {
                 VariableDeclSyntax(
                     leadingTrivia: doc(["The value, in the value space of xsd:\(primitive.name)."]),
-                    modifiers: [DeclModifierSyntax(name: .keyword(.public))],
+                    modifiers: checks.statements.isEmpty ? [DeclModifierSyntax(name: .keyword(.public))] : [
+                        DeclModifierSyntax(name: .keyword(.public)),
+                        DeclModifierSyntax(name: .keyword(.private), detail: DeclModifierDetailSyntax(detail: .identifier("set"))),
+                    ],
                     bindingSpecifier: .keyword(.var),
                     bindings: [PatternBindingSyntax(
                         pattern: IdentifierPatternSyntax(identifier: .identifier("value")),
@@ -113,12 +117,19 @@ struct DatatypeEmitter {
                     )]
                 )
                 InitializerDeclSyntax(
-                    leadingTrivia: doc(["A value of xsd:\(name)."]),
+                    leadingTrivia: doc(["A value of xsd:\(name)."] + (checks.documentation.isEmpty ? [] : [
+                        "",
+                        "- Throws: `DatatypeError.illTyped` when the value is not in the value space of xsd:\(name): " + checks.documentation.joined(separator: ", ") + ".",
+                    ])),
                     modifiers: [DeclModifierSyntax(name: .keyword(.public))],
-                    signature: FunctionSignatureSyntax(parameterClause: FunctionParameterClauseSyntax {
-                        FunctionParameterSyntax(firstName: .wildcardToken(), secondName: .identifier("value"), type: valueType)
-                    }),
+                    signature: FunctionSignatureSyntax(
+                        parameterClause: FunctionParameterClauseSyntax {
+                            FunctionParameterSyntax(firstName: .wildcardToken(), secondName: .identifier("value"), type: valueType)
+                        },
+                        effectSpecifiers: checks.statements.isEmpty ? nil : FacetEmitter.throwsClause
+                    ),
                     body: CodeBlockSyntax {
+                        for check in checks.statements { check }
                         InfixOperatorExprSyntax(
                             leftOperand: MemberAccessExprSyntax(base: DeclReferenceExprSyntax(baseName: .keyword(.self)), name: .identifier("value")),
                             operator: AssignmentExprSyntax(),
@@ -131,6 +142,6 @@ struct DatatypeEmitter {
     }
 
     private func doc(_ lines: [String]) -> Trivia {
-        Trivia(pieces: lines.flatMap { [TriviaPiece.docLineComment("/// \($0)"), .newlines(1)] })
+        Trivia(pieces: lines.flatMap { [TriviaPiece.docLineComment($0.isEmpty ? "///" : "/// \($0)"), .newlines(1)] })
     }
 }
