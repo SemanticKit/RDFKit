@@ -8,3 +8,4 @@ http://xmlns.com/foaf/0.1/Organization
 http://xmlns.com/foaf/0.1/Project
 http://xmlns.com/foaf/0.1/Group
 http://xmlns.com/foaf/0.1/OnlineAccount
+http://xmlns.com/foaf/0.1/knows

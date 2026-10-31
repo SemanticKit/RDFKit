@@ -1,4 +1,5 @@
 import Testing
+import RDFCore
 import RDFKit
 import FOAF
 
@@ -13,5 +14,7 @@ struct FOAFPersonTests {
         #expect(member is RDFS.Resource)
     }
 
-    private final class Member: FOAF.Person {}
+    private final class Member: FOAF.Person {
+        var knows: Values<any FOAF.Person> = []
+    }
 }
