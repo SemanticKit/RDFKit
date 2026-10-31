@@ -1,5 +1,3 @@
-import RDFCore
-
 /// A duration: a number of months and a number of seconds, the value space
 /// of `xsd:duration` and of `xsd:yearMonthDuration` and
 /// `xsd:dayTimeDuration` (XML Schema 1.1 Part 2 §3.3.6: "Duration values

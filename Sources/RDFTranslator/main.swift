@@ -1,61 +1,101 @@
 import Foundation
+import IRIKit
+import OntologyGeneration
+import RDFCore
+import RDFFormats
 
-/// Translates the RDF documents of a Swift target into the Swift the
-/// documents describe. The `RDFTranslatorPlugin` runs it on every build.
+/// Translates RDF documents into the Swift they describe, through the
+/// generators `@Ontology` uses. `RDFTranslatorPlugin` runs it on every
+/// build of a target that has RDF documents.
 ///
-///     RDFTranslator <output.swift> [--datatypes <Name> <document>...] (--module <Name> <document>...)...
+///     RDFTranslator <output.swift> <module> <namespace|-> <document>... [--layer <module> <namespace|-> <document>...]...
 ///
-/// Each `--module` names a module and its documents, lowest layer first; the
-/// last is the module the output belongs to. The others are the layers it
-/// builds on, whose declarations it uses. Below them all is the module
-/// `--datatypes` names, `XSD`, with the W3C documents it is translated from,
-/// whose datatypes type the properties that range over them.
+/// The documents are RDF/XML (`.rdf`) or Turtle (`.ttl`). Every subject
+/// they state something about that no layer owns is translated. The
+/// namespace nests the declarations in a Swift namespace when a module
+/// holds more than one vocabulary; `-` puts them in the module itself. Each
+/// `--layer` is a vocabulary this one builds on: another of its target, or
+/// one of a target it depends on.
 do {
-    var arguments = CommandLine.arguments.dropFirst()
-    guard let output = arguments.popFirst() else {
-        throw TranslationError(description: "usage: RDFTranslator <output.swift> [--datatypes <Name> <document>...] (--module <Name> <document>...)...")
+    var groups: [[String]] = [[]]
+    for argument in CommandLine.arguments.dropFirst() {
+        if argument == "--layer" { groups.append([]) } else { groups[groups.count - 1].append(argument) }
     }
-    var datatypeGroup: (module: String, paths: [String])?
-    var groups: [(module: String, paths: [String])] = []
-    while let argument = arguments.popFirst() {
-        if argument == "--datatypes" {
-            guard let module = arguments.popFirst() else { throw TranslationError(description: "--datatypes needs a name") }
-            guard groups.isEmpty else { throw TranslationError(description: "--datatypes comes before the modules") }
-            datatypeGroup = (module, [])
-        } else if argument == "--module" {
-            guard let module = arguments.popFirst() else { throw TranslationError(description: "--module needs a name") }
-            groups.append((module, []))
-        } else if groups.isEmpty, datatypeGroup != nil {
-            datatypeGroup?.paths.append(argument)
-        } else {
-            guard !groups.isEmpty else { throw TranslationError(description: "\(argument): name its module with --module first") }
-            groups[groups.count - 1].paths.append(argument)
-        }
+    var target = groups.removeFirst()
+    guard target.count >= 3 else {
+        throw TranslationError(description: "usage: RDFTranslator <output.swift> <module> <namespace|-> <document>... [--layer <module> <namespace|-> <document>...]...")
     }
-    guard !groups.isEmpty else { throw TranslationError(description: "no module to translate") }
-
-    // The XSD datatypes are the layer below every module that depends on
-    // their module.
-    let datatypes = try datatypeGroup.map { try DatatypeLayer(module: $0.module, documents: $0.paths) } ?? DatatypeLayer()
-    var layers: [Layer] = []
-    var declarations: [Declarations] = datatypeGroup == nil ? [] : [datatypes.declarations]
-    var vocabulary = Vocabulary([], datatypes: datatypes)
-    var documents = 0
-    for group in groups {
-        let layer = try Layer(module: group.module, paths: group.paths, firstDocument: documents)
-        documents += group.paths.count
-        layers.append(layer)
-        vocabulary = Vocabulary(layers, datatypes: datatypes)
-        declarations.append(try Declarations(layer, vocabulary, below: declarations))
+    let output = target.removeFirst()
+    let vocabularies = try ([target] + groups).map { group in
+        guard group.count >= 2 else { throw TranslationError(description: "a vocabulary takes <module> <namespace|-> <document>...") }
+        return try Vocabulary.read(module: group[0], namespace: group[1] == "-" ? nil : group[1], documents: group.dropFirst(2))
     }
-    let source = SwiftSource(
-        layer: layers[layers.count - 1],
-        vocabulary: vocabulary,
-        declarations: declarations[declarations.count - 1],
-        below: Array(declarations.dropLast())
-    ).render()
-    try source.write(to: URL(filePath: output), atomically: true, encoding: .utf8)
+    try Catalog(vocabularies).vocabularies[0].source().write(to: URL(filePath: output), atomically: true, encoding: .utf8)
 } catch {
     FileHandle.standardError.write(Data("error: \(error)\n".utf8))
     exit(1)
+}
+
+extension Vocabulary {
+    /// A vocabulary as its documents give it.
+    static func read(module: String, namespace: String?, documents: some Sequence<String>) throws -> Vocabulary {
+        var graph = Graph()
+        for path in documents {
+            let document = try String(contentsOf: URL(filePath: path), encoding: .utf8)
+            switch URL(filePath: path).pathExtension.lowercased() {
+            case "rdf": graph.formUnion(try RDFXMLDecoder().decode(document))
+            case "ttl": graph.formUnion(try TurtleDecoder().decode(document))
+            default: throw TranslationError(description: "\(path) is neither RDF/XML (.rdf) nor Turtle (.ttl)")
+            }
+        }
+        return Vocabulary(graph: graph, module: module, namespace: namespace)
+    }
+}
+
+/// The vocabularies of one translation, the first the one translated: which
+/// of them owns each subject, the Swift name of each term, and the schema
+/// all their statements entail.
+///
+/// A subject is owned by the vocabulary most of whose subjects are in its
+/// namespace, and otherwise by the first that states something about it,
+/// the layers before the vocabulary translated: FOAF's `rdfs:Class` is
+/// RDFS's, and its `geo:SpatialThing` FOAF's.
+struct Catalog {
+    let vocabularies: [Vocabulary]
+
+    init(_ vocabularies: [Vocabulary]) {
+        var vocabularies = vocabularies
+        let order = Array(vocabularies.indices.dropFirst()) + [0]
+        var owner: [String: Int] = [:]
+        for index in order {
+            for subject in vocabularies[index].subjects where owner[subject] == nil || Vocabulary.namespace(of: subject) == vocabularies[index].dominantNamespace {
+                if let current = owner[subject], Vocabulary.namespace(of: subject) == vocabularies[current].dominantNamespace { continue }
+                owner[subject] = index
+            }
+        }
+        for index in vocabularies.indices {
+            let owned = vocabularies[index].subjects.lazy.filter { owner[$0] == index }
+            vocabularies[index].own(owned)
+        }
+        var names: [String: String] = [:]
+        for vocabulary in vocabularies {
+            for term in vocabulary.terms where names[term] == nil {
+                names[term] = "\(vocabulary.swiftNamespace).\(vocabulary.localName(term))"
+            }
+        }
+        let schema = Schema(vocabularies.lazy.map(\.graph))
+        for index in vocabularies.indices {
+            vocabularies[index].names = names
+            vocabularies[index].schema = schema
+        }
+        for index in vocabularies.indices {
+            vocabularies[index].dependencies = vocabularies.indices.filter { $0 != index }.map { vocabularies[$0] }
+        }
+        self.vocabularies = vocabularies
+    }
+}
+
+/// The error the translator reports to the build.
+struct TranslationError: Error, CustomStringConvertible {
+    let description: String
 }

@@ -1,40 +1,20 @@
-# ContentModifier Design
+# Declarations and Their Annotations
 
-## Pattern (unlike SwiftUI's ViewModifier)
+RDFKit has no content modifiers. A declaration's annotations are written inside its block, and nothing is chained on a declaration:
 
-In SwiftUI:
 ```swift
-Text("Hello")
-    .padding()
-    .foregroundColor(.red)
-    .background(.blue)
-```
-
-Each modifier is a method on a view instance that returns a modified view. Setting a view's background makes sense: the view is an instance.
-
-An ontology declares types, and declared types are not modified. RDFKit has no content modifiers (`add*`, `isDeclaredBy`). Everything a declaration states goes inside its trailing closure, as DSL declaration forms, in the ontology's `var body`:
-```swift
-Class("Foo") {
-    Label("Foo")
-    Comment("Bar")
-    Deprecated("Use Baz.")
+Class("Person") {
+    Type(RDFS.Class)
+    SubClassOf(FOAF.Agent)
+    Label("Person")
+    Comment("A person.")
 }
 ```
 
-Each concept has three forms: RDF, DSL and Swift.
-
-| RDF | DSL | Swift |
-|---|---|---|
-| `owl:Class` | `Class("Foo")` | `class Foo { }` (a class can be a protocol) |
-| `owl:deprecated` | `Deprecated("reason")` | `@available` |
-| `rdfs:label`, `rdfs:comment` | `Label`, `Comment` | DocC documentation |
-
-The declaring ontology and namespace come from where the declaration is written (its `@Ontology` type and its `Namespace`), not from a modifier.
+Chained `.add…(…)` modifiers are a rejected shape (DESIGN-CONTRACT.md, rules 1 and 6), and CI fails when generated Swift contains one.
 
 ## Rules
 
-- A declaration's statements are declaration forms in its trailing closure, never methods chained on the declaration
-- `add*` methods are not used: they indicate type modification
-- `isDeclaredBy` is not used: the declaration's ontology is where it is written
-- `Deprecated("reason")` is a declaration form and generates `@available`
-- Declaration forms only state what applies to the declaration they are written in
+- A declaration's annotations go in its block, one declaration per annotation.
+- The declarations carry no data at run time. `@Ontology` reads them as syntax and generates the protocols they declare ([MacroDesign.md](MacroDesign.md)).
+- `owl:deprecated`, `rdfs:seeAlso`, `rdfs:isDefinedBy` and the other annotation properties of a translated vocabulary become DocC on the generated declaration (D8).

@@ -1,2 +1,0 @@
-_:y <http://example/p> <<( _:y <http://example/p> _:x )>> .
-_:x <http://example/p> "1" .

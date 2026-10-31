@@ -25,24 +25,12 @@ public struct NTriplesEncoder: Sendable {
         var labels = BlankNodeLabelling(graph)
         return graph.map { triple in labels.nTriples(triple) + " .\n" }.joined()
     }
-}
 
-extension NTriplesEncoder {
-    /// Encodes descriptions as a canonical N-Triples document: the triples
-    /// each one states through its `Encodable` conformance (see
-    /// ``GraphEncoder``).
+    /// Encodes the graph Swift values describe, as `GraphEncoder` reads
+    /// them, as a canonical N-Triples document.
     ///
     ///     let document = try NTriplesEncoder().encode([alice, bob])
-    ///
-    /// - Throws: `EncodingError` when a description writes something other
-    ///   than resources, classes and literals keyed by property IRIs.
-    public func encode(_ descriptions: [any Description]) throws -> String {
-        encode(try GraphEncoder().encode(descriptions))
-    }
-
-    /// Encodes one description as a canonical N-Triples document.
-    public func encode(_ description: some Description) throws -> String {
-        encode(try GraphEncoder().encode(description))
+    public func encode(_ value: some Encodable) throws -> String {
+        encode(try GraphEncoder().encode(value))
     }
 }
-

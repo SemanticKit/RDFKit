@@ -1,15 +1,6 @@
 {
-  "originHash" : "088188d921991d43409256a0a1e117b1d7a8bac495cbde695eda3c7bc353eb03",
+  "originHash" : "d14b29da5cea13af3e33878624e499c426ae89e062a62dfa3aa6ad627fe6b4d9",
   "pins" : [
-    {
-      "identity" : "bitbytedata",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tsolomko/BitByteData",
-      "state" : {
-        "revision" : "e1a5443be67daf0833cbb5f4fa3a06a265ca3105",
-        "version" : "2.1.0"
-      }
-    },
     {
       "identity" : "ebnfkit",
       "kind" : "remoteSourceControl",
@@ -26,33 +17,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "f5611e8fccc1fe63f0d6dcde698b4c73bd3b683a"
-      }
-    },
-    {
-      "identity" : "semantickitbuildplugins",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SemanticKit/SemanticKitBuildPlugins.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "40d90da0fff8568fc313e9f927ed3dde70d1fcd5"
-      }
-    },
-    {
-      "identity" : "swcompression",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tsolomko/SWCompression.git",
-      "state" : {
-        "revision" : "03a68e67991815a267e28174a0a01fbe0cff937b",
-        "version" : "4.9.1"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
-      "state" : {
-        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
-        "version" : "1.8.2"
       }
     },
     {
@@ -74,30 +38,12 @@
       }
     },
     {
-      "identity" : "swift-opa",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/open-policy-agent/swift-opa.git",
-      "state" : {
-        "revision" : "d5621ffa8728a3b9fb7a096ba3f1feeb61a37206",
-        "version" : "0.0.11"
-      }
-    },
-    {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "location" : "https://github.com/swiftlang/swift-syntax",
       "state" : {
         "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
         "version" : "604.0.0"
-      }
-    },
-    {
-      "identity" : "yams",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jpsim/Yams",
-      "state" : {
-        "revision" : "a27b21e0c81c5bf42049b897a62aaf387e80f279",
-        "version" : "6.2.2"
       }
     }
   ],

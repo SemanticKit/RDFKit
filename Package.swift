@@ -2,11 +2,6 @@
 import PackageDescription
 import CompilerPluginSupport
 
-/// The settings of a target whose Swift RDFTranslatorPlugin generates: the
-/// generated Swift compiles without warnings, deprecated declarations
-/// (`owl:deprecated`) included, so a warning in it fails the build.
-let generated: [SwiftSetting] = [.treatAllWarnings(as: .error)]
-
 let package = Package(
     name: "RDFKit",
     platforms: [
@@ -30,28 +25,12 @@ let package = Package(
         .library(
             name: "XSD",
             targets: ["XSD"]
-        ),
-        .library(
-            name: "RDF",
-            targets: ["RDF"]
-        ),
-        .library(
-            name: "OWL",
-            targets: ["OWL"]
-        ),
-        .plugin(
-            name: "RDFTranslatorPlugin",
-            targets: ["RDFTranslatorPlugin"]
         )
     ],
     dependencies: [
         .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
         .package(url: "https://github.com/SemanticKit/EBNFKit.git", branch: "main"),
-        .package(url: "https://github.com/swiftlang/swift-syntax", from: "604.0.0"),
-        // The SemanticKit invariants as build rules: RegoPolicyEvaluate runs
-        // the SemanticKitDesignGuidelines policies over every Swift file of
-        // the targets that apply it, and a `deny` finding fails the build.
-        .package(url: "https://github.com/SemanticKit/SemanticKitBuildPlugins.git", branch: "main")
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "604.0.0")
     ],
     targets: [
         .target(
@@ -61,20 +40,52 @@ let package = Package(
         .target(
             name: "RDFKit",
             dependencies: [
-                "IRIKit",
                 "RDFCore",
-                "RDF",
-                "OWL",
-                "RDFKitMacros",
-                .product(name: "SemanticKitDesignGuidelines", package: "SemanticKitBuildPlugins")
+                "RDFKitMacros"
             ],
-            plugins: [
-                .plugin(name: "RegoPolicyEvaluate", package: "SemanticKitBuildPlugins")
+            exclude: [
+                "OWL/AGENTS.md",
+                "OWL/README.md",
+                "RDF/AGENTS.md",
+                "RDF/README.md",
+                "RDFS/AGENTS.md",
+                "RDFS/README.md",
+                "DSL_INVARIANTS.md"
+            ],
+            // RDF, RDFS and OWL, translated from rdf.ttl, rdfs.ttl and
+            // owl.ttl as published.
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        // The Swift a vocabulary's classes and properties generate, which the
+        // @Ontology macro and RDFTranslator both emit.
+        .target(
+            name: "OntologyGeneration",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ],
+            exclude: ["W3C"],
+            plugins: ["SemanticsEmitterPlugin"]
+        ),
+        // The semantic tables of RDF 1.2 Semantics, OWL 2 Profiles and OWL 2
+        // RDF-Based Semantics (Sources/OntologyGeneration/W3C), translated to
+        // the Semantics OntologyGeneration reads on every build.
+        .executableTarget(
+            name: "SemanticsEmitter",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
             ]
+        ),
+        .plugin(
+            name: "SemanticsEmitterPlugin",
+            capability: .buildTool(),
+            dependencies: ["SemanticsEmitter"]
         ),
         .macro(
             name: "RDFKitMacros",
             dependencies: [
+                "OntologyGeneration",
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
@@ -94,58 +105,43 @@ let package = Package(
                 .plugin(name: "EBNFTranslatorPlugin", package: "EBNFKit")
             ]
         ),
-
         // The XML Schema datatypes RDF uses (RDF 1.2 Concepts §5.1), each a
-        // Swift value type, translated from the W3C documents in
-        // Sources/XSD/W3C by the translator and plugin that read them.
+        // Swift value type, emitted from the W3C documents in Sources/XSD/W3C
+        // for the datatypes units.txt lists.
         .target(
             name: "XSD",
-            dependencies: ["RDFCore"],
+            dependencies: ["RDFKit"],
             exclude: ["W3C/README.md"],
-            plugins: ["XSDTranslatorPlugin"]
-        ),
-        // The W3C documents that define the datatypes, read as their
-        // structure gives them: the one translation both translators learn
-        // the datatypes from.
-        .target(
-            name: "XSDDefinitions"
-        ),
-        // The swift-syntax nodes the translators build the Swift they
-        // generate from.
-        .target(
-            name: "TranslatorSyntax",
-            dependencies: [
-                .product(name: "SwiftSyntax", package: "swift-syntax"),
-                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
-            ]
+            plugins: ["XSDEmitterPlugin"]
         ),
         .executableTarget(
-            name: "XSDTranslator",
+            name: "XSDEmitter",
             dependencies: [
                 "XSDDefinitions",
-                "TranslatorSyntax",
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
             ]
         ),
         .plugin(
-            name: "XSDTranslatorPlugin",
+            name: "XSDEmitterPlugin",
             capability: .buildTool(),
-            dependencies: ["XSDTranslator"]
+            dependencies: ["XSDEmitter"]
         ),
-
+        // The W3C documents that define the XML Schema datatypes
+        // (Sources/XSD/W3C), read as their structure gives them.
+        .target(
+            name: "XSDDefinitions"
+        ),
         // RDF in, Swift out: the translator and the build tool plugin that
-        // runs it over a target's RDF documents. The Swift it writes uses
-        // RDFCore, as the Swift @Ontology writes does.
+        // runs it over a target's RDF documents, through the generators
+        // @Ontology uses.
         .executableTarget(
             name: "RDFTranslator",
             dependencies: [
                 "IRIKit",
                 "RDFCore",
                 "RDFFormats",
-                "XSD",
-                "XSDDefinitions",
-                "TranslatorSyntax",
+                "OntologyGeneration",
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
             ]
@@ -155,134 +151,63 @@ let package = Package(
             capability: .buildTool(),
             dependencies: ["RDFTranslator"]
         ),
-
-        // The layers: RDF and RDF Schema (rdf.ttl and rdfs.ttl, which refer
-        // to each other), then OWL 2 (owl.ttl).
-        .target(
-            name: "RDF",
-            dependencies: ["RDFCore", "XSD"],
-            path: "Tests/ParallelTests/Fixtures/W3C",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-        .target(
-            name: "OWL",
-            dependencies: ["RDF", "XSD"],
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-
-        // Vocabularies and data built on the layers.
+        // FOAF as published (index.rdf, RDF/XML), translated term by term.
         .target(
             name: "FOAF",
-            dependencies: ["OWL", "RDF", "XSD"],
+            dependencies: ["IRIKit", "RDFKit", "RDFCore"],
             path: "Tests/ParallelTests/Fixtures/FOAF",
-            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
+        // Alice's profile (alice.ttl), translated to the FOAF individuals it
+        // states.
         .target(
             name: "AliceProfile",
-            dependencies: ["FOAF", "XSD"],
+            dependencies: ["FOAF", "IRIKit", "RDFKit", "RDFCore", "XSD"],
             path: "Tests/ParallelTests/Fixtures/AliceProfile",
-            swiftSettings: generated,
             plugins: ["RDFTranslatorPlugin"]
         ),
-        // SHACL 1.2's published vocabulary (shacl.ttl), on RDF and OWL.
-        .target(
-            name: "SHACL",
-            dependencies: ["OWL", "RDF", "XSD"],
-            path: "Tests/SHACLTranslationTests/Fixtures/SHACL",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
+        // The parallel, RDF in and Swift out and back, frozen by checksum.
+        .testTarget(
+            name: "ParallelTests",
+            dependencies: ["AliceProfile", "FOAF", "RDFCore", "RDFFormats"],
+            path: "Tests/ParallelTests",
+            exclude: ["Fixtures"]
         ),
-        // The entailment regime vocabulary, whose ent:RDF is named like the
-        // RDF module it builds on.
-        .target(
-            name: "EntailmentRegimes",
-            dependencies: ["OWL", "RDF", "XSD"],
-            path: "Tests/EntailmentTranslationTests/Fixtures/EntailmentRegimes",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
+        .testTarget(
+            name: "FOAFTests",
+            dependencies: ["FOAF", "RDFKit", "RDFCore"]
         ),
-
-        // Data on no layer: rdf:type names no class.
-        .target(
-            name: "PlainData",
-            dependencies: ["RDFCore"],
-            path: "Tests/PlainDataTranslationTests/Fixtures/PlainData",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-
-        // The W3C test vocabularies the RDF test suites' manifests are
-        // written in, as published.
-        .target(
-            name: "TestManifest",
-            dependencies: ["OWL", "RDF", "XSD"],
-            path: "Tests/RDFFormatsTests/Vocabularies/TestManifest",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-        .target(
-            name: "RDFTest",
-            dependencies: ["OWL", "RDF", "XSD"],
-            path: "Tests/RDFFormatsTests/Vocabularies/RDFTest",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-
         .testTarget(
             name: "RDFKitTests",
-            dependencies: [
-                "RDFKit",
-                "RDFCore",
-                "RDFFormats",
-                "RDF",
-                "OWL",
-                "FOAF",
-                "AliceProfile",
-                "XSD",
-                .product(name: "IRIKit", package: "IRIKit"),
-                .product(name: "SemanticKitDesignGuidelines", package: "SemanticKitBuildPlugins")
-            ],
+            dependencies: ["RDFKit", "RDFCore"],
             exclude: [
                 "Data/shacl.rdf",
-                "Data/shacl.ttl",
-                "Fixtures/.gitkeep"
-            ],
-            plugins: [
-                .plugin(name: "RegoPolicyEvaluate", package: "SemanticKitBuildPlugins")
+                "Data/shacl.ttl"
             ]
         ),
+        // The W3C RDF test suites, fetched by Scripts/fetch-w3c-rdf-tests.sh.
         .testTarget(
             name: "RDFFormatsTests",
             dependencies: [
                 "RDFFormats",
                 "RDFCore",
-                "RDF",
-                "FOAF",
-                "AliceProfile",
-                "TestManifest",
-                "RDFTest",
-                .product(name: "IRIKit", package: "IRIKit")
+                "IRIKit"
             ],
             exclude: [
                 "W3C/README.md",
-                "Vocabularies",
-                "Fixtures"
+                "Vocabularies"
             ],
             resources: [
                 .copy("W3C/rdf-tests")
             ]
         ),
         .testTarget(
+            name: "XSDTests",
+            dependencies: ["XSD", "RDFKit"]
+        ),
+        .testTarget(
             name: "RDFCoreTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                .product(name: "IRIKit", package: "IRIKit")
-            ],
-            exclude: ["Fixtures"]
+            dependencies: ["RDFCore"]
         ),
         .testTarget(
             name: "RDFKitMacrosTests",
@@ -290,84 +215,6 @@ let package = Package(
                 "RDFKitMacros",
                 .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
             ]
-        ),
-        .testTarget(
-            name: "RDFTranslatorTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                "RDF",
-                "OWL",
-                "XSD"
-            ],
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-        // A vocabulary with a property for each XSD datatype, for XSDTests.
-        .target(
-            name: "Samples",
-            dependencies: ["OWL", "RDF", "XSD"],
-            path: "Tests/XSDTests/Fixtures/Samples",
-            swiftSettings: generated,
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-        .testTarget(
-            name: "XSDTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                "RDF",
-                "OWL",
-                "Samples",
-                "XSD",
-                "XSDDefinitions",
-                .product(name: "IRIKit", package: "IRIKit")
-            ],
-            exclude: ["Fixtures"],
-            plugins: ["RDFTranslatorPlugin"]
-        ),
-        .testTarget(
-            name: "SHACLTranslationTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                "RDF",
-                "SHACL",
-                .product(name: "IRIKit", package: "IRIKit")
-            ],
-            exclude: ["Fixtures"]
-        ),
-        .testTarget(
-            name: "EntailmentTranslationTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                "RDF",
-                "EntailmentRegimes"
-            ],
-            exclude: ["Fixtures"]
-        ),
-        .testTarget(
-            name: "PlainDataTranslationTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                "PlainData",
-                "RDFTranslator",
-                .product(name: "IRIKit", package: "IRIKit")
-            ],
-            exclude: ["Fixtures"]
-        ),
-        .testTarget(
-            name: "ParallelTests",
-            dependencies: [
-                "RDFCore",
-                "RDFFormats",
-                "RDF",
-                "OWL",
-                "FOAF",
-                "AliceProfile"
-            ],
-            exclude: ["Fixtures"]
         )
     ]
 )

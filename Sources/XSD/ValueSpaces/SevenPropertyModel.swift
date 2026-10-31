@@ -1,5 +1,3 @@
-import RDFCore
-
 /// A value of the date/time datatypes, `xsd:dateTime`, `xsd:time`,
 /// `xsd:date`, `xsd:gYearMonth`, `xsd:gYear`, `xsd:gMonthDay`, `xsd:gDay`,
 /// `xsd:gMonth` and those derived from them: XML Schema 1.1 Part 2 §D.2.1,

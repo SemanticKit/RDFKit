@@ -1,173 +1,344 @@
 import IRIKit
+import OntologyGeneration
 import RDFCore
-import XSD
+import SwiftSyntax
+import SwiftSyntaxBuilder
 
-extension IRI {
-    // The terms whose meaning RDF 1.2 Semantics and OWL 2 fix, and that the
-    // translation follows: membership (`rdf:type`, rdfD2), the RDFS
-    // entailment rules (rdfs2, rdfs3, rdfs9, rdfs13), the classes every
-    // resource is a member of (rdfs4; OWL 2 RDF-Based Semantics Table 5.2),
-    // and the annotations that become documentation. These are the
-    // translator's boundary: it reads a document's IRIs and writes Swift
-    // types, and inside the Swift it writes no IRI names a term.
-    static let rdfType: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    static let rdfProperty: IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"
-    static let rdfsSubClassOf: IRI = "http://www.w3.org/2000/01/rdf-schema#subClassOf"
-    static let rdfsDomain: IRI = "http://www.w3.org/2000/01/rdf-schema#domain"
-    static let rdfsRange: IRI = "http://www.w3.org/2000/01/rdf-schema#range"
-    static let rdfsLabel: IRI = "http://www.w3.org/2000/01/rdf-schema#label"
-    static let rdfsComment: IRI = "http://www.w3.org/2000/01/rdf-schema#comment"
-    static let rdfsIsDefinedBy: IRI = "http://www.w3.org/2000/01/rdf-schema#isDefinedBy"
-    static let rdfsResource: IRI = "http://www.w3.org/2000/01/rdf-schema#Resource"
-    static let rdfsClass: IRI = "http://www.w3.org/2000/01/rdf-schema#Class"
-    static let rdfsLiteral: IRI = "http://www.w3.org/2000/01/rdf-schema#Literal"
-    static let rdfsDatatype: IRI = "http://www.w3.org/2000/01/rdf-schema#Datatype"
-    static let owlThing: IRI = "http://www.w3.org/2002/07/owl#Thing"
-    static let owlDeprecated: IRI = "http://www.w3.org/2002/07/owl#deprecated"
-}
-
-/// What the merged graph of a module and the layers below it states and
-/// RDFS-entails about its nodes.
+/// A vocabulary's documents, read into the model the generators take.
 ///
-/// Class membership follows RDF 1.2 Semantics, RDF entailment: rdfD2
-/// (`xxx aaa yyy .` entails `aaa rdf:type rdf:Property .`), and RDFS
-/// entailment: rdfs2
-/// (`aaa rdfs:domain xxx . yyy aaa zzz .` entails `yyy rdf:type xxx .`),
-/// rdfs3 (range, for the object) and rdfs9 (`rdfs:subClassOf`), applied to
-/// the stated triples and to the `rdf:type` triples they entail, until
-/// nothing new follows. The vocabularies themselves say which nodes are
-/// classes: `rdf:type rdfs:range rdfs:Class` in rdf.ttl makes every object of
-/// `rdf:type` a class.
+/// Its terms are the subjects its documents state something about that no
+/// vocabulary it builds on declares. What each term is, a class, a property
+/// or an individual, is what the published semantics entail from the
+/// statements of all of them (`Schema`): nothing here names a term.
 struct Vocabulary {
     let graph: Graph
-    /// The XSD datatypes, the layer below every module.
-    let datatypes: DatatypeLayer
-    private(set) var types: [SubjectTerm: Set<SubjectTerm>] = [:]
-    private var superclasses: [SubjectTerm: Set<SubjectTerm>] = [:]
-    private var domains: [IRI: [SubjectTerm]] = [:]
-    private var ranges: [IRI: [SubjectTerm]] = [:]
+    /// The Swift module the vocabulary's declarations are in.
+    let module: String
+    /// The Swift namespace the declarations are nested in when a module
+    /// holds more than one vocabulary, `RDFS` in RDFKit.
+    let namespace: String?
+    /// The vocabularies this one builds on: those of the targets it depends
+    /// on, and the others of its own target.
+    var dependencies: [Vocabulary] = [] {
+        didSet {
+            namespaceOwners = [:]
+            for vocabulary in all {
+                for namespace in vocabulary.namespaces where namespaceOwners[namespace] == nil {
+                    namespaceOwners[namespace] = (vocabulary.swiftNamespace, vocabulary.namespaceName(namespace))
+                }
+            }
+        }
+    }
+    /// The vocabulary that declares each namespace of this vocabulary and
+    /// those it builds on, and the name of its declaration.
+    private var namespaceOwners: [String: (owner: String, name: String)] = [:]
+    /// What the statements of this vocabulary and those it builds on entail.
+    var schema = Schema([])
+    /// The vocabulary's terms: the subjects it owns, each with a local name
+    /// of its own (`Catalog`).
+    var terms: [String] = []
+    private(set) var termSet: Set<String> = []
+    /// Each term, by its local name.
+    private(set) var termsByLocalName: [String: String] = [:]
+    /// The Swift name of every term of this vocabulary and those it builds
+    /// on.
+    var names: [String: String] = [:]
 
-    init(_ layers: some Sequence<Layer>, datatypes: DatatypeLayer) {
-        self.datatypes = datatypes
-        var graph = Graph()
-        for layer in layers { graph.formUnion(layer.graph) }
+    /// The subjects of the documents, in the order they are first stated.
+    let subjectTerms: [SubjectTerm]
+    /// The subjects named by IRIs, in the order they are first stated.
+    let subjects: [String]
+    /// Each subject's statements, in the order the documents state them.
+    private let statementsBySubject: [SubjectTerm: [Graph.Element]]
+    /// The namespace most of the vocabulary's subjects are in.
+    let dominantNamespace: String?
+
+    init(graph: Graph, module: String, namespace: String?) {
         self.graph = graph
+        self.module = module
+        self.namespace = namespace
+        var subjectTerms: [SubjectTerm] = []
+        var statementsBySubject: [SubjectTerm: [Graph.Element]] = [:]
         for triple in graph {
-            guard let object = triple.object.node else { continue }
-            switch triple.predicate {
-            case .rdfsSubClassOf: superclasses[triple.subject, default: []].insert(object)
-            case .rdfsDomain: if let p = triple.subject.iri { domains[p, default: []].append(object) }
-            case .rdfsRange: if let p = triple.subject.iri { ranges[p, default: []].append(object) }
-            default: break
+            if statementsBySubject[triple.subject] == nil { subjectTerms.append(triple.subject) }
+            statementsBySubject[triple.subject, default: []].append(triple)
+        }
+        let subjects = subjectTerms.compactMap { subject -> String? in
+            guard case .iri(let iri) = subject else { return nil }
+            return iri.rawValue
+        }
+        var counts: [String: Int] = [:]
+        for subject in subjects { counts[Self.namespace(of: subject), default: 0] += 1 }
+        self.subjectTerms = subjectTerms
+        self.subjects = subjects
+        self.statementsBySubject = statementsBySubject
+        self.dominantNamespace = counts.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
+    }
+
+    /// The name terms are qualified with: the namespace, or the module.
+    var swiftNamespace: String { namespace ?? module }
+
+    /// The terms of the subjects the vocabulary owns: those whose local
+    /// names are Swift identifiers, and of those whose local names are the
+    /// same, the one in its dominant namespace, so that each term's Swift
+    /// name is its own.
+    mutating func own(_ owned: some Sequence<String>) {
+        let candidates = owned.filter { Self.isIdentifier(localName($0)) }
+        let dominant = dominantNamespace
+        let byName = Dictionary(grouping: candidates, by: localName)
+        terms = candidates.filter { term in
+            let rivals = byName[localName(term)] ?? []
+            return rivals.count == 1 || Self.namespace(of: term) == dominant || !rivals.contains { Self.namespace(of: $0) == dominant } && rivals.first == term
+        }
+        termSet = Set(terms)
+        termsByLocalName = [:]
+        for term in terms where termsByLocalName[localName(term)] == nil { termsByLocalName[localName(term)] = term }
+        var found: [String] = []
+        var seen: Set<String> = []
+        for term in terms where seen.insert(Self.namespace(of: term)).inserted { found.append(Self.namespace(of: term)) }
+        namespaces = found.sorted { ($0 == dominantNamespace ? 0 : 1, $0) < ($1 == dominantNamespace ? 0 : 1, $1) }
+    }
+
+    /// Every vocabulary this one names terms of: itself and those it builds
+    /// on.
+    var all: [Vocabulary] { [self] + dependencies }
+
+    // MARK: - Swift
+
+    /// The Swift that the vocabulary's documents generate: the protocols of
+    /// its classes and properties, the classes and instances of its
+    /// individuals, and, for a vocabulary that is its own module, the
+    /// description it encodes back to.
+    func source() throws -> String {
+        let ontology = try self.ontology()
+        var declarations = ontology.classes.map { ClassGenerator.generate(class: $0, in: ontology) }
+            + ontology.properties.compactMap { PropertyGenerator.generate(property: $0, in: ontology) }
+            + namespaceDeclarations()
+        if let namespace {
+            declarations = [
+                DeclSyntax(EnumDeclSyntax(
+                    leadingTrivia: Individuals.documentation(["The terms of the \(namespace) vocabulary."]),
+                    modifiers: [DeclModifierSyntax(name: .keyword(.public))],
+                    name: .identifier(namespace),
+                    memberBlock: MemberBlockSyntax {}
+                )),
+                DeclSyntax(ExtensionDeclSyntax(
+                    extendedType: TypeSyntax(stringLiteral: namespace),
+                    memberBlock: MemberBlockSyntax { for declaration in declarations { declaration } }
+                )),
+            ]
+        }
+        let individuals = Individuals(vocabulary: self)
+        let instances = try individuals.declarations()
+        let description = namespace == nil && !(ontology.classes.isEmpty && ontology.properties.isEmpty) ? try Description(vocabulary: self).declarations() : []
+        // An individual's literal values are values of the Swift types of
+        // their datatypes, which XSD declares (D6).
+        var modules = ["IRIKit", "RDFCore", "RDFKit"] + (individuals.hasLiterals ? ["XSD"] : []) + dependencies.map(\.module)
+        modules = modules.reduce(into: []) { if !$0.contains($1) && $1 != module { $0.append($1) } }
+        let file = SourceFileSyntax {
+            for module in modules {
+                ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier(module))])
+            }
+            for declaration in declarations + instances + description { declaration }
+        }
+        return file.formatted().description + "\n"
+    }
+
+    /// The namespaces the vocabulary's terms are in: the one most of them
+    /// are in, `namespace`, and any other, named for the last segment of its
+    /// IRI.
+    private(set) var namespaces: [String] = []
+
+    /// The Swift name of the declaration of a namespace of the vocabulary.
+    func namespaceName(_ namespace: String) -> String {
+        guard namespace != dominantNamespace else { return "namespace" }
+        let segment = namespace.dropLast().split(whereSeparator: { $0 == "/" || $0 == "#" }).last.map(String.init) ?? ""
+        let name = String(segment.map { $0.isLetter || $0.isNumber ? $0 : "_" })
+        return (name.first?.isLetter == true ? name : "namespace" + name) + "Namespace"
+    }
+
+    /// `public var namespace: String { "…" }`, once for each namespace the
+    /// document declares terms in: the declaration an IRI is derived from
+    /// when a coder asks for it, with the term's name (rule 17).
+    func namespaceDeclarations() -> [DeclSyntax] {
+        namespaces.map { namespace in
+            DeclSyntax(VariableDeclSyntax(
+                leadingTrivia: Individuals.documentation(["The namespace the documents declare these terms in."]),
+                modifiers: [DeclModifierSyntax(name: .keyword(.public))] + (self.namespace == nil ? [] : [DeclModifierSyntax(name: .keyword(.static))]),
+                bindingSpecifier: .keyword(.var),
+                bindings: [PatternBindingSyntax(
+                    pattern: IdentifierPatternSyntax(identifier: .identifier(namespaceName(namespace))),
+                    typeAnnotation: TypeAnnotationSyntax(type: TypeSyntax("String")),
+                    accessorBlock: AccessorBlockSyntax(accessors: .getter(CodeBlockItemListSyntax {
+                        StringLiteralExprSyntax(content: namespace)
+                    }))
+                )]
+            ))
+        }
+    }
+
+    /// The IRI of a term as Swift derives it when asked: its vocabulary's
+    /// declaration of its namespace, and its name, `FOAF.namespace + "knows"`;
+    /// a namespace a vocabulary declares, the ontology's own IRI among them,
+    /// is that declaration, `FOAF.namespace`.
+    func iriExpression(of iri: String) -> ExprSyntax {
+        if let (owner, name) = namespaceOwners[iri] {
+            return ExprSyntax(MemberAccessExprSyntax(
+                base: DeclReferenceExprSyntax(baseName: .identifier(owner)),
+                name: .identifier(name)
+            ))
+        }
+        guard let owner = vocabulary(declaring: iri) else { return ExprSyntax(StringLiteralExprSyntax(content: iri)) }
+        return ExprSyntax(InfixOperatorExprSyntax(
+            leftOperand: MemberAccessExprSyntax(
+                base: DeclReferenceExprSyntax(baseName: .identifier(owner.swiftNamespace)),
+                name: .identifier(owner.namespaceName(Self.namespace(of: iri)))
+            ),
+            operator: BinaryOperatorExprSyntax(operator: .binaryOperator("+")),
+            rightOperand: StringLiteralExprSyntax(content: localName(iri))
+        ))
+    }
+
+    /// The vocabulary's classes and properties, and the schema, by the
+    /// Swift names of its terms.
+    func ontology() throws -> ParsedOntology {
+        var classes: [ParsedEntity] = []
+        var properties: [ParsedEntity] = []
+        for term in terms {
+            if schema.isClass(term) {
+                classes.append(entity(term, kind: "Class"))
+            } else if schema.isProperty(term) {
+                properties.append(entity(term, kind: "Property"))
             }
         }
-        entail()
+        var known = all.flatMap(\.terms)
+        known += schema.universal
+        known += schema.empty
+        return ParsedOntology(
+            name: swiftNamespace,
+            namespace: "",
+            classes: classes,
+            properties: properties,
+            schema: SwiftSchema(schema, terms: known, swiftName: swiftName)
+        )
     }
 
-    /// The classes of `node`, stated and entailed.
-    func classes(of node: SubjectTerm) -> Set<SubjectTerm> {
-        types[node] ?? []
+    /// Whether a term is an individual: an instance of some class that is
+    /// neither a class nor a property.
+    func isIndividual(_ term: String) -> Bool {
+        !schema.isClass(term) && !schema.isProperty(term)
+            && statements(about: term).contains { $0.predicate.rawValue == schema.type && $0.object.iriValue != nil }
     }
 
-    /// Whether `node` is a class: an instance of `rdfs:Class`.
-    func isClass(_ node: SubjectTerm) -> Bool {
-        classes(of: node).contains(.iri(.rdfsClass))
+    func assertedTypes(of term: String) -> some Sequence<String> {
+        statements(about: term).lazy.compactMap { [type = schema.type] in $0.predicate.rawValue == type ? $0.object.iriValue : nil }
     }
 
-    /// Whether `node` is a property: an instance of `rdf:Property`.
-    func isProperty(_ node: SubjectTerm) -> Bool {
-        classes(of: node).contains(.iri(.rdfProperty))
+    func statements(about term: String) -> [Graph.Element] {
+        IRI(rawValue: term).flatMap { statements(of: .iri($0)) } ?? []
     }
 
-    /// `node` and every class it is a subclass of (rdfs11).
-    func superclassClosure(of node: SubjectTerm) -> Set<SubjectTerm> {
-        var closure: Set<SubjectTerm> = [node]
-        var pending = [node]
-        while let next = pending.popLast() {
-            for superclass in superclasses[next] ?? [] where closure.insert(superclass).inserted {
-                pending.append(superclass)
+    /// A subject's statements, in the order the documents state them.
+    func statements(of subject: SubjectTerm) -> [Graph.Element] {
+        statementsBySubject[subject] ?? []
+    }
+
+    /// A term's class or property declaration: its types, superclasses,
+    /// domain and range as the Swift types that declare them, and its
+    /// annotations as documentation (D8). A statement naming a term no
+    /// vocabulary declares is left out: the term is then what the RDFS
+    /// entailment patterns make of it, a resource.
+    func entity(_ term: String, kind: String) -> ParsedEntity {
+        let statements = statements(about: term)
+        func objects(_ predicate: String) -> [String] {
+            statements.lazy.filter { $0.predicate.rawValue == predicate }.compactMap(\.object.iriValue).sorted()
+        }
+        var annotations: [ParsedAnnotation] = []
+        for type in objects(schema.type) {
+            if let name = swiftName(type) { annotations.append(ParsedAnnotation(name: "Type", value: name)) }
+        }
+        if kind == "Class" {
+            for object in objects(schema.subClassOf) {
+                if let name = swiftName(object) { annotations.append(ParsedAnnotation(name: "SubClassOf", value: name)) }
             }
-        }
-        return closure
-    }
-
-    func domains(of property: SubjectTerm) -> [SubjectTerm] {
-        property.iri.flatMap { domains[$0] } ?? []
-    }
-
-    func ranges(of property: SubjectTerm) -> [SubjectTerm] {
-        property.iri.flatMap { ranges[$0] } ?? []
-    }
-
-    /// Whether the members of `node` are literals: `rdfs:Literal`, a
-    /// subclass of it, a datatype (rdfs13) or one of the XSD datatypes.
-    func isLiteralClass(_ node: SubjectTerm) -> Bool {
-        if superclassClosure(of: node).contains(.iri(.rdfsLiteral)) { return true }
-        if classes(of: node).contains(.iri(.rdfsDatatype)) { return true }
-        return datatypes.isDatatype(node)
-    }
-
-    /// Whether the members of `node` are classes: `rdfs:Class` or a subclass
-    /// of it, such as `owl:Class` or `rdfs:Datatype`.
-    func isMetaclass(_ node: SubjectTerm) -> Bool {
-        superclassClosure(of: node).contains(.iri(.rdfsClass))
-    }
-
-    /// Whether the members of `node` are properties: `rdf:Property` or a
-    /// subclass of it, such as `owl:ObjectProperty`.
-    func isPropertyClass(_ node: SubjectTerm) -> Bool {
-        superclassClosure(of: node).contains(.iri(.rdfProperty))
-    }
-
-    /// The literal values of `predicate` on `node`.
-    func literals(_ predicate: IRI, of node: SubjectTerm) -> [Literal] {
-        graph.compactMap { triple in
-            guard triple.subject == node, triple.predicate == predicate,
-                  case .literal(let literal) = triple.object else { return nil }
-            return literal
-        }
-    }
-
-    /// Whether `node` is `owl:deprecated true`: a value of `owl:deprecated`
-    /// is the `xsd:boolean` true, `"true"` or `"1"`.
-    func isDeprecated(_ node: SubjectTerm) -> Bool {
-        literals(.owlDeprecated, of: node).contains { literal in
-            XSD.boolean(literal)?.value == true
-        }
-    }
-
-    private mutating func entail() {
-        for triple in graph {
-            types[.iri(triple.predicate), default: []].insert(.iri(.rdfProperty))
-            if triple.predicate == .rdfType, let object = triple.object.node {
-                types[triple.subject, default: []].insert(object)
-            }
-        }
-        let typeDomains = domains[.rdfType] ?? []
-        let typeRanges = ranges[.rdfType] ?? []
-        var changed = true
-        while changed {
-            changed = false
-            func add(_ node: SubjectTerm, _ classes: some Sequence<SubjectTerm>) {
-                for type in classes where types[node, default: []].insert(type).inserted {
-                    changed = true
+        } else {
+            // The domain and range the statements entail, a superproperty's
+            // included, of those a vocabulary declares the most specific.
+            for (form, predicate) in [("Domain", schema.domain), ("Range", schema.range)] {
+                let declared = schema.objects(of: term, predicate).lazy.filter { swiftName($0) != nil }.sorted()
+                if let most = schema.mostSpecific(of: declared), let name = swiftName(most) {
+                    annotations.append(ParsedAnnotation(name: form, value: name))
                 }
             }
+        }
+        var predicates: [String] = []
+        var objects: [String: [ObjectTerm]] = [:]
+        for statement in statements where schema.isAnnotationProperty(statement.predicate.rawValue) {
+            if objects[statement.predicate.rawValue] == nil { predicates.append(statement.predicate.rawValue) }
+            objects[statement.predicate.rawValue, default: []].append(statement.object)
+        }
+        for predicate in predicates {
+            if let value = text(objects[predicate]!) {
+                annotations.append(ParsedAnnotation(name: "Annotation", value: "\(localName(predicate)): \(value)"))
+            }
+        }
+        return ParsedEntity(name: localName(term), kind: kind, annotations: annotations)
+    }
+
+    /// The Swift type that declares a term: `RDFS.Resource`, or
+    /// `FOAF.Person`.
+    func swiftName(_ iri: String) -> String? {
+        names[iri]
+    }
+
+    /// The vocabulary that declares a term.
+    func vocabulary(declaring iri: String) -> Vocabulary? {
+        all.first { $0.termSet.contains(iri) }
+    }
+
+    func localName(_ iri: String) -> String {
+        String(iri[(iri.lastIndex(where: { $0 == "#" || $0 == "/" }).map(iri.index(after:)) ?? iri.startIndex)...])
+    }
+
+    static func namespace(of iri: String) -> String {
+        String(iri[..<(iri.lastIndex(where: { $0 == "#" || $0 == "/" }).map(iri.index(after:)) ?? iri.startIndex)])
+    }
+
+    /// Whether a local name can be a Swift identifier as it is.
+    static func isIdentifier(_ name: String) -> Bool {
+        guard let first = name.first, first.isLetter || first == "_" else { return false }
+        return name.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+    }
+
+    /// The text of an annotation: the literal with no language tag, or in
+    /// English, or the first.
+    func text(_ objects: some Collection<ObjectTerm>) -> String? {
+        let literals = objects.lazy.compactMap { object -> Literal? in
+            if case .literal(let literal) = object { return literal }
+            return nil
+        }
+        let chosen = literals.first { $0.languageTag == nil } ?? literals.first { $0.languageTag?.lowercased().hasPrefix("en") == true } ?? literals.first
+        return chosen?.lexicalForm.split(whereSeparator: \.isNewline).lazy.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+    }
+}
+
+extension ObjectTerm {
+    var iriValue: String? {
+        if case .iri(let iri) = self { return iri.rawValue }
+        return nil
+    }
+}
+
+extension Schema {
+    /// The schema the statements of these graphs entail.
+    init(_ graphs: some Sequence<Graph>) {
+        var triples: [Triple] = []
+        for graph in graphs {
             for triple in graph {
-                add(triple.subject, domains[triple.predicate] ?? [])
-                if let object = triple.object.node {
-                    add(object, ranges[triple.predicate] ?? [])
-                }
-            }
-            for (node, classes) in types {
-                // The entailed `node rdf:type class` triples, through rdfs2,
-                // rdfs3 and rdfs9.
-                add(node, typeDomains)
-                for type in classes {
-                    add(type, typeRanges)
-                    add(node, superclassClosure(of: type))
-                }
+                guard case .iri(let subject) = triple.subject, case .iri(let object) = triple.object else { continue }
+                triples.append(Triple(subject.rawValue, triple.predicate.rawValue, object.rawValue))
             }
         }
+        self.init(triples)
     }
 }

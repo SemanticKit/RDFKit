@@ -29,22 +29,6 @@ public struct TurtleEncoder: Sendable {
         var document = TurtleDocument(graph, prefixes: prefixes)
         return document.write()
     }
-
-    /// Encodes descriptions as a Turtle document: the triples each one
-    /// states through its `Encodable` conformance (see ``GraphEncoder``).
-    ///
-    ///     let document = try TurtleEncoder().encode([alice, bob])
-    ///
-    /// - Throws: `EncodingError` when a description writes something other
-    ///   than resources, classes and literals keyed by property IRIs.
-    public func encode(_ descriptions: [any Description]) throws -> String {
-        encode(try GraphEncoder().encode(descriptions))
-    }
-
-    /// Encodes one description as a Turtle document.
-    public func encode(_ description: some Description) throws -> String {
-        encode(try GraphEncoder().encode(description))
-    }
 }
 
 /// One Turtle document being written: which blank nodes are written inline,

@@ -1,6 +1,0 @@
-# Two namespaces that are canonically equivalent but not the same IRI: the
-# first spells é as U+00E9, the second as e followed by U+0301. RDF 1.2
-# Concepts §3.2 compares IRIs by simple string comparison, so these are
-# different IRIs, and so are their terms.
-<http://ex.example/café#a> <http://ex.example/café#knows> <http://ex.example/café#b> .
-<http://ex.example/café#b> <http://ex.example/café#knows> <http://ex.example/café#a> .

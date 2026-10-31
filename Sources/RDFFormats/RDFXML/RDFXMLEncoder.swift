@@ -27,19 +27,6 @@ public struct RDFXMLEncoder: Sendable {
         var document = RDFXMLDocument(graph)
         return try document.write()
     }
-
-    /// Encodes descriptions as an RDF/XML document: the triples each one
-    /// states through its `Encodable` conformance (see ``GraphEncoder``).
-    ///
-    ///     let document = try RDFXMLEncoder().encode([alice, bob])
-    public func encode(_ descriptions: [any Description]) throws -> String {
-        try encode(try GraphEncoder().encode(descriptions))
-    }
-
-    /// Encodes one description as an RDF/XML document.
-    public func encode(_ description: some Description) throws -> String {
-        try encode(try GraphEncoder().encode(description))
-    }
 }
 
 /// One RDF/XML document being written: its namespace prefixes and the

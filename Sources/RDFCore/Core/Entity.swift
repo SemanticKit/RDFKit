@@ -1,10 +1,17 @@
-/// A statement of an ontology's DSL content: a declaration form (``Class``,
-/// ``Property``, ``Datatype``), an annotation, a ``Namespace`` or a
-/// ``Prefix``.
+import IRIKit
+
+/// An ontology entity declared in the DSL.
 ///
-/// The forms are syntax that `@Ontology` reads and writes as the Swift they
-/// describe. They carry no RDF of their own: what `rdfs:Class` or
-/// `rdfs:label` is comes from the one translation of rdf.ttl, rdfs.ttl and
-/// owl.ttl, whose types the generated code names (`RDF.ClassIndividual`,
-/// `RDF.label`).
-public protocol Entity: Sendable {}
+/// Represents the declared thing itself, not an instance of it.
+/// Contains class-level metadata derived from the DSL declarations.
+public protocol Entity: Node {
+    /// The class-level metadata for this entity.
+    associatedtype ID: Identifiable
+    associatedtype Metadata: Codable & Identifiable
+
+    /// The class-level metadata.
+    static var metadata: any ContentMetadata { get }
+
+    /// The instance-level identifier.
+    var id: ID { get }
+}

@@ -2,71 +2,108 @@
 
 ## The Fundamental Rule
 
-Everything declared in the DSL generates the Swift form of what it declares. A `Class` declaration generates a Swift class (a class can be a protocol), a `Property` generates a property on the classes of its domain, and an `Individual` generates an instance of its declared classes. The content block of an ontology, its `var body`, contains these declarations. The DSL forms themselves conform to `Entity`: they are syntax that `@Ontology` reads, not the generated types.
+Every class becomes a Swift protocol, and `rdfs:subClassOf` becomes protocol inheritance (D1). Every property becomes a requirement on its domain's protocol (D4). Individuals are not declared in Swift. They come from the RDF data and are instances of a generated final class that conforms to the protocols of their classes (D2, D3). No declaration becomes a struct, and there is no `Entity` type or `Metadata` descriptor.
+
+The Swift is generated in two ways, from the same generators in `OntologyGeneration`:
+
+- **From RDF documents.** `RDFTranslatorPlugin` runs `RDFTranslator` over a target's `.ttl` and `.rdf` files. This is how `RDFKit` gets RDF, RDFS and OWL (`Sources/RDFKit/{RDF,RDFS,OWL}`), and how FOAF and the Alice profile in `Tests/ParallelTests/Fixtures` are built.
+- **From the DSL.** `@Ontology` reads the declarations in an ontology's `body` as syntax and generates the same protocols:
 
 ```swift
-Class("Resource") {
-    Type(RDF.Class)
-    Label("Resource")
-    Comment("The class resource, everything.")
-}
+@Ontology
+public struct RDFS: Ontology {
+    public var body: some Content {
+        Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-Property("label") {
-    Type(RDF.Property)
-    Domain(RDF.Resource)
-    Range(RDF.Literal)
-    Label("label")
+        Class("Resource") {
+            Type(RDFS.Class)
+            Label("Resource")
+            Comment("The class resource, everything.")
+        }
+
+        Class("Class") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Class")
+            Comment("The class of classes.")
+        }
+    }
 }
 ```
 
-`Resource` generates a Swift class. `label` generates a property on its domain's class. The trailing closure of a declaration contains its declaration forms. They describe what the declaration states. Properties declare their domain and range inside themselves.
+generates
 
-`ontology.body` holds the declarations as written. What users build with is the generated Swift: the classes, their properties, and the instances that are their members.
+```swift
+/// The class resource, everything.
+///
+/// Label: Resource
+public protocol Resource {
+}
 
-## Metadata
+/// The class of classes.
+///
+/// Label: Class
+public protocol Class: RDFS.Resource, AnyObject {
+}
+```
 
-Every generated class, property and named individual carries its declared key. It is type-level coding information, as a `CodingKey` is for a `Codable` property. It is not a node, and it holds no IRI.
+The declarations carry no data at run time. `Content` is an empty protocol, and `Class`, `Property`, `Type`, `SubClassOf`, `Domain`, `Range`, `Label` and `Comment` exist only to be read by the macro.
 
-A generated term carries its declared key (`RDFCore.TermKey`: its declared name and its ontology), never an IRI; an encoder derives the IRI from the key and the ontology's namespace at the boundary.
+## What the Semantics Decide
 
-## Behaviors
+Nothing in the generators names a term. What each term is comes from the published semantics. `SemanticsEmitterPlugin` reads them from the W3C documents in `Sources/OntologyGeneration/W3C`:
 
-Some elements have behaviors — actions that drive code generation. Others are just declarations.
+- the RDFS entailment patterns of RDF 1.2 Semantics
+- the OWL 2 RL rules
+- the parts and class-extension tables of OWL 2 RDF-Based Semantics
 
-- `Label("...")` — documents the generated declaration (DocC)
-- `Comment("...")` — adds a documentation comment (DocC)
-- `Domain(X)` — attaches a property to class X
-- `Range(Y)` — sets the type of the property value
-- `SubClassOf(X)` — makes the generated class refine X
-- `Deprecated("reason")` — adds `@available(*, deprecated, message: "reason")`
+`Schema` closes the statements under them, and `SwiftSchema` names the results in Swift:
 
-Today, behaviors are hard-coded in the macro. The macro reads the DSL and generates code based on what it finds.
+- A term is a class when it is an instance of the class of classes. It is a property when it is an instance of the class of properties.
+- The root is the class whose extension is the universe: `rdfs:Resource`, which `owl:Thing` equals. A class whose extension is empty, such as `owl:Nothing`, is `Never` (D7).
+- `rdfs:Literal` and its subclasses are literal classes. Their members are Swift value types (D6), so their protocols do not inherit `AnyObject`. Every other class's protocol does, because its members are individuals.
+- A property is functional when it is an instance of `owl:FunctionalProperty` (OWL 2 RL prp-fp).
+- A property is an annotation property when it is an instance of `owl:AnnotationProperty`.
+- A subproperty has its superproperty's domain and range (OWL 2 RL scm-dom2 and scm-rng2).
 
 ## Code Generation Flow
 
-1. Macro parses the DSL content block in `var body`
-2. For each `Class` declaration, it generates a Swift class: a protocol for the class, a storing protocol, and a final class whose instances are its members
-3. For each `Property` declaration, it generates a requirement on its domains' protocols, typed by its range, and a property term type that carries its declared key
-4. For each `Individual` declaration, it generates the one instance of its declared classes
-5. Label and Comment become DocC documentation on the generated declarations
-6. Properties with Domain/Range attach to the domain class
+1. `RDFTranslator` reads a target's documents and those of the vocabularies it builds on (`--layer`). `@Ontology` reads the declarations in `body` instead.
+2. `Schema` closes the statements under the published semantics.
+3. For each class, `ClassGenerator` generates a protocol that inherits the protocols of its superclasses, or the root's when it states none (rdfs8).
+4. For each property, `PropertyGenerator` generates a requirement typed by its range: `Values<any Range>` when it is many-valued, and `(any Range)?` when it is functional (D5).
+   - When the domain is a class of the same ontology, the requirement is a member of that class's protocol.
+   - When the domain is the root or a class of another ontology, the property gets its own protocol, which inherits its domain.
+   - A property whose subjects are classes or properties, such as `rdfs:subClassOf` and `rdfs:domain`, has no requirement. Those triples come from the Swift declarations themselves.
+5. Labels, comments and every other annotation property become DocC on the declaration (D8).
+6. For each set of classes the data's individuals belong to, `RDFTranslator` generates one final class, such as `PersonIndividual: FOAF.Person, FOAF.Name, Encodable`. Its stored properties are the requirements of those protocols. The individuals are instances of it, created and linked once, so identity is `===` (D3).
+7. A vocabulary also gets `ontology`, an `OntologyDescription` that encodes every statement of its documents back to RDF. The IRIs are derived from the declarations, not stored (rule 17).
 
-## The Macro Must
+## Example
 
-1. Parse all declarations in the content block
-2. Collect Property declarations with their Domain/Range
-3. For each Class declaration, look up which Properties have it as their Domain
-4. Generate those Properties as requirements of the Class's protocol and as members of its instances
-5. Generate DocC from Label and Comment, and `@available` from `Deprecated`
-6. Give each generated class, property and individual its declared key, and no stored or static IRI
+FOAF's `foaf:Person` and `foaf:Agent` become:
 
-## The Protocol
+```swift
+public protocol Person: FOAF.SpatialThing, FOAF.Agent, AnyObject {
+    var firstName: Values<any RDFS.Literal> { get set }
+}
 
-`Entity` is the protocol of the DSL forms: `Class`, `Property`, `Datatype`, `Individual` and the annotations. They carry no RDF of their own; what `rdfs:Class` or `rdfs:label` is comes from the one translation of rdf.ttl, rdfs.ttl and owl.ttl, whose types the generated code names.
+public protocol Agent: RDFS.Resource, AnyObject {
+    var mbox: Values<any OWL.Thing> { get set }
+    var gender: (any RDFS.Literal)? { get set }
+}
+```
 
-## What the Macro Generates
+Alice and Bob in `alice.ttl` become instances:
 
-- For a class, a protocol, a storing protocol and a final class, with no stored `rdfType`: membership is the type system
-- A declared key (`RDFCore.TermKey`) as type-level coding information, and no stored or static IRI and no `init(iri:)`
-- DocC documentation from Label and Comment
-- Properties from Domain/Range as requirements on the domain class's protocol and members of its instances
+```swift
+public final class PersonIndividual: FOAF.Person, FOAF.Name, Encodable { … }
+
+nonisolated(unsafe) public let (alice, bob): (PersonIndividual, PersonIndividual) = {
+    let alice = PersonIndividual()
+    let bob = PersonIndividual()
+    alice.knows = [bob]
+    bob.knows = [alice]
+    return (alice, bob)
+}()
+```
