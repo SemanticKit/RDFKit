@@ -149,4 +149,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLAllDifferent: OWL.AllDifferent {}
+
+    /// owl:AllDisjointClasses rdfs:subClassOf RDFS.Resource.
+    @Test func owlAllDisjointClasses() {
+        let member: AnyObject = OWLAllDisjointClasses()
+        #expect(member is OWL.AllDisjointClasses)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLAllDisjointClasses: OWL.AllDisjointClasses {}
 }

@@ -53,5 +53,12 @@ public struct OWL: Ontology {
             Label("AllDifferent")
             Comment("The class of collections of pairwise different individuals.")
         }
+
+        Class("AllDisjointClasses") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("AllDisjointClasses")
+            Comment("The class of collections of pairwise disjoint classes.")
+        }
     }
 }
