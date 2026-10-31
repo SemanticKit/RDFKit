@@ -167,4 +167,50 @@ struct ClassGeneratorTests {
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
+
+    /// owl:Nothing, the empty class, names Never (D7).
+    @Test func owlNothingIsNever() {
+        assertMacroExpansion(
+            """
+            @Ontology
+            public struct OWL: Ontology {
+                public var body: some Content {
+                    Namespace("http://www.w3.org/2002/07/owl#")
+
+                    Class("Nothing") {
+                        Type(OWL.Class)
+                        SubClassOf(OWL.Thing)
+                        Label("Nothing")
+                        Comment("This is the empty class.")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            public struct OWL: Ontology {
+                public var body: some Content {
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
+
+                            RDFCore.Namespace("http://www.w3.org/2002/07/owl#")
+
+                            RDFCore.Class("Nothing") {
+                                RDFCore.Type(OWL.Class.self)
+                                RDFCore.SubClassOf(OWL.Thing.self)
+                                RDFCore.Label("Nothing")
+                                RDFCore.Comment("This is the empty class.")
+                            }
+                    }
+                    return declarations()
+                }
+
+                /// This is the empty class.
+                ///
+                /// Label: Nothing
+                public typealias Nothing = Never
+            }
+            """,
+            macroSpecs: specs,
+            failureHandler: { Issue.record("\($0.message)") }
+        )
+    }
 }

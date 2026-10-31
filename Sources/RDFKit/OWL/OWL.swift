@@ -165,5 +165,12 @@ public struct OWL: Ontology {
             Label("IrreflexiveProperty")
             Comment("The class of irreflexive properties.")
         }
+
+        Class("Nothing") {
+            Type(OWL.Class)
+            SubClassOf(OWL.Thing)
+            Label("Nothing")
+            Comment("This is the empty class.")
+        }
     }
 }
