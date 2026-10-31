@@ -43,3 +43,4 @@ http://xmlns.com/foaf/0.1/weblog
 http://xmlns.com/foaf/0.1/openid
 http://xmlns.com/foaf/0.1/tipjar
 http://xmlns.com/foaf/0.1/plan
+http://xmlns.com/foaf/0.1/made
