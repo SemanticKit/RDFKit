@@ -1,3 +1,5 @@
+import RDFCore
+
 /// The namespace of the vocabulary's terms: `Namespace("http://xmlns.com/foaf/0.1/")`.
 public struct Namespace: Content {
     public init(_ iri: String) {}

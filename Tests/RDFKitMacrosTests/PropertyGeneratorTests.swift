@@ -42,21 +42,21 @@ struct PropertyGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+                            RDFKit.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
-                            RDFCore.Class("List") {
-                                RDFCore.Type(RDFS.Class.self)
-                                RDFCore.SubClassOf(RDFS.Resource.self)
-                                RDFCore.Label("List")
-                                RDFCore.Comment("The class of RDF Lists.")
+                            RDFKit.Class("List") {
+                                RDFKit.Type(RDFS.Class.self)
+                                RDFKit.SubClassOf(RDFS.Resource.self)
+                                RDFKit.Label("List")
+                                RDFKit.Comment("The class of RDF Lists.")
                             }
 
-                            RDFCore.Property("first") {
-                                RDFCore.Type(RDF.Property.self)
-                                RDFCore.Domain(RDF.List.self)
-                                RDFCore.Range(RDFS.Resource.self)
-                                RDFCore.Label("first")
-                                RDFCore.Comment("The first item in the subject RDF list.")
+                            RDFKit.Property("first") {
+                                RDFKit.Type(RDF.Property.self)
+                                RDFKit.Domain(RDF.List.self)
+                                RDFKit.Range(RDFS.Resource.self)
+                                RDFKit.Label("first")
+                                RDFKit.Comment("The first item in the subject RDF list.")
                             }
                     }
                     return declarations()
@@ -106,14 +106,14 @@ struct PropertyGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/2000/01/rdf-schema#")
+                            RDFKit.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-                            RDFCore.Property("label") {
-                                RDFCore.Type(RDF.Property.self)
-                                RDFCore.Domain(RDFS.Resource.self)
-                                RDFCore.Range(RDFS.Literal.self)
-                                RDFCore.Label("label")
-                                RDFCore.Comment("A human-readable name for the subject.")
+                            RDFKit.Property("label") {
+                                RDFKit.Type(RDF.Property.self)
+                                RDFKit.Domain(RDFS.Resource.self)
+                                RDFKit.Range(RDFS.Literal.self)
+                                RDFKit.Label("label")
+                                RDFKit.Comment("A human-readable name for the subject.")
                             }
                     }
                     return declarations()
@@ -163,14 +163,14 @@ struct PropertyGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+                            RDFKit.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
-                            RDFCore.Property("type") {
-                                RDFCore.Type(RDF.Property.self)
-                                RDFCore.Domain(RDFS.Resource.self)
-                                RDFCore.Range(RDFS.Class.self)
-                                RDFCore.Label("type")
-                                RDFCore.Comment("The subject is an instance of a class.")
+                            RDFKit.Property("type") {
+                                RDFKit.Type(RDF.Property.self)
+                                RDFKit.Domain(RDFS.Resource.self)
+                                RDFKit.Range(RDFS.Class.self)
+                                RDFKit.Label("type")
+                                RDFKit.Comment("The subject is an instance of a class.")
                             }
                     }
                     return declarations()
@@ -207,14 +207,14 @@ struct PropertyGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/2000/01/rdf-schema#")
+                            RDFKit.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-                            RDFCore.Property("subClassOf") {
-                                RDFCore.Type(RDF.Property.self)
-                                RDFCore.Domain(RDFS.Class.self)
-                                RDFCore.Range(RDFS.Class.self)
-                                RDFCore.Label("subClassOf")
-                                RDFCore.Comment("The subject is a subclass of a class.")
+                            RDFKit.Property("subClassOf") {
+                                RDFKit.Type(RDF.Property.self)
+                                RDFKit.Domain(RDFS.Class.self)
+                                RDFKit.Range(RDFS.Class.self)
+                                RDFKit.Label("subClassOf")
+                                RDFKit.Comment("The subject is a subclass of a class.")
                             }
                     }
                     return declarations()

@@ -41,19 +41,19 @@ struct ClassGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/2000/01/rdf-schema#")
+                            RDFKit.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
-                            RDFCore.Class("Resource") {
-                                RDFCore.Type(RDFS.Class.self)
-                                RDFCore.Label("Resource")
-                                RDFCore.Comment("The class resource, everything.")
+                            RDFKit.Class("Resource") {
+                                RDFKit.Type(RDFS.Class.self)
+                                RDFKit.Label("Resource")
+                                RDFKit.Comment("The class resource, everything.")
                             }
 
-                            RDFCore.Class("Class") {
-                                RDFCore.Type(RDFS.Class.self)
-                                RDFCore.SubClassOf(RDFS.Resource.self)
-                                RDFCore.Label("Class")
-                                RDFCore.Comment("The class of classes.")
+                            RDFKit.Class("Class") {
+                                RDFKit.Type(RDFS.Class.self)
+                                RDFKit.SubClassOf(RDFS.Resource.self)
+                                RDFKit.Label("Class")
+                                RDFKit.Comment("The class of classes.")
                             }
                     }
                     return declarations()
@@ -100,13 +100,13 @@ struct ClassGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/2002/07/owl#")
+                            RDFKit.Namespace("http://www.w3.org/2002/07/owl#")
 
-                            RDFCore.Class("Class") {
-                                RDFCore.Type(RDFS.Class.self)
-                                RDFCore.SubClassOf(RDFS.Class.self)
-                                RDFCore.Label("Class")
-                                RDFCore.Comment("The class of OWL classes.")
+                            RDFKit.Class("Class") {
+                                RDFKit.Type(RDFS.Class.self)
+                                RDFKit.SubClassOf(RDFS.Class.self)
+                                RDFKit.Label("Class")
+                                RDFKit.Comment("The class of OWL classes.")
                             }
                     }
                     return declarations()
@@ -146,12 +146,12 @@ struct ClassGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/2002/07/owl#")
+                            RDFKit.Namespace("http://www.w3.org/2002/07/owl#")
 
-                            RDFCore.Class("Thing") {
-                                RDFCore.Type(OWL.Class.self)
-                                RDFCore.Label("Thing")
-                                RDFCore.Comment("The class of OWL individuals.")
+                            RDFKit.Class("Thing") {
+                                RDFKit.Type(OWL.Class.self)
+                                RDFKit.Label("Thing")
+                                RDFKit.Comment("The class of OWL individuals.")
                             }
                     }
                     return declarations()
@@ -191,13 +191,13 @@ struct ClassGeneratorTests {
                 public var body: some Content {
                     @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
 
-                            RDFCore.Namespace("http://www.w3.org/2002/07/owl#")
+                            RDFKit.Namespace("http://www.w3.org/2002/07/owl#")
 
-                            RDFCore.Class("Nothing") {
-                                RDFCore.Type(OWL.Class.self)
-                                RDFCore.SubClassOf(OWL.Thing.self)
-                                RDFCore.Label("Nothing")
-                                RDFCore.Comment("This is the empty class.")
+                            RDFKit.Class("Nothing") {
+                                RDFKit.Type(OWL.Class.self)
+                                RDFKit.SubClassOf(OWL.Thing.self)
+                                RDFKit.Label("Nothing")
+                                RDFKit.Comment("This is the empty class.")
                             }
                     }
                     return declarations()

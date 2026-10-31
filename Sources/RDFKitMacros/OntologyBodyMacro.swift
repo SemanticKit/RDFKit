@@ -8,7 +8,7 @@ import SwiftSyntaxMacros
 /// the generated terms shadow inside RDF, RDFS and OWL. A body macro owns the
 /// body, so the compiler reads it only as syntax and type-checks the body this
 /// macro returns instead: the same statements, with each form qualified,
-/// `RDFCore.Class(...)`, and each term argument a metatype, `RDFS.Class.self`.
+/// `RDFKit.Class(...)`, and each term argument a metatype, `RDFS.Class.self`.
 public struct OntologyBodyMacro: BodyMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -30,14 +30,14 @@ public struct OntologyBodyMacro: BodyMacro {
     }
 }
 
-/// The DSL forms in RDFCore, and those whose argument names a term.
+/// The DSL forms in RDFKit, and those whose argument names a term.
 enum DSLForm {
     static let names: Set<String> = ["Namespace", "Class", "Datatype", "Property", "Type", "SubClassOf", "Domain", "Range", "Label", "Comment"]
     static let termForms: Set<String> = ["Type", "SubClassOf", "Domain", "Range"]
 }
 
-/// Rewrites `Class("Class")` as `RDFCore.Class("Class")` and `Type(RDFS.Class)`
-/// as `RDFCore.Type(RDFS.Class.self)`.
+/// Rewrites `Class("Class")` as `RDFKit.Class("Class")` and `Type(RDFS.Class)`
+/// as `RDFKit.Type(RDFS.Class.self)`.
 private final class DeclarationRewriter: SyntaxRewriter {
     override func visit(_ node: FunctionCallExprSyntax) -> ExprSyntax {
         guard let call = super.visit(node).as(FunctionCallExprSyntax.self),
@@ -46,7 +46,7 @@ private final class DeclarationRewriter: SyntaxRewriter {
         let form = reference.baseName.text
         var rewritten = call.with(\.calledExpression, ExprSyntax(MemberAccessExprSyntax(
             leadingTrivia: reference.leadingTrivia,
-            base: DeclReferenceExprSyntax(baseName: .identifier("RDFCore")),
+            base: DeclReferenceExprSyntax(baseName: .identifier("RDFKit")),
             declName: DeclReferenceExprSyntax(baseName: .identifier(form))
         )))
         if DSLForm.termForms.contains(form), let argument = call.arguments.first {
