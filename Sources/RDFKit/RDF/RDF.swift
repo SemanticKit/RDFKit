@@ -85,5 +85,12 @@ public struct RDF: Ontology {
             Label("XMLLiteral")
             Comment("The datatype of XML literal values.")
         }
+
+        Datatype("JSON") {
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
+            Label("JSON")
+            Comment("The datatype of RDF literals storing JSON content.")
+        }
     }
 }
