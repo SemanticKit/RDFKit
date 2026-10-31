@@ -42,7 +42,9 @@ let package = Package(
                 "RDFS/rdfs.ttl",
                 "Turtle/owl.ttl",
                 "Turtle/rdf.ttl",
-                "Turtle/rdfs.ttl"
+                "Turtle/rdfs.ttl",
+                "DSL_INVARIANTS.md",
+                "Pending"
             ]
         ),
         .macro(
