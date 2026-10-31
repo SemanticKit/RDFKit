@@ -57,5 +57,12 @@ public struct RDF: Ontology {
             Label("type")
             Comment("The subject is an instance of a class.")
         }
+
+        Datatype("HTML") {
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
+            Label("HTML")
+            Comment("The datatype of RDF literals storing fragments of HTML content")
+        }
     }
 }

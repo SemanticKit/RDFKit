@@ -17,7 +17,7 @@ struct OntologyParser {
             switch form {
             case "Namespace":
                 namespace = name
-            case "Class":
+            case "Class", "Datatype":
                 classes.append(ParsedEntity(name: name, kind: form, annotations: try AnnotationParser.parse(from: call)))
             case "Property":
                 properties.append(ParsedEntity(name: name, kind: form, annotations: try AnnotationParser.parse(from: call)))

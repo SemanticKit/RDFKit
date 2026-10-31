@@ -46,3 +46,9 @@ public struct Domain: Content {
 public struct Range: Content {
     public init(_ class: Any.Type) {}
 }
+
+/// A datatype (`rdfs:Datatype`), named by its local name, with its
+/// annotations.
+public struct Datatype: Content {
+    public init(_ name: String, @ContentBuilder _ annotations: () -> some Content) {}
+}

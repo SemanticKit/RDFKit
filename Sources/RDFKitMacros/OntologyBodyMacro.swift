@@ -32,7 +32,7 @@ public struct OntologyBodyMacro: BodyMacro {
 
 /// The DSL forms in RDFCore, and those whose argument names a term.
 enum DSLForm {
-    static let names: Set<String> = ["Namespace", "Class", "Property", "Type", "SubClassOf", "Domain", "Range", "Label", "Comment"]
+    static let names: Set<String> = ["Namespace", "Class", "Datatype", "Property", "Type", "SubClassOf", "Domain", "Range", "Label", "Comment"]
     static let termForms: Set<String> = ["Type", "SubClassOf", "Domain", "Range"]
 }
 
