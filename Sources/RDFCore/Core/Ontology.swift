@@ -47,9 +47,9 @@ public protocol Ontology: Sendable {
     /// ```swift
     /// struct MyOntology: Ontology {
     ///     var content: Content {
-    ///         Class("Animal")
-    ///         Property("age")
-    ///         Individual("tweety")
+    ///         Class("Person")
+    ///         Property("knows")
+    ///         Individual("alice")
     ///     }
     /// }
     /// ```

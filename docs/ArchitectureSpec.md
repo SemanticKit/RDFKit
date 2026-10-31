@@ -71,9 +71,9 @@ Users write ontologies using the DSL. The DSL maps 1:1 to the standards.
 Reads the DSL and generates Swift types. Reads protocol conformance to determine what to generate.
 
 **How it works:**
-1. User writes `Class("Animal")` → returns `TermDeclaration` conforming to `Class`
+1. User writes `Class("Person")` → returns `TermDeclaration` conforming to `Class`
 2. Macro reads `Class` conformance → knows to generate a Swift class
-3. User writes `Domain(Fauna.Animal)` → macro reads `Domain` conformance → adds domain property
+3. User writes `Domain(FOAF.Person)` → macro reads `Domain` conformance → adds domain property
 4. Generated type conforms to protocols → has behaviors from standards
 
 ### Layer 5: Generated Types (What Users Interact With)
@@ -265,14 +265,14 @@ Each protocol gets its own clean file. Special protocols carry conforming types 
 ## What Describes vs What Defines
 
 **Ontology side (describes):**
-- `Class("Animal")` — declares a class named "Animal"
-- `Type(RDFS.Class)` — describes that Animal IS a class
-- `SubClassOf(RDFS.Resource)` — describes that Animal inherits from Resource
-- `Domain(Fauna.Animal)` — describes that hasHabitat has Animal as domain
-- `Range(Fauna.Habitat)` — describes that hasHabitat has Habitat as range
+- `Class("Person")` — declares a class named "Person"
+- `Type(RDFS.Class)` — describes that Person IS a class
+- `SubClassOf(FOAF.Agent)` — describes that Person inherits from Agent
+- `Domain(FOAF.Person)` — describes that knows has Person as domain
+- `Range(FOAF.Person)` — describes that knows has Person as range
 
 **Swift side (defines):**
-- `class Animal` — defines a Swift class
+- `class Person` — defines a Swift class
 - `Type` → generates class declaration
 - `SubClassOf` → generates class inheritance
 - `Domain` → generates property with domain type

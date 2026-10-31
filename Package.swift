@@ -11,10 +11,6 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "Prototype",
-            targets: ["Prototype"]
-        ),
-        .library(
             name: "RDFKit",
             targets: ["RDFKit"]
         ),
@@ -28,13 +24,6 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.0")
     ],
     targets: [
-        .target(
-            name: "Prototype",
-            dependencies: [
-                "IRIKit",
-                "RDFKitMacros"
-            ]
-        ),
         .target(
             name: "RDFCore",
             dependencies: ["IRIKit"]
@@ -70,19 +59,6 @@ let package = Package(
             exclude: [
                 "Data/shacl.rdf",
                 "Data/shacl.ttl"
-            ]
-        ),
-        .target(
-            name: "Fauna",
-            dependencies: ["RDFKit"]
-        ),
-        .testTarget(
-            name: "FaunaTests",
-            dependencies: [
-                "Fauna",
-                "RDFKit",
-                "RDFCore",
-                .product(name: "IRIKit", package: "IRIKit")
             ]
         )
     ]

@@ -5,13 +5,13 @@ import RDFCore
 /// Attach this to an ontology struct to generate entity structs with Metadata.
 ///
 ///     @Ontology
-///     public struct Fauna: Ontology {
+///     public struct FOAF: Ontology {
 ///         public var content: Content {
-///             Namespace("https://fauna.example.org/ontology#")
-///             Class("Animal") {
+///             Namespace("http://xmlns.com/foaf/0.1/")
+///             Class("Person") {
 ///                 Type(RDFS.Class)
-///                 Label("Animal")
-///                 Comment("The class of all animals.")
+///                 Label("Person")
+///                 Comment("A person.")
 ///             }
 ///         }
 ///     }
