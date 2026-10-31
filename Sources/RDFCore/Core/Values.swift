@@ -8,9 +8,24 @@
 ///     alice.knows.insert(bob)
 ///     alice.knows.contains { $0 === bob }
 ///
-/// The range is usually a class's protocol, `any FOAF.Person`, which is not
-/// `Hashable`, so the values are kept in order of insertion rather than
-/// hashed.
+/// This is the `Set` of D5 ("Many-valued properties are a `Set`"). The
+/// element type is the property's range as the documents declare it, a
+/// class's protocol such as `any FOAF.Person`, so the compiler checks the
+/// range. Swift 6.4.2 cannot hash an existential, so a `Set` of it does not
+/// compile:
+///
+///     let knows: Set<any FOAF.Person> = []
+///     // error: type 'any Person' does not conform to protocol 'Hashable'
+///
+/// A range-typed element that is both `Hashable` and the individual itself
+/// is not expressible either: binding the element to the range's own carrier
+/// class needs a class with several superclasses ("multiple inheritance from
+/// classes"), and composing a root class with the range protocol gives "type
+/// 'any Individual & Person' cannot conform to 'Hashable'". SE-0309, "Unlock
+/// existentials for all protocols", leaves existentials that conform to their
+/// own protocols as a future direction. So `Values` keeps a set's meaning
+/// without hashing: identity is `===` for individuals (D3), `==` for literal
+/// values, and the values are kept in order of insertion.
 public struct Values<Element> {
     private var elements: [Element]
 
