@@ -30,4 +30,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class RDFProperty: RDF.Property {}
+
+    /// rdf:List rdfs:subClassOf RDFS.Resource.
+    @Test func rdfList() {
+        let member: AnyObject = RDFList()
+        #expect(member is RDF.List)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class RDFList: RDF.List {}
 }

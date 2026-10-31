@@ -12,5 +12,12 @@ public struct RDF: Ontology {
             Label("Property")
             Comment("The class of RDF properties.")
         }
+
+        Class("List") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("List")
+            Comment("The class of RDF Lists.")
+        }
     }
 }
