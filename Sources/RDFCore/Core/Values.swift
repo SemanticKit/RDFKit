@@ -8,9 +8,15 @@
 ///     alice.knows.insert(bob)
 ///     alice.knows.contains { $0 === bob }
 ///
-/// The range is usually a class's protocol, `any FOAF.Person`, which is not
-/// `Hashable`, so the values are kept in order of insertion rather than
-/// hashed.
+/// This is the `Set` of D5 ("Many-valued properties are a `Set`"). A
+/// property's range is a class's protocol, so its values are existentials,
+/// `any FOAF.Person` or `any RDFS.Literal`, and Swift 6.4.2 cannot make an
+/// existential `Hashable`: `Set<any FOAF.Person>` fails with "type 'any
+/// Person' does not conform to protocol 'Hashable'". SE-0309, "Unlock
+/// existentials for all protocols", leaves existentials that conform to
+/// their own protocols as a future direction. So `Values` keeps a set's
+/// meaning without hashing: identity is `===` for individuals (D3), `==`
+/// for literal values, and the values are kept in order of insertion.
 public struct Values<Element> {
     private var elements: [Element]
 
