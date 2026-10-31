@@ -109,5 +109,12 @@ public struct OWL: Ontology {
             Label("OntologyProperty")
             Comment("The class of ontology properties.")
         }
+
+        Class("FunctionalProperty") {
+            Type(RDFS.Class)
+            SubClassOf(RDF.Property)
+            Label("FunctionalProperty")
+            Comment("The class of functional properties.")
+        }
     }
 }
