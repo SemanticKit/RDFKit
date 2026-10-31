@@ -1,15 +1,14 @@
-import RDFCore
-
-/// A macro that reads ontology DSL content and generates Entity-conforming types.
+/// Generates the Swift types an ontology's body declares.
 ///
-/// Attach this to an ontology struct to generate entity structs with Metadata.
+/// Each class becomes a protocol nested in the ontology, and its
+/// `SubClassOf` classes become the protocols it inherits:
 ///
 ///     @Ontology
 ///     public struct FOAF: Ontology {
-///         public var content: Content {
+///         public var body: some Content {
 ///             Namespace("http://xmlns.com/foaf/0.1/")
 ///             Class("Person") {
-///                 Type(RDFS.Class)
+///                 Type(RDFS.Class.self)
 ///                 Label("Person")
 ///                 Comment("A person.")
 ///             }

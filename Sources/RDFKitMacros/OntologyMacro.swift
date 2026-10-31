@@ -1,11 +1,10 @@
-
-import Foundation
 import SwiftSyntax
 import SwiftSyntaxMacros
 
 /// Entry point for the @Ontology macro.
 ///
-/// Parses DSL content and generates Entity-conforming types with nested Metadata.
+/// Reads the ontology's body and generates the Swift types its declarations
+/// declare.
 public struct OntologyMacro: MemberMacro {
     public static func expansion(
         of node: AttributeSyntax,
@@ -18,16 +17,6 @@ public struct OntologyMacro: MemberMacro {
         }
 
         let ontology = try OntologyParser.parse(declaration: declaration)
-        var results: [DeclSyntax] = []
-
-        for entity in ontology.entities {
-            let generated = EntityGenerator.generate(
-                entity: entity,
-                ontology: ontology
-            )
-            results.append(contentsOf: generated)
-        }
-
-        return results
+        return ontology.classes.map { ClassGenerator.generate(class: $0, in: ontology) }
     }
 }

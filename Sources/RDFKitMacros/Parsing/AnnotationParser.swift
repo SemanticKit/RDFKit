@@ -1,44 +1,26 @@
 import SwiftSyntax
 
-/// Parses annotations from a trailing closure.
+/// Reads a declaration's annotations from its trailing closure:
+/// `Label("Person")` gives `Label` and `Person`, `SubClassOf(RDFS.Resource.self)`
+/// gives `SubClassOf` and `RDFS.Resource`.
 struct AnnotationParser {
     static func parse(from call: FunctionCallExprSyntax) -> [ParsedAnnotation] {
-        guard let trailingClosure = call.trailingClosure else { return [] }
-        var annotations: [ParsedAnnotation] = []
-
-        for statement in trailingClosure.statements {
-            guard let expr = statement.item.as(ExprSyntax.self) else { continue }
-            let (baseExpr, _) = unwrapChainedCalls(expr)
-            guard let baseExpr, let innerCall = baseExpr.as(FunctionCallExprSyntax.self) else { continue }
-            guard let funcName = innerCall.calledExpression.as(DeclReferenceExprSyntax.self)?.baseName.text else { continue }
-
-            let value: String
-            if let firstArg = innerCall.arguments.first {
-                if let stringLiteral = firstArg.expression.as(StringLiteralExprSyntax.self) {
-                    // String literal: grab segments to avoid source formatting issues
-                    let segments = stringLiteral.segments.map { $0.description }.joined()
-                    value = "\"\(segments)\""
-                } else {
-                    value = firstArg.expression.description.trimmingCharacters(in: .whitespaces)
-                }
-            } else {
-                value = ""
-            }
-            annotations.append(ParsedAnnotation(name: funcName, value: value))
+        guard let closure = call.trailingClosure else { return [] }
+        return closure.statements.compactMap { statement in
+            guard let annotation = statement.item.as(FunctionCallExprSyntax.self),
+                  let name = OntologyParser.formName(of: annotation),
+                  let argument = annotation.arguments.first?.expression else { return nil }
+            return ParsedAnnotation(name: name, value: OntologyParser.stringValue(of: argument) ?? typeName(of: argument))
         }
-        return annotations
     }
 
-    private static func unwrapChainedCalls(_ expr: ExprSyntax) -> (ExprSyntax?, [String]) {
-        var current = expr
-        while let callExpr = current.as(FunctionCallExprSyntax.self),
-              let memberAccess = callExpr.calledExpression.as(MemberAccessExprSyntax.self) {
-            if let base = memberAccess.base {
-                current = base
-            } else {
-                break
-            }
+    /// The type a metatype expression names: `RDFS.Resource` for `RDFS.Resource.self`.
+    private static func typeName(of expression: ExprSyntax) -> String {
+        if let member = expression.as(MemberAccessExprSyntax.self),
+           member.declName.baseName.tokenKind == .keyword(.self),
+           let base = member.base {
+            return base.trimmedDescription
         }
-        return (current, [])
+        return expression.trimmedDescription
     }
 }

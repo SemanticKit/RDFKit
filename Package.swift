@@ -62,6 +62,13 @@ let package = Package(
                 "Data/shacl.rdf",
                 "Data/shacl.ttl"
             ]
+        ),
+        .testTarget(
+            name: "RDFKitMacrosTests",
+            dependencies: [
+                "RDFKitMacros",
+                .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax")
+            ]
         )
     ]
 )

@@ -1,30 +1,7 @@
-import Foundation
-
-/// Parsed ontology data.
-
+/// An ontology's body as the macro reads it.
 struct ParsedOntology {
+    /// The namespace of the ontology's terms.
     let namespace: String
-    let prefixes: [ParsedEntity]
-    let entities: [ParsedEntity]
-
-    // MARK:
-    let datatypes: [ParsedEntity]
-    let individuals: [ParsedEntity]
-    let properties: [ParsedEntity]
-
-    init(
-        namespace: String,
-        prefixes: [ParsedEntity] = [],
-        entities: [ParsedEntity] = [],
-        datatypes: [ParsedEntity] = [],
-        individuals: [ParsedEntity] = [],
-        properties: [ParsedEntity] = []
-    ) {
-        self.namespace = namespace
-        self.prefixes = prefixes
-        self.entities = entities
-        self.datatypes = datatypes
-        self.individuals = individuals
-        self.properties = properties
-    }
+    /// The ontology's classes, in declaration order.
+    let classes: [ParsedEntity]
 }
