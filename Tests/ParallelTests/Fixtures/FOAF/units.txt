@@ -72,3 +72,4 @@ http://xmlns.com/foaf/0.1/accountServiceHomepage
 http://xmlns.com/foaf/0.1/accountName
 http://xmlns.com/foaf/0.1/member
 http://xmlns.com/foaf/0.1/membershipClass
+http://xmlns.com/foaf/0.1/birthday
