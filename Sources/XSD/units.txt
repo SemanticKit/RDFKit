@@ -3,3 +3,4 @@ boolean
 double
 float
 decimal
+integer

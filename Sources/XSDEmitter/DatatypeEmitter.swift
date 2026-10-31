@@ -25,6 +25,7 @@ struct DatatypeEmitter {
         "double": "Double",
         "float": "Float",
         "decimal": "DecimalNumber",
+        "integer": "BigInteger",
     ]
 
     func emit(_ names: [String]) throws -> String {
