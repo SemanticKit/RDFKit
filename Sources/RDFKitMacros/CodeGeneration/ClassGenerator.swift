@@ -23,6 +23,7 @@ import SwiftSyntaxBuilder
 struct ClassGenerator {
     static let rdfs = "http://www.w3.org/2000/01/rdf-schema#"
     static let owl = "http://www.w3.org/2002/07/owl#"
+    static let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 
     static func generate(class entity: ParsedEntity, in ontology: ParsedOntology) -> DeclSyntax {
         if ontology.namespace == owl, let aliased = ["Thing": "RDFS.Resource", "Nothing": "Never"][entity.name] {
@@ -46,13 +47,17 @@ struct ClassGenerator {
                     InheritedTypeSyntax(type: TypeSyntax(stringLiteral: type))
                 }
             },
-            memberBlock: MemberBlockSyntax {}
+            memberBlock: MemberBlockSyntax {
+                for requirement in PropertyGenerator.requirements(of: entity, in: ontology) {
+                    requirement
+                }
+            }
         )
         return DeclSyntax(declaration)
     }
 
     /// The comment as the abstract, then the label.
-    private static func documentation(of entity: ParsedEntity) -> Trivia {
+    static func documentation(of entity: ParsedEntity) -> Trivia {
         var lines: [String] = []
         if let comment = entity.annotations.first(where: { $0.name == "Comment" }) {
             lines.append(comment.value)

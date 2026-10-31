@@ -9,6 +9,7 @@ struct OntologyParser {
 
         var namespace: String?
         var classes: [ParsedEntity] = []
+        var properties: [ParsedEntity] = []
         for statement in statements {
             guard let call = statement.item.as(FunctionCallExprSyntax.self),
                   let form = formName(of: call),
@@ -18,6 +19,8 @@ struct OntologyParser {
                 namespace = name
             case "Class":
                 classes.append(ParsedEntity(name: name, kind: form, annotations: try AnnotationParser.parse(from: call)))
+            case "Property":
+                properties.append(ParsedEntity(name: name, kind: form, annotations: try AnnotationParser.parse(from: call)))
             default:
                 continue
             }
@@ -26,7 +29,8 @@ struct OntologyParser {
         guard let namespace else {
             throw MacroError("The body must include a Namespace(\"...\") declaration")
         }
-        return ParsedOntology(namespace: namespace, classes: classes)
+        let typeName = declaration.as(StructDeclSyntax.self)?.name.text ?? ""
+        return ParsedOntology(name: typeName, namespace: namespace, classes: classes, properties: properties)
     }
 
     /// The name of the DSL form a call makes, `Class` in both `Class("Person")`

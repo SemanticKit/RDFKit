@@ -29,3 +29,20 @@ public struct Label: Content {
 public struct Comment: Content {
     public init(_ comment: String) {}
 }
+
+/// A property (`rdf:Property`), named by its local name, with its annotations.
+public struct Property: Content {
+    public init(_ name: String, @ContentBuilder _ annotations: () -> some Content) {}
+}
+
+/// The class of the declared property's subjects (`rdfs:domain`):
+/// `Domain(FOAF.Person)`.
+public struct Domain: Content {
+    public init(_ class: Any.Type) {}
+}
+
+/// The class of the declared property's values (`rdfs:range`):
+/// `Range(FOAF.Person)`.
+public struct Range: Content {
+    public init(_ class: Any.Type) {}
+}

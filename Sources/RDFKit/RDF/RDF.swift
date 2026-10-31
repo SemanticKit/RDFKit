@@ -33,5 +33,13 @@ public struct RDF: Ontology {
             Label("CompoundLiteral")
             Comment("A class representing a compound literal.")
         }
+
+        Property("first") {
+            Type(RDF.Property)
+            Domain(RDF.List)
+            Range(RDFS.Resource)
+            Label("first")
+            Comment("The first item in the subject RDF list.")
+        }
     }
 }

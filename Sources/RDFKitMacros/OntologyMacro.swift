@@ -19,6 +19,7 @@ public struct OntologyMacro: MemberMacro, MemberAttributeMacro {
 
         let ontology = try OntologyParser.parse(declaration: declaration)
         return ontology.classes.map { ClassGenerator.generate(class: $0, in: ontology) }
+            + ontology.properties.compactMap { PropertyGenerator.generate(property: $0, in: ontology) }
     }
 
     public static func expansion(
