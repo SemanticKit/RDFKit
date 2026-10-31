@@ -21,6 +21,10 @@ let package = Package(
         .library(
             name: "RDFFormats",
             targets: ["RDFFormats"]
+        ),
+        .library(
+            name: "XSD",
+            targets: ["XSD"]
         )
     ],
     dependencies: [
@@ -74,6 +78,28 @@ let package = Package(
                 .plugin(name: "EBNFTranslatorPlugin", package: "EBNFKit")
             ]
         ),
+        // The XML Schema datatypes RDF uses (RDF 1.2 Concepts §5.1), each a
+        // Swift value type, emitted from the W3C documents in Sources/XSD/W3C
+        // for the datatypes units.txt lists.
+        .target(
+            name: "XSD",
+            dependencies: ["RDFKit"],
+            exclude: ["W3C/README.md"],
+            plugins: ["XSDEmitterPlugin"]
+        ),
+        .executableTarget(
+            name: "XSDEmitter",
+            dependencies: [
+                "XSDDefinitions",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
+        ),
+        .plugin(
+            name: "XSDEmitterPlugin",
+            capability: .buildTool(),
+            dependencies: ["XSDEmitter"]
+        ),
         // The W3C documents that define the XML Schema datatypes
         // (Sources/XSD/W3C), read as their structure gives them.
         .target(
@@ -91,6 +117,10 @@ let package = Package(
             name: "RDFFormatsTests",
             dependencies: ["RDFFormats", "RDFCore"],
             resources: [.copy("Fixtures")]
+        ),
+        .testTarget(
+            name: "XSDTests",
+            dependencies: ["XSD", "RDFKit"]
         ),
         .testTarget(
             name: "RDFCoreTests",

@@ -13,4 +13,6 @@ extension Tag {
     @Tag static var owl: Self
     /// The @Ontology macro's code generation.
     @Tag static var codeGeneration: Self
+    /// The XML Schema datatypes.
+    @Tag static var xsd: Self
 }
