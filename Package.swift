@@ -64,6 +64,10 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "RDFCoreTests",
+            dependencies: ["RDFCore"]
+        ),
+        .testTarget(
             name: "RDFKitMacrosTests",
             dependencies: [
                 "RDFKitMacros",
