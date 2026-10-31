@@ -23,6 +23,7 @@ struct DatatypeEmitter {
         "string": "String",
         "boolean": "Bool",
         "double": "Double",
+        "float": "Float",
     ]
 
     func emit(_ names: [String]) throws -> String {
