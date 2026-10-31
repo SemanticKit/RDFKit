@@ -113,41 +113,56 @@ public struct Schema: Sendable {
     }
 
     /// The statements closed under the rules whose premises and conclusions
-    /// are all triple patterns.
+    /// are all triple patterns, by semi-naive evaluation: each pass joins one
+    /// premise of a rule with the triples the previous pass derived and the
+    /// others with all triples, so no instantiation is found twice, until a
+    /// pass derives nothing new.
     static func closure(of statements: [Triple], under rules: [EntailmentRule]) -> Set<Triple> {
-        var triples = Set(statements)
-        var changed = true
-        while changed {
-            changed = false
-            for rule in rules where !rule.isInconsistency {
-                let index = Dictionary(grouping: triples, by: \.predicate)
-                for binding in bindings(of: rule.premises, in: index) {
-                    for conclusion in rule.conclusions {
-                        guard let triple = instance(of: conclusion, under: binding) else { continue }
-                        if triples.insert(triple).inserted { changed = true }
+        let rules = rules.filter { !$0.isInconsistency && !$0.premises.isEmpty }
+        var all = TripleIndex(statements)
+        var delta = all
+        while !delta.isEmpty {
+            var derived = TripleIndex([])
+            for rule in rules {
+                for position in rule.premises.indices {
+                    for binding in bindings(of: rule.premises, newAt: position, delta: delta, all: all) {
+                        for conclusion in rule.conclusions {
+                            guard let triple = instance(of: conclusion, under: binding), !all.contains(triple) else { continue }
+                            derived.insert(triple)
+                        }
                     }
                 }
             }
+            for triple in derived.triples { all.insert(triple) }
+            delta = derived
         }
-        return triples
+        return all.set
     }
 
-    /// The bindings of the variables under which every premise is one of
-    /// the triples, which are grouped by predicate.
-    static func bindings(of premises: [TriplePattern], in triples: [String: [Triple]]) -> [[String: String]] {
-        var bindings: [[String: String]] = [[:]]
-        for premise in premises {
-            bindings = bindings.flatMap { binding -> [[String: String]] in
-                let candidates: [Triple]
-                switch premise.predicate {
-                case .iri(let predicate): candidates = triples[predicate] ?? []
-                case .variable(let name): candidates = binding[name].map { triples[$0] ?? [] } ?? triples.values.flatMap { $0 }
-                }
-                return candidates.compactMap { triple in match(premise, triple, binding) }
+    /// The bindings of the variables under which every premise is a triple,
+    /// the one at `position` a new one. The premises are joined new premise
+    /// first, then each time the one with the most terms bound, through the
+    /// indexes.
+    static func bindings(of premises: [TriplePattern], newAt position: Int, delta: TripleIndex, all: TripleIndex) -> [[String: String]] {
+        var bindings: [[String: String]] = delta.candidates(for: premises[position], under: [:]).compactMap { match(premises[position], $0, [:]) }
+        var remaining = premises.indices.filter { $0 != position }
+        while !remaining.isEmpty, let sample = bindings.first {
+            let next = remaining.max { boundTerms(premises[$0], sample) < boundTerms(premises[$1], sample) }!
+            remaining.removeAll { $0 == next }
+            let premise = premises[next]
+            bindings = bindings.flatMap { binding in
+                all.candidates(for: premise, under: binding).compactMap { match(premise, $0, binding) }
             }
-            if bindings.isEmpty { break }
         }
         return bindings
+    }
+
+    /// How many of a pattern's terms are IRIs or variables bound.
+    private static func boundTerms(_ pattern: TriplePattern, _ binding: [String: String]) -> Int {
+        [pattern.subject, pattern.predicate, pattern.object].filter { term in
+            if case .variable(let name) = term { return binding[name] != nil }
+            return true
+        }.count
     }
 
     private static func match(_ pattern: TriplePattern, _ triple: Triple, _ binding: [String: String]) -> [String: String]? {
@@ -230,5 +245,62 @@ public struct Schema: Sendable {
     /// Whether a property is an annotation property, documentation (D8).
     public func isAnnotationProperty(_ property: String) -> Bool {
         classOfAnnotationProperties.map { types(of: property).contains($0) } ?? false
+    }
+}
+
+/// Triples indexed for the joins of a closure: by predicate, predicate and
+/// subject, predicate and object, subject, and object.
+struct TripleIndex {
+    private struct Key: Hashable {
+        let first: String
+        let second: String
+    }
+
+    private(set) var triples: [Schema.Triple] = []
+    private(set) var set: Set<Schema.Triple> = []
+    private var byPredicate: [String: [Schema.Triple]] = [:]
+    private var byPredicateSubject: [Key: [Schema.Triple]] = [:]
+    private var byPredicateObject: [Key: [Schema.Triple]] = [:]
+    private var bySubject: [String: [Schema.Triple]] = [:]
+    private var byObject: [String: [Schema.Triple]] = [:]
+
+    init(_ triples: [Schema.Triple]) {
+        for triple in triples { insert(triple) }
+    }
+
+    var isEmpty: Bool { triples.isEmpty }
+
+    func contains(_ triple: Schema.Triple) -> Bool { set.contains(triple) }
+
+    mutating func insert(_ triple: Schema.Triple) {
+        guard set.insert(triple).inserted else { return }
+        triples.append(triple)
+        byPredicate[triple.predicate, default: []].append(triple)
+        byPredicateSubject[Key(first: triple.predicate, second: triple.subject), default: []].append(triple)
+        byPredicateObject[Key(first: triple.predicate, second: triple.object), default: []].append(triple)
+        bySubject[triple.subject, default: []].append(triple)
+        byObject[triple.object, default: []].append(triple)
+    }
+
+    /// The triples a pattern can match under a binding, through the most
+    /// selective index its bound terms allow.
+    func candidates(for pattern: TriplePattern, under binding: [String: String]) -> [Schema.Triple] {
+        func value(_ term: PatternTerm) -> String? {
+            switch term {
+            case .iri(let iri): iri
+            case .variable(let name): binding[name]
+            }
+        }
+        let subject = value(pattern.subject)
+        let predicate = value(pattern.predicate)
+        let object = value(pattern.object)
+        switch (subject, predicate, object) {
+        case (let subject?, let predicate?, _): return byPredicateSubject[Key(first: predicate, second: subject)] ?? []
+        case (_, let predicate?, let object?): return byPredicateObject[Key(first: predicate, second: object)] ?? []
+        case (_, let predicate?, nil): return byPredicate[predicate] ?? []
+        case (let subject?, nil, _): return bySubject[subject] ?? []
+        case (nil, nil, let object?): return byObject[object] ?? []
+        case (nil, nil, nil): return triples
+        }
     }
 }
