@@ -252,5 +252,13 @@ public struct OWL: Ontology {
             Label("equivalentProperty")
             Comment("The property that determines that two given properties are equivalent.")
         }
+
+        Property("propertyDisjointWith") {
+            Type(RDF.Property)
+            Domain(RDF.Property)
+            Range(RDF.Property)
+            Label("propertyDisjointWith")
+            Comment("The property that determines that two given properties are disjoint.")
+        }
     }
 }
