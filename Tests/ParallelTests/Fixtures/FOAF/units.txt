@@ -69,3 +69,4 @@ http://xmlns.com/foaf/0.1/theme
 http://xmlns.com/foaf/0.1/account
 http://xmlns.com/foaf/0.1/holdsAccount
 http://xmlns.com/foaf/0.1/accountServiceHomepage
+http://xmlns.com/foaf/0.1/accountName
