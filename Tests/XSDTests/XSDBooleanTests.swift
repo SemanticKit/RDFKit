@@ -4,12 +4,13 @@ import XSD
 
 @Suite(.tags(.xsd))
 struct XSDBooleanTests {
-    /// xsd:boolean is a Swift value type whose value is a Bool (D6), and a
-    /// literal.
-    @Test func isAValueTypeLiteral() {
-        let flag = XSD.boolean(true)
-        #expect(flag.value)
-        #expect(flag != XSD.boolean(false))
-        #expect((flag as Any) is RDFS.Literal)
+    /// xsd:boolean's value space is {true, false} (XSD 1.1 Part 2 §3.3.2),
+    /// exactly Swift's Bool, so the datatype is Bool (rule 20), and a Bool
+    /// is a literal.
+    @Test func isBoolAndALiteral() {
+        let flag: XSD.boolean = true
+        #expect(flag)
+        #expect((false as Any) is RDFS.Literal)
+        #expect(ObjectIdentifier(XSD.boolean.self) == ObjectIdentifier(Bool.self))
     }
 }

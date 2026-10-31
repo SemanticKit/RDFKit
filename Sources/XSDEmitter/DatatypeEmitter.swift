@@ -32,6 +32,7 @@ struct DatatypeEmitter {
     /// is that type (rule 20), which is a literal.
     static let swiftTypes: Set<String> = [
         "string",
+        "boolean",
     ]
 
     func emit(_ names: [String]) throws -> String {
