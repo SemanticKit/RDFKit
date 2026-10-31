@@ -46,5 +46,12 @@ public struct OWL: Ontology {
             Label("Annotation")
             Comment("The class of annotated annotations for which the RDF serialization consists of an annotated subject, predicate and object.")
         }
+
+        Class("AllDifferent") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("AllDifferent")
+            Comment("The class of collections of pairwise different individuals.")
+        }
     }
 }

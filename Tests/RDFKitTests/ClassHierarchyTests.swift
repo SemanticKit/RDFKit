@@ -140,4 +140,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLAnnotation: OWL.Annotation {}
+
+    /// owl:AllDifferent rdfs:subClassOf RDFS.Resource.
+    @Test func owlAllDifferent() {
+        let member: AnyObject = OWLAllDifferent()
+        #expect(member is OWL.AllDifferent)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLAllDifferent: OWL.AllDifferent {}
 }
