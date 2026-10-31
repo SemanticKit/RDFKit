@@ -67,5 +67,12 @@ public struct OWL: Ontology {
             Label("AllDisjointProperties")
             Comment("The class of collections of pairwise disjoint properties.")
         }
+
+        Class("NegativePropertyAssertion") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("NegativePropertyAssertion")
+            Comment("The class of negative property assertions.")
+        }
     }
 }

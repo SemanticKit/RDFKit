@@ -167,4 +167,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLAllDisjointProperties: OWL.AllDisjointProperties {}
+
+    /// owl:NegativePropertyAssertion rdfs:subClassOf RDFS.Resource.
+    @Test func owlNegativePropertyAssertion() {
+        let member: AnyObject = OWLNegativePropertyAssertion()
+        #expect(member is OWL.NegativePropertyAssertion)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLNegativePropertyAssertion: OWL.NegativePropertyAssertion {}
 }
