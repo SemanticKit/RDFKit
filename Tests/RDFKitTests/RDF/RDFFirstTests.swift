@@ -17,6 +17,7 @@ struct RDFFirstTests {
 
     private final class List: RDF.List {
         var first: Values<any RDFS.Resource> = []
+        var rest: Values<any RDF.List> = []
     }
 
     private final class Item: RDFS.Resource {}

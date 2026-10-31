@@ -41,5 +41,13 @@ public struct RDF: Ontology {
             Label("first")
             Comment("The first item in the subject RDF list.")
         }
+
+        Property("rest") {
+            Type(RDF.Property)
+            Domain(RDF.List)
+            Range(RDF.List)
+            Label("rest")
+            Comment("The rest of the subject RDF list after the first item.")
+        }
     }
 }
