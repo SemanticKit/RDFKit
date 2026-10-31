@@ -68,7 +68,7 @@ struct ClassGeneratorTests {
                 /// The class of classes.
                 ///
                 /// Label: Class
-                public protocol Class: RDFS.Resource {
+                public protocol Class: RDFS.Resource, AnyObject {
                 }
             }
             """,
@@ -115,7 +115,7 @@ struct ClassGeneratorTests {
                 /// The class of OWL classes.
                 ///
                 /// Label: Class
-                public protocol Class: RDFS.Class {
+                public protocol Class: RDFS.Class, AnyObject {
                 }
             }
             """,

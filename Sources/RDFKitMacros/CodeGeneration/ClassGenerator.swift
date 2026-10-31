@@ -8,12 +8,14 @@ import SwiftSyntaxBuilder
 ///     /// The class of classes.
 ///     ///
 ///     /// Label: Class
-///     public protocol Class: RDFS.Resource {}
+///     public protocol Class: RDFS.Resource, AnyObject {}
 ///
-/// `rdfs:Resource` is the root (D7), and inherits nothing: a literal is a
-/// Swift value type (D6) and an individual an instance of a generated class,
-/// whose identity is the object's (D3). A class that states no superclass is
-/// a subclass of `rdfs:Resource` (RDF 1.2 Semantics, rdfs8).
+/// `rdfs:Resource` is the root (D7), and inherits nothing, because a literal
+/// is a Swift value type (D6). Every other class's members are individuals,
+/// instances of generated classes whose identity is the object's (D3), so its
+/// protocol also inherits `AnyObject` and `alice.knows.contains { $0 === bob }`
+/// compiles; `rdfs:Literal` and its subclasses do not. A class that states no
+/// superclass is a subclass of `rdfs:Resource` (RDF 1.2 Semantics, rdfs8).
 ///
 /// `owl:Thing` is the same root (D7), so it names `RDFS.Resource`, and
 /// `owl:Nothing`, the empty class, names `Never`:
@@ -36,7 +38,9 @@ struct ClassGenerator {
         }
         let isRoot = ontology.namespace == rdfs && entity.name == "Resource"
         let superclasses = entity.annotations.filter { $0.name == "SubClassOf" }.map(\.value)
-        let inherited = isRoot ? [] : (superclasses.isEmpty ? ["RDFS.Resource"] : superclasses)
+        let isLiteral = (ontology.namespace == rdfs && entity.name == "Literal") || superclasses.contains("RDFS.Literal")
+        var inherited = isRoot ? [] : (superclasses.isEmpty ? ["RDFS.Resource"] : superclasses)
+        if !isRoot && !isLiteral { inherited.append("AnyObject") }
 
         let declaration = ProtocolDeclSyntax(
             leadingTrivia: documentation(of: entity),

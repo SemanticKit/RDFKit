@@ -65,7 +65,7 @@ struct PropertyGeneratorTests {
                 /// The class of RDF Lists.
                 ///
                 /// Label: List
-                public protocol List: RDFS.Resource {
+                public protocol List: RDFS.Resource, AnyObject {
                     /// The first item in the subject RDF list.
                     ///
                     /// Label: first
