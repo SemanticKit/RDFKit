@@ -18,5 +18,12 @@ public struct OWL: Ontology {
             Label("Thing")
             Comment("The class of OWL individuals.")
         }
+
+        Class("Ontology") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Ontology")
+            Comment("The class of ontologies.")
+        }
     }
 }

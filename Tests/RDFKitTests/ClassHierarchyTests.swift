@@ -103,4 +103,13 @@ private final class OWLClass: OWL.Class {}
     @Test func owlThing() {
         #expect(ObjectIdentifier((any OWL.Thing).self) == ObjectIdentifier((any RDFS.Resource).self))
     }
+
+    /// owl:Ontology rdfs:subClassOf RDFS.Resource.
+    @Test func owlOntology() {
+        let member: AnyObject = OWLOntology()
+        #expect(member is OWL.Ontology)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLOntology: OWL.Ontology {}
 }
