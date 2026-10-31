@@ -131,4 +131,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLAxiom: OWL.Axiom {}
+
+    /// owl:Annotation rdfs:subClassOf RDFS.Resource.
+    @Test func owlAnnotation() {
+        let member: AnyObject = OWLAnnotation()
+        #expect(member is OWL.Annotation)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLAnnotation: OWL.Annotation {}
 }

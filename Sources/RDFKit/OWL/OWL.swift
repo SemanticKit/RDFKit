@@ -39,5 +39,12 @@ public struct OWL: Ontology {
             Label("Axiom")
             Comment("The class of annotated axioms for which the RDF serialization consists of an annotated subject, predicate and object.")
         }
+
+        Class("Annotation") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("Annotation")
+            Comment("The class of annotated annotations for which the RDF serialization consists of an annotated subject, predicate and object.")
+        }
     }
 }
