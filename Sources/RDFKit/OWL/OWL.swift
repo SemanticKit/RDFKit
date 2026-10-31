@@ -137,5 +137,12 @@ public struct OWL: Ontology {
             Label("TransitiveProperty")
             Comment("The class of transitive properties.")
         }
+
+        Class("SymmetricProperty") {
+            Type(RDFS.Class)
+            SubClassOf(OWL.ObjectProperty)
+            Label("SymmetricProperty")
+            Comment("The class of symmetric properties.")
+        }
     }
 }
