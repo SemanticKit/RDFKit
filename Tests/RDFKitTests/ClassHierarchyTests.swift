@@ -21,4 +21,13 @@ private final class OWLClass: OWL.Class {}
         #expect(first === first)
         #expect(first !== second)
     }
+
+    /// rdf:Property rdfs:subClassOf RDFS.Resource.
+    @Test func rdfProperty() {
+        let member: AnyObject = RDFProperty()
+        #expect(member is RDF.Property)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class RDFProperty: RDF.Property {}
 }
