@@ -25,3 +25,4 @@ http://xmlns.com/foaf/0.1/based_near
 http://xmlns.com/foaf/0.1/title
 http://xmlns.com/foaf/0.1/nick
 http://xmlns.com/foaf/0.1/jabberID
+http://xmlns.com/foaf/0.1/aimChatID
