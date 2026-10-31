@@ -55,5 +55,13 @@ public struct RDFS: Ontology {
             Label("comment")
             Comment("A description of the subject resource.")
         }
+
+        Property("subClassOf") {
+            Type(RDF.Property)
+            Domain(RDFS.Class)
+            Range(RDFS.Class)
+            Label("subClassOf")
+            Comment("The subject is a subclass of a class.")
+        }
     }
 }

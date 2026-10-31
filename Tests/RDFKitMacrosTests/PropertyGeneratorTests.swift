@@ -181,4 +181,48 @@ struct PropertyGeneratorTests {
             failureHandler: { Issue.record("\($0.message)") }
         )
     }
+
+    /// A property whose subjects are classes has no stored requirement:
+    /// rdfs:subClassOf is protocol inheritance.
+    @Test func schemaDomainHasNoRequirement() {
+        assertMacroExpansion(
+            """
+            @Ontology
+            public struct RDFS: Ontology {
+                public var body: some Content {
+                    Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
+                    Property("subClassOf") {
+                        Type(RDF.Property)
+                        Domain(RDFS.Class)
+                        Range(RDFS.Class)
+                        Label("subClassOf")
+                        Comment("The subject is a subclass of a class.")
+                    }
+                }
+            }
+            """,
+            expandedSource: """
+            public struct RDFS: Ontology {
+                public var body: some Content {
+                    @RDFCore.ContentBuilder func declarations() -> [any RDFCore.Content] {
+
+                            RDFCore.Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
+                            RDFCore.Property("subClassOf") {
+                                RDFCore.Type(RDF.Property.self)
+                                RDFCore.Domain(RDFS.Class.self)
+                                RDFCore.Range(RDFS.Class.self)
+                                RDFCore.Label("subClassOf")
+                                RDFCore.Comment("The subject is a subclass of a class.")
+                            }
+                    }
+                    return declarations()
+                }
+            }
+            """,
+            macroSpecs: specs,
+            failureHandler: { Issue.record("\($0.message)") }
+        )
+    }
 }
