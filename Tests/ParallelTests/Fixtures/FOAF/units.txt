@@ -54,3 +54,4 @@ http://xmlns.com/foaf/0.1/workplaceHomepage
 http://xmlns.com/foaf/0.1/workInfoHomepage
 http://xmlns.com/foaf/0.1/schoolHomepage
 http://xmlns.com/foaf/0.1/interest
+http://xmlns.com/foaf/0.1/topic_interest
