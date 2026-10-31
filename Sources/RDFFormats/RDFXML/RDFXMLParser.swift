@@ -409,7 +409,8 @@ struct RDFXMLParser {
             case .element(let child):
                 if !Self.isReserved(child) { children.append(child) }
             case .text(let text):
-                guard text.unicodeScalars.allSatisfy(Self.isWhiteSpace) else {
+                // XML 1.0 [3] S, as published (Grammars/xml.html).
+                guard text.isEmpty || XMLNamesGrammar.S.matches(text) else {
                     throw error("text is not allowed here", at: element)
                 }
             case .comment, .processingInstruction:
@@ -431,11 +432,6 @@ struct RDFXMLParser {
 
     static func isReserved(_ element: XMLInfoset.Element) -> Bool {
         (element.prefix ?? element.localName).lowercased().hasPrefix("xml")
-    }
-
-    /// XML 1.0 [3] S.
-    static func isWhiteSpace(_ scalar: Unicode.Scalar) -> Bool {
-        scalar == " " || scalar == "\t" || scalar == "\n" || scalar == "\r"
     }
 
     // MARK: - Terms
@@ -470,34 +466,6 @@ struct RDFXMLParser {
         }
     }
 
-
-    /// XML Namespaces 1.0 [4] NCName.
-    static func isNCName(_ value: String) -> Bool {
-        guard let first = value.unicodeScalars.first, isNameStartChar(first) else { return false }
-        return value.unicodeScalars.dropFirst().allSatisfy(isNameChar)
-    }
-
-    /// XML 1.0 [4] NameStartChar, without ':'.
-    static func isNameStartChar(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x41...0x5A, 0x5F, 0x61...0x7A, 0xC0...0xD6, 0xD8...0xF6, 0xF8...0x2FF, 0x370...0x37D,
-             0x37F...0x1FFF, 0x200C...0x200D, 0x2070...0x218F, 0x2C00...0x2FEF, 0x3001...0xD7FF,
-             0xF900...0xFDCF, 0xFDF0...0xFFFD, 0x10000...0xEFFFF:
-            true
-        default:
-            false
-        }
-    }
-
-    /// XML 1.0 [4a] NameChar, without ':'.
-    static func isNameChar(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x2D, 0x2E, 0x30...0x39, 0xB7, 0x300...0x36F, 0x203F...0x2040:
-            true
-        default:
-            isNameStartChar(scalar)
-        }
-    }
 
     // MARK: - Emitting
 

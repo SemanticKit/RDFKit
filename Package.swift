@@ -46,7 +46,12 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/SemanticKit/IRIKit.git", branch: "main"),
-        .package(url: "https://github.com/swiftlang/swift-syntax", from: "604.0.0")
+        .package(url: "https://github.com/SemanticKit/EBNFKit.git", branch: "main"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "604.0.0"),
+        // The SemanticKit invariants as build rules: RegoPolicyEvaluate runs
+        // the SemanticKitDesignGuidelines policies over every Swift file of
+        // the targets that apply it, and a `deny` finding fails the build.
+        .package(url: "https://github.com/SemanticKit/SemanticKitBuildPlugins.git", branch: "main")
     ],
     targets: [
         .target(
@@ -60,7 +65,11 @@ let package = Package(
                 "RDFCore",
                 "RDF",
                 "OWL",
-                "RDFKitMacros"
+                "RDFKitMacros",
+                .product(name: "SemanticKitDesignGuidelines", package: "SemanticKitBuildPlugins")
+            ],
+            plugins: [
+                .plugin(name: "RegoPolicyEvaluate", package: "SemanticKitBuildPlugins")
             ]
         ),
         .macro(
@@ -71,11 +80,18 @@ let package = Package(
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
             ]
         ),
+        // The formats, read with the grammars their specifications publish
+        // (Sources/RDFFormats/Grammars), which EBNFTranslatorPlugin
+        // translates to Swift on every build.
         .target(
             name: "RDFFormats",
             dependencies: [
                 "IRIKit",
                 "RDFCore"
+            ],
+            exclude: ["Grammars/README.md"],
+            plugins: [
+                .plugin(name: "EBNFTranslatorPlugin", package: "EBNFKit")
             ]
         ),
 
@@ -226,12 +242,16 @@ let package = Package(
                 "FOAF",
                 "AliceProfile",
                 "XSD",
-                .product(name: "IRIKit", package: "IRIKit")
+                .product(name: "IRIKit", package: "IRIKit"),
+                .product(name: "SemanticKitDesignGuidelines", package: "SemanticKitBuildPlugins")
             ],
             exclude: [
                 "Data/shacl.rdf",
                 "Data/shacl.ttl",
                 "Fixtures/.gitkeep"
+            ],
+            plugins: [
+                .plugin(name: "RegoPolicyEvaluate", package: "SemanticKitBuildPlugins")
             ]
         ),
         .testTarget(

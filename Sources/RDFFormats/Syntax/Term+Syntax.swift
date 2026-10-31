@@ -2,13 +2,15 @@ import IRIKit
 import RDFCore
 
 extension IRI {
-    /// The IRI as an `IRIREF` (RDF 1.2 N-Triples §7, Turtle §7.3): between
-    /// angle brackets, with each scalar the production does not allow
-    /// written as a `UCHAR`.
+    /// The IRI as an `IRIREF` (RDF 1.2 N-Triples §5.3, Turtle §6.5):
+    /// between angle brackets, with each scalar the production does not
+    /// allow written as a `UCHAR`.
     var iriReference: String {
+        let written = "<" + rawValue + ">"
+        if NTriplesGrammar.IRIREF.matches(written) { return written }
         var text = "<"
         for scalar in rawValue.unicodeScalars {
-            if Scanner.isIRIReferenceCharacter(scalar) {
+            if NTriplesGrammar.IRIREF.matches("<" + String(scalar) + ">") {
                 text.unicodeScalars.append(scalar)
             } else {
                 text += scalar.uchar
@@ -19,24 +21,14 @@ extension IRI {
 
     /// The namespace and local name of the IRI, split after its last `#`
     /// or `/`, when the local name can be written as a Turtle `PN_LOCAL`
-    /// without escapes and the namespace is an IRI.
+    /// as it is, or is empty, and the namespace is an IRI.
     var prefixableParts: (namespace: IRI, local: String)? {
         let scalars = Array(rawValue.unicodeScalars)
         guard let split = scalars.lastIndex(where: { $0 == "#" || $0 == "/" }) else { return nil }
-        let local = Array(scalars[(split + 1)...])
-        guard Self.isPlainLocalName(local),
+        let local = String(String.UnicodeScalarView(scalars[(split + 1)...]))
+        guard local.isEmpty || TurtleGrammar.PN_LOCAL.matches(local),
               let namespace = try? IRI(validating: String(String.UnicodeScalarView(scalars[...split]))) else { return nil }
-        return (namespace, String(String.UnicodeScalarView(local)))
-    }
-
-    /// `PN_LOCAL` without `PLX`: `(PN_CHARS_U | ':' | [0-9]) ((PN_CHARS | '.' | ':')* (PN_CHARS | ':'))?`,
-    /// or empty.
-    static func isPlainLocalName(_ scalars: [Unicode.Scalar]) -> Bool {
-        guard let first = scalars.first, let last = scalars.last else { return true }
-        guard Scanner.isPNCharsU(first) || Scanner.isASCIIDigit(first) || first == ":" else { return false }
-        guard scalars.count > 1 else { return true }
-        return (Scanner.isPNChars(last) || last == ":")
-            && scalars.dropFirst().dropLast().allSatisfy { Scanner.isPNChars($0) || $0 == "." || $0 == ":" }
+        return (namespace, local)
     }
 }
 
@@ -126,15 +118,15 @@ extension Literal {
 
     /// A language-tagged string read from a document: `word` is the
     /// `LANG_DIR` after `@`, and a tag that is not well-formed BCP 47, or a
-    /// direction that is not `ltr` or `rtl`, is reported at `position` in
-    /// the document `scanner` reads.
-    init(_ lexicalForm: String, languageDirection word: String, at position: Int, in scanner: Scanner) throws {
+    /// direction that is not `ltr` or `rtl`, is reported at `line` and
+    /// `column`, where the `LANG_DIR` starts.
+    init(_ lexicalForm: String, languageDirection word: String, line: Int, column: Int) throws(SyntaxError) {
         do {
             try self.init(lexicalForm, languageDirection: word)
         } catch .malformedBaseDirection {
-            throw scanner.error("base direction must be 'ltr' or 'rtl'", at: position)
+            throw SyntaxError(line: line, column: column, message: "base direction must be 'ltr' or 'rtl'")
         } catch {
-            throw scanner.error("'\(word.components(separatedBy: "--")[0])' is not a well-formed BCP 47 language tag", at: position)
+            throw SyntaxError(line: line, column: column, message: "'\(word.components(separatedBy: "--")[0])' is not a well-formed BCP 47 language tag")
         }
     }
 }

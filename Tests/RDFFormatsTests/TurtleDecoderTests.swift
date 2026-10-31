@@ -78,4 +78,54 @@ struct TurtleDecoderTests {
             try TurtleDecoder().decode("PREFIX : <http://example/>\nex:s :p :o .")
         }
     }
+
+    @Test("Keywords in quotation marks are case-insensitive; keywords in apostrophes are not", arguments: ["PREFIX", "prefix", "PrEfIx"])
+    func keywordCase(keyword: String) throws {
+        let graph = try TurtleDecoder().decode("\(keyword) ex: <http://example/>\nex:s ex:p ex:o .")
+        #expect(graph == [Graph.Element(subject: .iri("http://example/s"), predicate: "http://example/p", object: .iri("http://example/o"))])
+        #expect(throws: SyntaxError.self) {
+            try TurtleDecoder().decode("@PREFIX ex: <http://example/> .")
+        }
+    }
+
+    @Test("Numeric, string and reserved character escapes stand for their characters")
+    func escapes() throws {
+        // The document holds the backslash of each escape.
+        let escape = #"\"#
+        let graph = try TurtleDecoder().decode("""
+            PREFIX ex: <http://example/>
+            <http://example/\(escape)u0073> ex:p "a\(escape)tb\(escape)U0001F600", ex:l\(escape).x .
+            """)
+        #expect(Set(graph.map(\.object)) == [.literal(Literal("a\tb\u{1F600}")), .iri("http://example/l.x")])
+        #expect(graph.allSatisfy { $0.subject == .iri("http://example/s") })
+    }
+
+    @Test("A numeric escape that names no Unicode scalar value is an error at the escape")
+    func surrogateEscape() {
+        let escape = #"\"#
+        #expect(throws: SyntaxError(line: 1, column: 41, message: "escape \(escape)uD800 names no Unicode scalar value")) {
+            try TurtleDecoder().decode("<http://example/s> <http://example/p> \"a\(escape)uD800\" .")
+        }
+    }
+
+    @Test("A document the grammar does not match is an error where it stops matching")
+    func grammarError() {
+        do {
+            _ = try TurtleDecoder().decode("<http://example/s>\n  <http://example/p> .")
+            Issue.record("expected an error")
+        } catch let error as SyntaxError {
+            #expect((error.line, error.column) == (2, 22))
+        } catch {
+            Issue.record("unexpected \(error)")
+        }
+    }
+
+    @Test("The longest match is chosen: a name before a dot, and a decimal after one")
+    func longestMatch() throws {
+        let graph = try TurtleDecoder().decode("PREFIX : <http://example/>\n:s :p :o.\n:s :p .5 .")
+        #expect(Set(graph.map(\.object)) == [
+            .iri("http://example/o"),
+            .literal(Literal(".5", datatype: "http://www.w3.org/2001/XMLSchema#decimal")),
+        ])
+    }
 }

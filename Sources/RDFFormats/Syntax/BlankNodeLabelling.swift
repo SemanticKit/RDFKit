@@ -56,14 +56,9 @@ struct BlankNodeLabelling {
         nTriples(triple.subject) + " " + triple.predicate.iriReference + " " + nTriples(triple.object)
     }
 
-    /// `BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?`,
-    /// without the `_:`.
+    /// Whether `_:` and the identifier are a `BLANK_NODE_LABEL` (RDF 1.2
+    /// N-Triples §5.3, Turtle §6.5).
     static func isLabel(_ identifier: String) -> Bool {
-        let scalars = Array(identifier.unicodeScalars)
-        guard let first = scalars.first, let last = scalars.last,
-              Scanner.isPNCharsU(first) || Scanner.isASCIIDigit(first) else { return false }
-        guard scalars.count > 1 else { return true }
-        return Scanner.isPNChars(last)
-            && scalars.dropFirst().dropLast().allSatisfy { Scanner.isPNChars($0) || $0 == "." }
+        NTriplesGrammar.BLANK_NODE_LABEL.matches("_:" + identifier)
     }
 }

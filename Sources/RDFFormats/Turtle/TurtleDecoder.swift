@@ -3,11 +3,13 @@ import RDFCore
 
 /// Decodes RDF 1.2 Turtle documents into a ``Graph``.
 ///
-/// The decoder follows the grammar in RDF 1.2 Turtle §7.3, including triple
-/// terms (`<<( s p o )>>`), reified triples (`<< s p o ~ r >>`), annotations
-/// (`s p o ~ r {| … |}`), base directions on language-tagged strings
-/// (`"text"@en--ltr`) and the `VERSION` directive. It is where the IRIs
-/// written in a document become ``IRI`` values: relative references are
+/// The decoder reads a document with the grammar of RDF 1.2 Turtle §6.5 as
+/// the specification publishes it, translated into ``TurtleGrammar``,
+/// including triple terms (`<<( s p o )>>`), reified triples
+/// (`<< s p o ~ r >>`), annotations (`s p o ~ r {| … |}`), base directions
+/// on language-tagged strings (`"text"@en--ltr`) and the `VERSION`
+/// directive, and gives its productions the actions of §7.4. It is where the
+/// IRIs written in a document become ``IRI`` values: relative references are
 /// resolved against the base IRI (RFC 3986 §5.2) and prefixed names are
 /// expanded before the IRI enters the runtime.
 ///
@@ -34,7 +36,16 @@ public struct TurtleDecoder: Sendable {
     ///   grammar, uses an undeclared prefix, or names an IRI that is not
     ///   valid once resolved.
     public func decode(_ document: String) throws -> Graph {
-        var parser = try TurtleParser(document, base: base?.rawValue)
-        return try parser.parseDocument()
+        let syntax: TurtleGrammar.TurtleDoc
+        do {
+            syntax = try TurtleGrammar.TurtleDoc.parse(document)
+        } catch {
+            throw SyntaxError(error)
+        }
+        var reading = TurtleDecoding(base: base?.rawValue)
+        for statement in syntax.statements {
+            try reading.read(statement)
+        }
+        return reading.graph
     }
 }

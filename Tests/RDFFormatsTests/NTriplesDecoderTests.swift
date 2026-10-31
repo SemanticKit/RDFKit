@@ -81,4 +81,30 @@ struct NTriplesDecoderTests {
         let decoded = try NTriplesDecoder().decode(document)
         #expect(decoded.isIsomorphic(to: graph))
     }
+
+    @Test("Blank lines and comment lines are white space")
+    func blankLines() throws {
+        let graph = try NTriplesDecoder().decode("""
+
+            # a comment line
+            <http://example/s> <http://example/p> <http://example/o> . # a comment
+            \t
+            <http://example/s> <http://example/p> "o" .
+            # the last line
+            """)
+        #expect(graph.count == 2)
+    }
+
+    @Test("A triple ends at the end of its line")
+    func tripleOverTwoLines() {
+        #expect(throws: SyntaxError.self) {
+            try NTriplesDecoder().decode("<http://example/s>\n<http://example/p> <http://example/o> .")
+        }
+    }
+
+    @Test("'VERSION' is case-sensitive")
+    func versionCase() throws {
+        _ = try NTriplesDecoder().decode("VERSION \"1.2\"\n")
+        #expect(throws: SyntaxError.self) { try NTriplesDecoder().decode("version \"1.2\"\n") }
+    }
 }
