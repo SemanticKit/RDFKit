@@ -4,6 +4,8 @@ The project instructions are in [AGENTS.md](AGENTS.md). The rules below come on 
 
 ## Swift 6.4 sources of truth
 
+Before you write or change any Swift, read [SWIFT-6.4.md](https://github.com/SemanticKit/SemanticKit/blob/main/docs/SWIFT-6.4.md), the SemanticKit Swift 6.4 reference built from the 6.4 CHANGELOG, swift-evolution and swift.org. Every item cites its SE proposal. Where it disagrees with your memory, it wins; where the toolchain's `.swiftinterface` files disagree with it, the toolchain wins.
+
 Before you write or change Swift, read the Swift 6.4 sources for every language feature and standard library API you use. Use what they say, not what you remember.
 
 - **The standard library API**, in the toolchain's module interfaces:
