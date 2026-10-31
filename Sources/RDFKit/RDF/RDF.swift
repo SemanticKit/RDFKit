@@ -64,5 +64,12 @@ public struct RDF: Ontology {
             Label("HTML")
             Comment("The datatype of RDF literals storing fragments of HTML content")
         }
+
+        Datatype("langString") {
+            Type(RDFS.Datatype)
+            SubClassOf(RDFS.Literal)
+            Label("langString")
+            Comment("The datatype of language-tagged string values")
+        }
     }
 }
