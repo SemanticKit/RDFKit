@@ -13,3 +13,4 @@ http://xmlns.com/foaf/0.1/name
 http://xmlns.com/foaf/0.1/Image
 http://xmlns.com/foaf/0.1/PersonalProfileDocument
 http://xmlns.com/foaf/0.1/OnlineGamingAccount
+http://xmlns.com/foaf/0.1/OnlineEcommerceAccount
