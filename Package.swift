@@ -45,15 +45,15 @@ let package = Package(
             ],
             exclude: [
                 "OWL/AGENTS.md",
+                "OWL/README.md",
+                "OWL/owl.ttl",
                 "RDF/AGENTS.md",
+                "RDF/README.md",
                 "RDF/rdf.ttl",
                 "RDFS/AGENTS.md",
+                "RDFS/README.md",
                 "RDFS/rdfs.ttl",
-                "Turtle/owl.ttl",
-                "Turtle/rdf.ttl",
-                "Turtle/rdfs.ttl",
-                "DSL_INVARIANTS.md",
-                "Pending"
+                "DSL_INVARIANTS.md"
             ]
         ),
         // The Swift a vocabulary's classes and properties generate, which the
@@ -63,7 +63,8 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
-            ]
+            ],
+            exclude: ["W3C"]
         ),
         .macro(
             name: "RDFKitMacros",
@@ -170,8 +171,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RDFFormatsTests",
-            dependencies: ["RDFFormats", "RDFCore"],
-            resources: [.copy("Fixtures")]
+            dependencies: ["RDFFormats", "RDFCore"]
         ),
         .testTarget(
             name: "XSDTests",

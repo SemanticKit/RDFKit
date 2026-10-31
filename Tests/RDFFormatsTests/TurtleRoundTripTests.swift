@@ -8,7 +8,7 @@ struct TurtleRoundTripTests {
     /// The published rdfs.ttl, read with the grammar RDF 1.2 Turtle
     /// publishes, survives a round trip through N-Triples and Turtle.
     @Test func rdfsRoundTrips() throws {
-        let url = try #require(Bundle.module.url(forResource: "rdfs", withExtension: "ttl", subdirectory: "Fixtures"))
+        let url = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../Sources/RDFKit/RDFS/rdfs.ttl")
         let graph = try TurtleDecoder().decode(String(contentsOf: url, encoding: .utf8))
         #expect(!graph.isEmpty)
 
