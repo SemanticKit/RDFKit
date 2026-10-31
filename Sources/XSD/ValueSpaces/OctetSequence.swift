@@ -43,7 +43,8 @@ enum OctetSequence {
     }
 
     /// ·hexBinaryCanonical·: two upper-case ·hexDigit·s per octet
-    /// (·hexDigitCanonical·).
+    /// (·hexDigitCanonical·). XML Schema 1.1 Part 2 §E.4: "The ·canonical
+    /// mapping· for hexBinary uses only the uppercase forms of A-F."
     static func hexBinaryCanonical(_ octets: [UInt8]) -> String {
         var digits: [UInt8] = []
         digits.reserveCapacity(octets.count * 2)
