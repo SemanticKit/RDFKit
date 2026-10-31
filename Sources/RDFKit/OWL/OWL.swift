@@ -123,5 +123,12 @@ public struct OWL: Ontology {
             Label("DeprecatedProperty")
             Comment("The class of deprecated properties.")
         }
+
+        Class("InverseFunctionalProperty") {
+            Type(RDFS.Class)
+            SubClassOf(OWL.ObjectProperty)
+            Label("InverseFunctionalProperty")
+            Comment("The class of inverse-functional properties.")
+        }
     }
 }
