@@ -74,3 +74,4 @@ http://xmlns.com/foaf/0.1/member
 http://xmlns.com/foaf/0.1/membershipClass
 http://xmlns.com/foaf/0.1/birthday
 http://xmlns.com/foaf/0.1/age
+http://xmlns.com/foaf/0.1/status
