@@ -4,3 +4,6 @@ double
 float
 decimal
 integer
+duration
+dayTimeDuration
+yearMonthDuration
