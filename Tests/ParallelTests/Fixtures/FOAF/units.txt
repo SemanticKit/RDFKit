@@ -52,3 +52,4 @@ http://xmlns.com/foaf/0.1/thumbnail
 http://xmlns.com/foaf/0.1/myersBriggs
 http://xmlns.com/foaf/0.1/workplaceHomepage
 http://xmlns.com/foaf/0.1/workInfoHomepage
+http://xmlns.com/foaf/0.1/schoolHomepage
