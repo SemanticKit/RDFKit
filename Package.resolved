@@ -1,6 +1,15 @@
 {
-  "originHash" : "bb5279f6cc28d6951179c06f19e6cb5a803a6b260d81d41b9efb3aaccde27a09",
+  "originHash" : "d14b29da5cea13af3e33878624e499c426ae89e062a62dfa3aa6ad627fe6b4d9",
   "pins" : [
+    {
+      "identity" : "ebnfkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SemanticKit/EBNFKit.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "06df07baa1b5d10acb68d9e4e2ede2d2fae9db60"
+      }
+    },
     {
       "identity" : "irikit",
       "kind" : "remoteSourceControl",
@@ -8,6 +17,24 @@
       "state" : {
         "branch" : "main",
         "revision" : "2beed642c20fbd3bd0c8802e2f989d85380cac34"
+      }
+    },
+    {
+      "identity" : "swift-asn1",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-asn1.git",
+      "state" : {
+        "revision" : "3b6410f7dee09eb33cdd26260c5fd47fda19b0e2",
+        "version" : "1.7.3"
+      }
+    },
+    {
+      "identity" : "swift-crypto",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-crypto.git",
+      "state" : {
+        "revision" : "c2cbadd7263439d8015189668f96ff5b5be565ce",
+        "version" : "5.0.3"
       }
     },
     {
