@@ -144,5 +144,12 @@ public struct OWL: Ontology {
             Label("SymmetricProperty")
             Comment("The class of symmetric properties.")
         }
+
+        Class("AsymmetricProperty") {
+            Type(RDFS.Class)
+            SubClassOf(OWL.ObjectProperty)
+            Label("AsymmetricProperty")
+            Comment("The class of asymmetric properties.")
+        }
     }
 }
