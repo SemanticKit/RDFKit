@@ -16,10 +16,13 @@ import XSDDefinitions
 struct DatatypeEmitter {
     let definitions: DatatypeDefinitions
 
-    /// The Swift type of each primitive's value space translated so far.
+    /// The Swift type of the value space of each datatype translated so far.
+    /// A datatype takes the value space of the nearest datatype it is
+    /// derived from that has one.
     static let valueSpaces: [String: String] = [
         "string": "String",
         "boolean": "Bool",
+        "double": "Double",
     ]
 
     func emit(_ names: [String]) throws -> String {
@@ -40,9 +43,9 @@ struct DatatypeEmitter {
         guard let definition = definitions.datatype(named: name) else {
             throw EmitError(description: "RDF 1.2 Concepts lists no xsd:\(name)")
         }
-        guard let primitive = definitions.chain(to: definition).first,
+        guard let primitive = definitions.chain(to: definition).reversed().first(where: { Self.valueSpaces[$0.name] != nil }),
               let value = Self.valueSpaces[primitive.name] else {
-            throw EmitError(description: "xsd:\(name)'s primitive has no value space translated yet")
+            throw EmitError(description: "xsd:\(name) has no value space translated yet")
         }
         let valueType = TypeSyntax(stringLiteral: value)
         return StructDeclSyntax(
