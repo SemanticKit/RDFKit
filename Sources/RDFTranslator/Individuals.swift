@@ -215,6 +215,16 @@ struct Individuals {
     /// derived when the encoder asks for it from the namespace its
     /// vocabulary declares and its name (rule 17).
     private func codingKeys(_ members: [Member]) -> EnumDeclSyntax {
+        Self.codingKeys([
+            ("id", ExprSyntax(StringLiteralExprSyntax(content: "@id"))),
+            ("type", ExprSyntax(StringLiteralExprSyntax(content: "@type"))),
+        ] + members.map { ($0.entity.name, vocabulary.iriExpression(of: $0.iri)) })
+    }
+
+    /// `private enum CodingKeys: CodingKey { case …; var stringValue: String { … } … }`:
+    /// keys named by their cases, whose strings are the expressions given,
+    /// evaluated when an encoder asks for them.
+    static func codingKeys(_ cases: [(name: String, value: ExprSyntax)]) -> EnumDeclSyntax {
         EnumDeclSyntax(
             modifiers: [DeclModifierSyntax(name: .keyword(.private))],
             name: .identifier("CodingKeys"),
@@ -222,10 +232,10 @@ struct Individuals {
                 InheritedTypeSyntax(type: TypeSyntax("CodingKey"))
             },
             memberBlock: MemberBlockSyntax {
-                for name in ["id", "type"] + members.map(\.entity.name) {
+                for (name, _) in cases {
                     EnumCaseDeclSyntax { EnumCaseElementSyntax(name: .identifier(name)) }
                 }
-                keyString(members)
+                keyString(cases)
                 initializer(from: "stringValue", type: "String")
                 VariableDeclSyntax(
                     bindingSpecifier: .keyword(.var),
@@ -241,12 +251,8 @@ struct Individuals {
     }
 
     /// `var stringValue: String { switch self { case .knows: FOAF.namespace + "knows" … } }`.
-    private func keyString(_ members: [Member]) -> VariableDeclSyntax {
-        let cases: [(String, ExprSyntax)] = [
-            ("id", ExprSyntax(StringLiteralExprSyntax(content: "@id"))),
-            ("type", ExprSyntax(StringLiteralExprSyntax(content: "@type"))),
-        ] + members.map { ($0.entity.name, vocabulary.iriExpression(of: $0.iri)) }
-        return VariableDeclSyntax(
+    private static func keyString(_ cases: [(name: String, value: ExprSyntax)]) -> VariableDeclSyntax {
+        VariableDeclSyntax(
             bindingSpecifier: .keyword(.var),
             bindings: [PatternBindingSyntax(
                 pattern: IdentifierPatternSyntax(identifier: .identifier("stringValue")),
@@ -266,8 +272,8 @@ struct Individuals {
         )
     }
 
-    /// `init?(stringValue: String) { nil }`: an individual is only encoded.
-    private func initializer(from label: String, type: String) -> InitializerDeclSyntax {
+    /// `init?(stringValue: String) { nil }`: the keys are only encoded.
+    private static func initializer(from label: String, type: String) -> InitializerDeclSyntax {
         InitializerDeclSyntax(
             optionalMark: .postfixQuestionMarkToken(),
             signature: FunctionSignatureSyntax(parameterClause: FunctionParameterClauseSyntax {

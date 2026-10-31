@@ -153,8 +153,16 @@ struct Vocabulary {
     }
 
     /// The IRI of a term as Swift derives it when asked: its vocabulary's
-    /// declaration of its namespace, and its name, `FOAF.namespace + "knows"`.
+    /// declaration of its namespace, and its name, `FOAF.namespace + "knows"`;
+    /// a namespace a vocabulary declares, the ontology's own IRI among them,
+    /// is that declaration, `FOAF.namespace`.
     func iriExpression(of iri: String) -> ExprSyntax {
+        if let owner = all.first(where: { $0.namespaces.contains(iri) }) {
+            return ExprSyntax(MemberAccessExprSyntax(
+                base: DeclReferenceExprSyntax(baseName: .identifier(owner.swiftNamespace)),
+                name: .identifier(owner.namespaceName(iri))
+            ))
+        }
         guard let owner = vocabulary(declaring: iri) else { return ExprSyntax(StringLiteralExprSyntax(content: iri)) }
         return ExprSyntax(InfixOperatorExprSyntax(
             leftOperand: MemberAccessExprSyntax(
