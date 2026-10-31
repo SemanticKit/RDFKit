@@ -115,6 +115,36 @@ let package = Package(
         .target(
             name: "XSDDefinitions"
         ),
+        // RDF in, Swift out: the translator and the build tool plugin that
+        // runs it over a target's RDF documents, through the generators
+        // @Ontology uses.
+        .executableTarget(
+            name: "RDFTranslator",
+            dependencies: [
+                "IRIKit",
+                "RDFCore",
+                "RDFFormats",
+                "OntologyGeneration",
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+            ]
+        ),
+        .plugin(
+            name: "RDFTranslatorPlugin",
+            capability: .buildTool(),
+            dependencies: ["RDFTranslator"]
+        ),
+        // FOAF as published (index.rdf, RDF/XML), translated term by term.
+        .target(
+            name: "FOAF",
+            dependencies: ["RDFKit", "RDFCore"],
+            path: "Tests/ParallelTests/Fixtures/FOAF",
+            plugins: ["RDFTranslatorPlugin"]
+        ),
+        .testTarget(
+            name: "FOAFTests",
+            dependencies: ["FOAF", "RDFKit", "RDFCore"]
+        ),
         .testTarget(
             name: "RDFKitTests",
             dependencies: ["RDFKit", "RDFCore"],
