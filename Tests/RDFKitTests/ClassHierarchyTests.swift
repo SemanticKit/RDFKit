@@ -176,4 +176,14 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLNegativePropertyAssertion: OWL.NegativePropertyAssertion {}
+
+    /// owl:DeprecatedClass rdfs:subClassOf RDFS.Class.
+    @Test func owlDeprecatedClass() {
+        let member: AnyObject = OWLDeprecatedClass()
+        #expect(member is OWL.DeprecatedClass)
+        #expect(member is RDFS.Class)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLDeprecatedClass: OWL.DeprecatedClass {}
 }

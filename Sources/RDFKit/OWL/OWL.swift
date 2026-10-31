@@ -74,5 +74,12 @@ public struct OWL: Ontology {
             Label("NegativePropertyAssertion")
             Comment("The class of negative property assertions.")
         }
+
+        Class("DeprecatedClass") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Class)
+            Label("DeprecatedClass")
+            Comment("The class of deprecated classes.")
+        }
     }
 }
