@@ -2,17 +2,21 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import XSDDefinitions
 
-/// Generates the Swift value type of an XML Schema datatype (D6): a struct
-/// in `XSD`, conforming to `RDFS.Literal`, whose value is the Swift type of
-/// its primitive's value space.
+/// Generates the Swift type of an XML Schema datatype (D6). A datatype whose
+/// value space is exactly a Swift type is that type, which is made a literal;
+/// any other is a struct in `XSD`, conforming to `RDFS.Literal`, whose value
+/// is the Swift type of its primitive's value space.
 ///
 ///     extension XSD {
 ///         /// xsd:string (http://www.w3.org/TR/xmlschema11-2/#string)
-///         public struct string: RDFS.Literal, Hashable, Sendable {
-///             public var value: String
-///             public init(_ value: String)
+///         public typealias string = String
+///         /// xsd:decimal (http://www.w3.org/TR/xmlschema11-2/#decimal)
+///         public struct decimal: RDFS.Literal, Hashable, Sendable {
+///             public var value: DecimalNumber
+///             public init(_ value: DecimalNumber)
 ///         }
 ///     }
+///     extension String: RDFS.Literal {}
 struct DatatypeEmitter {
     let definitions: DatatypeDefinitions
 
@@ -34,6 +38,7 @@ struct DatatypeEmitter {
         "string",
         "boolean",
         "double",
+        "float",
     ]
 
     func emit(_ names: [String]) throws -> String {
