@@ -112,4 +112,14 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class OWLOntology: OWL.Ontology {}
+
+    /// owl:Restriction rdfs:subClassOf OWL.Class.
+    @Test func owlRestriction() {
+        let member: AnyObject = OWLRestriction()
+        #expect(member is OWL.Restriction)
+        #expect(member is OWL.Class)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class OWLRestriction: OWL.Restriction {}
 }

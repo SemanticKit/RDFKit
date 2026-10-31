@@ -25,5 +25,12 @@ public struct OWL: Ontology {
             Label("Ontology")
             Comment("The class of ontologies.")
         }
+
+        Class("Restriction") {
+            Type(RDFS.Class)
+            SubClassOf(OWL.Class)
+            Label("Restriction")
+            Comment("The class of property restrictions.")
+        }
     }
 }
