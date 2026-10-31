@@ -14,7 +14,9 @@ import SwiftSyntaxBuilder
 ///
 /// Each subject is a node, keyed by its IRI (`@id`) and the IRIs of its
 /// predicates; a blank node is written where it is the object, as a node
-/// with no `@id`.
+/// with no `@id`. The IRI of a term a translated vocabulary declares is
+/// derived from that declaration when the encoder asks for it (rule 17);
+/// only an IRI no translated vocabulary declares is written as it is.
 struct Description {
     let vocabulary: Vocabulary
 
@@ -85,18 +87,9 @@ struct Description {
                 InheritedTypeSyntax(type: TypeSyntax("Sendable"))
             },
             memberBlock: try MemberBlockSyntax {
-                EnumDeclSyntax(
-                    modifiers: [DeclModifierSyntax(name: .keyword(.private))],
-                    name: .identifier("CodingKeys"),
-                    inheritanceClause: InheritanceClauseSyntax {
-                        InheritedTypeSyntax(type: TypeSyntax("String"))
-                        InheritedTypeSyntax(type: TypeSyntax("CodingKey"))
-                    },
-                    memberBlock: MemberBlockSyntax {
-                        key("id", "@id")
-                        for predicate in keys.order { key(keys.names[predicate]!, predicate.rawValue) }
-                    }
-                )
+                Individuals.codingKeys([("id", ExprSyntax(StringLiteralExprSyntax(content: "@id")))] + keys.order.map { predicate in
+                    (keys.names[predicate]!, vocabulary.iriExpression(of: predicate.rawValue))
+                })
                 InitializerDeclSyntax(
                     modifiers: [DeclModifierSyntax(name: .keyword(.public))],
                     signature: FunctionSignatureSyntax(parameterClause: FunctionParameterClauseSyntax(parameters: [])),
@@ -105,12 +98,6 @@ struct Description {
                 try encode(subjects, keys: keys)
             }
         )
-    }
-
-    private func key(_ name: String, _ value: String) -> EnumCaseDeclSyntax {
-        EnumCaseDeclSyntax {
-            EnumCaseElementSyntax(name: .identifier(name), rawValue: InitializerClauseSyntax(value: StringLiteralExprSyntax(content: value)))
-        }
     }
 
     /// `encode(to:)`: one node per subject.
@@ -143,7 +130,7 @@ struct Description {
         ])
         var statements = [Self.variable("node", keyed)]
         if case .iri(let iri) = subject {
-            statements.append(Self.item(Self.encode(in: "node", ExprSyntax(StringLiteralExprSyntax(content: iri.rawValue)), forKey: "id")))
+            statements.append(Self.item(Self.encode(in: "node", vocabulary.iriExpression(of: iri.rawValue), forKey: "id")))
         }
         let triples = vocabulary.graph.filter { $0.subject == subject }
         var predicates: [IRI] = []
@@ -169,20 +156,21 @@ struct Description {
                 Self.variable("node", Individuals.call(Individuals.member(Individuals.reference("objects"), "nestedContainer"), [
                     ("keyedBy", ExprSyntax(MemberAccessExprSyntax(base: Individuals.reference("CodingKeys"), declName: DeclReferenceExprSyntax(baseName: .keyword(.self))))),
                 ])),
-                Self.item(Self.encode(in: "node", ExprSyntax(StringLiteralExprSyntax(content: iri.rawValue)), forKey: "id")),
+                Self.item(Self.encode(in: "node", vocabulary.iriExpression(of: iri.rawValue), forKey: "id")),
             ])]
         case .blankNode(let node):
             return [Self.scope(try self.node(.blankNode(node), in: "objects", keys: keys))]
         case .literal(let literal):
-            return [Self.item(TryExprSyntax(expression: Individuals.call(Individuals.member(Individuals.reference("objects"), "encode"), [(nil, Self.literal(literal))])))]
+            return [Self.item(TryExprSyntax(expression: Individuals.call(Individuals.member(Individuals.reference("objects"), "encode"), [(nil, self.literal(literal))])))]
         case .tripleTerm:
             throw TranslationError(description: "\(object): triple terms are not translated yet")
         }
     }
 
     /// A literal: a string for a simple literal, otherwise the `Literal` the
-    /// encoder writes as it is (rule 20).
-    private static func literal(_ literal: Literal) -> ExprSyntax {
+    /// encoder writes as it is (rule 20), its datatype's IRI derived from
+    /// the declaration of the datatype when a vocabulary declares it.
+    private func literal(_ literal: Literal) -> ExprSyntax {
         let lexical = ExprSyntax(StringLiteralExprSyntax(content: literal.lexicalForm))
         if let language = literal.languageTag {
             var arguments: [(label: String?, value: ExprSyntax)] = [(nil, lexical), ("languageTag", ExprSyntax(StringLiteralExprSyntax(content: language)))]
@@ -192,9 +180,13 @@ struct Description {
             return ExprSyntax(TryExprSyntax(expression: Individuals.call(Individuals.reference("Literal"), arguments)))
         }
         if let datatype = literal.datatype {
+            let derived = vocabulary.iriExpression(of: datatype.rawValue)
+            let iri = derived.is(StringLiteralExprSyntax.self)
+                ? derived
+                : ExprSyntax(Individuals.call(Individuals.reference("IRI"), [("stringLiteral", derived)]))
             return ExprSyntax(Individuals.call(Individuals.reference("Literal"), [
                 (nil, lexical),
-                ("datatype", ExprSyntax(StringLiteralExprSyntax(content: datatype.rawValue))),
+                ("datatype", iri),
             ]))
         }
         return lexical
