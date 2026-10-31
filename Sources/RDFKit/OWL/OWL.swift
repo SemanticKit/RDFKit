@@ -260,5 +260,13 @@ public struct OWL: Ontology {
             Label("propertyDisjointWith")
             Comment("The property that determines that two given properties are disjoint.")
         }
+
+        Property("propertyChainAxiom") {
+            Type(RDF.Property)
+            Domain(OWL.ObjectProperty)
+            Range(RDF.List)
+            Label("propertyChainAxiom")
+            Comment("The property that determines the n-tuple of properties that build a sub property chain of a given property.")
+        }
     }
 }
