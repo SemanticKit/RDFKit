@@ -1,4 +1,5 @@
 import Testing
+import RDFCore
 import RDFKit
 
 @Suite(.tags(.class, .rdf))
@@ -10,5 +11,9 @@ struct RDFStatementTests {
         #expect(member is RDFS.Resource)
     }
 
-    private final class Member: RDF.Statement {}
+    private final class Member: RDF.Statement {
+        var subject: Values<any RDFS.Resource> = []
+        var predicate: Values<any RDFS.Resource> = []
+        var object: Values<any RDFS.Resource> = []
+    }
 }

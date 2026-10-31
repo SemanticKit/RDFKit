@@ -1,4 +1,5 @@
 import Testing
+import RDFCore
 import RDFKit
 
 @Suite(.tags(.class, .rdf))
@@ -10,5 +11,8 @@ struct RDFCompoundLiteralTests {
         #expect(member is RDFS.Resource)
     }
 
-    private final class Member: RDF.CompoundLiteral {}
+    private final class Member: RDF.CompoundLiteral {
+        var language: Values<any RDFS.Resource> = []
+        var direction: Values<any RDFS.Resource> = []
+    }
 }

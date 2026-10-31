@@ -1,4 +1,5 @@
 import Testing
+import RDFCore
 import RDFKit
 
 @Suite(.tags(.class, .owl))
@@ -10,5 +11,11 @@ struct OWLOntologyTests {
         #expect(member is RDFS.Resource)
     }
 
-    private final class Member: OWL.Ontology {}
+    private final class Member: OWL.Ontology {
+        var backwardCompatibleWith: Values<any OWL.Ontology> = []
+        var imports: Values<any OWL.Ontology> = []
+        var incompatibleWith: Values<any OWL.Ontology> = []
+        var priorVersion: Values<any OWL.Ontology> = []
+        var versionIRI: Values<any OWL.Ontology> = []
+    }
 }
