@@ -88,5 +88,12 @@ public struct OWL: Ontology {
             Label("ObjectProperty")
             Comment("The class of object properties.")
         }
+
+        Class("DatatypeProperty") {
+            Type(RDFS.Class)
+            SubClassOf(RDF.Property)
+            Label("DatatypeProperty")
+            Comment("The class of data properties.")
+        }
     }
 }
