@@ -13,13 +13,17 @@ public struct Class: Content {
 /// The class a declared term is a member of (`rdf:type`):
 /// `Type(RDFS.Class)`.
 public struct Type: Content {
-    public init(_ class: Any.Type) {}
+    /// The form `@Ontology` checks the term of in type position and leaves
+    /// holding nothing.
+    public init() {}
 }
 
 /// A class the declared class is a subclass of (`rdfs:subClassOf`):
 /// `SubClassOf(RDFS.Resource)`.
 public struct SubClassOf: Content {
-    public init(_ class: Any.Type) {}
+    /// The form `@Ontology` checks the term of in type position and leaves
+    /// holding nothing.
+    public init() {}
 }
 
 /// A human-readable name for the declared term (`rdfs:label`).
@@ -40,13 +44,17 @@ public struct Property: Content {
 /// The class of the declared property's subjects (`rdfs:domain`):
 /// `Domain(FOAF.Person)`.
 public struct Domain: Content {
-    public init(_ class: Any.Type) {}
+    /// The form `@Ontology` checks the term of in type position and leaves
+    /// holding nothing.
+    public init() {}
 }
 
 /// The class of the declared property's values (`rdfs:range`):
 /// `Range(FOAF.Person)`.
 public struct Range: Content {
-    public init(_ class: Any.Type) {}
+    /// The form `@Ontology` checks the term of in type position and leaves
+    /// holding nothing.
+    public init() {}
 }
 
 /// A datatype (`rdfs:Datatype`), named by its local name, with its

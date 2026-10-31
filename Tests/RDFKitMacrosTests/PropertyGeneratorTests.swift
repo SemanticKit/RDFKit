@@ -46,19 +46,23 @@ struct PropertyGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
                             RDFKit.Class("List") {
-                                RDFKit.Type(RDFS.Class.self)
-                                RDFKit.SubClassOf(RDFS.Resource.self)
+                                RDFKit.Type()
+                                RDFKit.SubClassOf()
                                 RDFKit.Label("List")
                                 RDFKit.Comment("The class of RDF Lists.")
                             }
 
                             RDFKit.Property("first") {
-                                RDFKit.Type(RDF.Property.self)
-                                RDFKit.Domain(RDF.List.self)
-                                RDFKit.Range(RDFS.Resource.self)
+                                RDFKit.Type()
+                                RDFKit.Domain()
+                                RDFKit.Range()
                                 RDFKit.Label("first")
                                 RDFKit.Comment("The first item in the subject RDF list.")
                             }
+                            typealias _RDFS_Class = RDFS.Class
+                            typealias _RDFS_Resource = RDFS.Resource
+                            typealias _RDF_Property = RDF.Property
+                            typealias _RDF_List = RDF.List
                     }
                     return declarations()
                 }
@@ -110,12 +114,15 @@ struct PropertyGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
                             RDFKit.Property("label") {
-                                RDFKit.Type(RDF.Property.self)
-                                RDFKit.Domain(RDFS.Resource.self)
-                                RDFKit.Range(RDFS.Literal.self)
+                                RDFKit.Type()
+                                RDFKit.Domain()
+                                RDFKit.Range()
                                 RDFKit.Label("label")
                                 RDFKit.Comment("A human-readable name for the subject.")
                             }
+                            typealias _RDF_Property = RDF.Property
+                            typealias _RDFS_Resource = RDFS.Resource
+                            typealias _RDFS_Literal = RDFS.Literal
                     }
                     return declarations()
                 }
@@ -167,12 +174,15 @@ struct PropertyGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
                             RDFKit.Property("type") {
-                                RDFKit.Type(RDF.Property.self)
-                                RDFKit.Domain(RDFS.Resource.self)
-                                RDFKit.Range(RDFS.Class.self)
+                                RDFKit.Type()
+                                RDFKit.Domain()
+                                RDFKit.Range()
                                 RDFKit.Label("type")
                                 RDFKit.Comment("The subject is an instance of a class.")
                             }
+                            typealias _RDF_Property = RDF.Property
+                            typealias _RDFS_Resource = RDFS.Resource
+                            typealias _RDFS_Class = RDFS.Class
                     }
                     return declarations()
                 }
@@ -211,12 +221,14 @@ struct PropertyGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
                             RDFKit.Property("subClassOf") {
-                                RDFKit.Type(RDF.Property.self)
-                                RDFKit.Domain(RDFS.Class.self)
-                                RDFKit.Range(RDFS.Class.self)
+                                RDFKit.Type()
+                                RDFKit.Domain()
+                                RDFKit.Range()
                                 RDFKit.Label("subClassOf")
                                 RDFKit.Comment("The subject is a subclass of a class.")
                             }
+                            typealias _RDF_Property = RDF.Property
+                            typealias _RDFS_Class = RDFS.Class
                     }
                     return declarations()
                 }

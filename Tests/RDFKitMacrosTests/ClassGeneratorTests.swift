@@ -45,17 +45,19 @@ struct ClassGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
                             RDFKit.Class("Resource") {
-                                RDFKit.Type(RDFS.Class.self)
+                                RDFKit.Type()
                                 RDFKit.Label("Resource")
                                 RDFKit.Comment("The class resource, everything.")
                             }
 
                             RDFKit.Class("Class") {
-                                RDFKit.Type(RDFS.Class.self)
-                                RDFKit.SubClassOf(RDFS.Resource.self)
+                                RDFKit.Type()
+                                RDFKit.SubClassOf()
                                 RDFKit.Label("Class")
                                 RDFKit.Comment("The class of classes.")
                             }
+                            typealias _RDFS_Class = RDFS.Class
+                            typealias _RDFS_Resource = RDFS.Resource
                     }
                     return declarations()
                 }
@@ -104,11 +106,12 @@ struct ClassGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/2002/07/owl#")
 
                             RDFKit.Class("Class") {
-                                RDFKit.Type(RDFS.Class.self)
-                                RDFKit.SubClassOf(RDFS.Class.self)
+                                RDFKit.Type()
+                                RDFKit.SubClassOf()
                                 RDFKit.Label("Class")
                                 RDFKit.Comment("The class of OWL classes.")
                             }
+                            typealias _RDFS_Class = RDFS.Class
                     }
                     return declarations()
                 }
@@ -150,10 +153,11 @@ struct ClassGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/2002/07/owl#")
 
                             RDFKit.Class("Thing") {
-                                RDFKit.Type(OWL.Class.self)
+                                RDFKit.Type()
                                 RDFKit.Label("Thing")
                                 RDFKit.Comment("The class of OWL individuals.")
                             }
+                            typealias _OWL_Class = OWL.Class
                     }
                     return declarations()
                 }
@@ -195,11 +199,13 @@ struct ClassGeneratorTests {
                             RDFKit.Namespace("http://www.w3.org/2002/07/owl#")
 
                             RDFKit.Class("Nothing") {
-                                RDFKit.Type(OWL.Class.self)
-                                RDFKit.SubClassOf(OWL.Thing.self)
+                                RDFKit.Type()
+                                RDFKit.SubClassOf()
                                 RDFKit.Label("Nothing")
                                 RDFKit.Comment("This is the empty class.")
                             }
+                            typealias _OWL_Class = OWL.Class
+                            typealias _OWL_Thing = OWL.Thing
                     }
                     return declarations()
                 }
