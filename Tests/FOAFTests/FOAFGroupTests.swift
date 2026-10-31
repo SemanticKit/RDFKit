@@ -4,13 +4,11 @@ import FOAF
 
 @Suite(.tags(.class, .foaf))
 struct FOAFGroupTests {
-    /// foaf:Group rdfs:subClassOf FOAF.Agent, translated from index.rdf, as protocol inheritance.
+    /// foaf:Group rdfs:subClassOf FOAF.Agent, translated from index.rdf, as protocol inheritance:
+    /// a FOAF.Group is each of these, which the upcasts compile only if so.
     @Test func inheritsItsSuperclasses() {
-        let member: AnyObject = Member()
-        #expect(member is FOAF.Group)
-        #expect(member is FOAF.Agent)
-        #expect(member is RDFS.Resource)
+        let asFOAFAgent: (any FOAF.Group) -> any FOAF.Agent = { $0 }
+        let asRDFSResource: (any FOAF.Group) -> any RDFS.Resource = { $0 }
+        _ = (asFOAFAgent, asRDFSResource)
     }
-
-    private final class Member: FOAF.Group {}
 }

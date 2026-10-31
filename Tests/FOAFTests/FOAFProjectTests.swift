@@ -4,12 +4,10 @@ import FOAF
 
 @Suite(.tags(.class, .foaf))
 struct FOAFProjectTests {
-    /// foaf:Project, translated from index.rdf, as protocol inheritance.
+    /// foaf:Project, translated from index.rdf, as protocol inheritance:
+    /// a FOAF.Project is each of these, which the upcasts compile only if so.
     @Test func inheritsItsSuperclasses() {
-        let member: AnyObject = Member()
-        #expect(member is FOAF.Project)
-        #expect(member is RDFS.Resource)
+        let asRDFSResource: (any FOAF.Project) -> any RDFS.Resource = { $0 }
+        _ = (asRDFSResource)
     }
-
-    private final class Member: FOAF.Project {}
 }

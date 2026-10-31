@@ -4,13 +4,10 @@ import FOAF
 
 @Suite(.tags(.class, .foaf))
 struct FOAFAgentTests {
-    /// foaf:Agent, translated from index.rdf, is a class whose members are
-    /// individuals and resources.
-    @Test func isAClassOfIndividuals() {
-        let member: AnyObject = Member()
-        #expect(member is FOAF.Agent)
-        #expect(member is RDFS.Resource)
+    /// foaf:Agent, translated from index.rdf, as protocol inheritance:
+    /// a FOAF.Agent is each of these, which the upcasts compile only if so.
+    @Test func inheritsItsSuperclasses() {
+        let asRDFSResource: (any FOAF.Agent) -> any RDFS.Resource = { $0 }
+        _ = (asRDFSResource)
     }
-
-    private final class Member: FOAF.Agent {}
 }

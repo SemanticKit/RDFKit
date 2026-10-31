@@ -4,12 +4,10 @@ import FOAF
 
 @Suite(.tags(.class, .foaf))
 struct FOAFSpatialThingTests {
-    /// geo:SpatialThing, translated from index.rdf, as protocol inheritance.
+    /// geo:SpatialThing, translated from index.rdf, as protocol inheritance:
+    /// a FOAF.SpatialThing is each of these, which the upcasts compile only if so.
     @Test func inheritsItsSuperclasses() {
-        let member: AnyObject = Member()
-        #expect(member is FOAF.SpatialThing)
-        #expect(member is RDFS.Resource)
+        let asRDFSResource: (any FOAF.SpatialThing) -> any RDFS.Resource = { $0 }
+        _ = (asRDFSResource)
     }
-
-    private final class Member: FOAF.SpatialThing {}
 }

@@ -4,12 +4,10 @@ import FOAF
 
 @Suite(.tags(.class, .foaf))
 struct FOAFLabelPropertyTests {
-    /// foaf:LabelProperty, translated from index.rdf, as protocol inheritance.
+    /// foaf:LabelProperty, translated from index.rdf, as protocol inheritance:
+    /// a FOAF.LabelProperty is each of these, which the upcasts compile only if so.
     @Test func inheritsItsSuperclasses() {
-        let member: AnyObject = Member()
-        #expect(member is FOAF.LabelProperty)
-        #expect(member is RDFS.Resource)
+        let asRDFSResource: (any FOAF.LabelProperty) -> any RDFS.Resource = { $0 }
+        _ = (asRDFSResource)
     }
-
-    private final class Member: FOAF.LabelProperty {}
 }
