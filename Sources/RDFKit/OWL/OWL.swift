@@ -228,5 +228,13 @@ public struct OWL: Ontology {
             Label("disjointUnionOf")
             Comment("The property that determines that a given class is equivalent to the disjoint union of a collection of other classes.")
         }
+
+        Property("hasKey") {
+            Type(RDF.Property)
+            Domain(OWL.Class)
+            Range(RDF.List)
+            Label("hasKey")
+            Comment("The property that determines the collection of properties that jointly build a key.")
+        }
     }
 }
