@@ -185,9 +185,21 @@ let package = Package(
                 "Data/shacl.ttl"
             ]
         ),
+        // The W3C RDF test suites, fetched by Scripts/fetch-w3c-rdf-tests.sh.
         .testTarget(
             name: "RDFFormatsTests",
-            dependencies: ["RDFFormats", "RDFCore"]
+            dependencies: [
+                "RDFFormats",
+                "RDFCore",
+                "IRIKit"
+            ],
+            exclude: [
+                "W3C/README.md",
+                "Vocabularies"
+            ],
+            resources: [
+                .copy("W3C/rdf-tests")
+            ]
         ),
         .testTarget(
             name: "XSDTests",
