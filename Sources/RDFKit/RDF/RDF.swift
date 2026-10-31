@@ -26,5 +26,12 @@ public struct RDF: Ontology {
             Label("Statement")
             Comment("The class of RDF statements.")
         }
+
+        Class("CompoundLiteral") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Resource)
+            Label("CompoundLiteral")
+            Comment("A class representing a compound literal.")
+        }
     }
 }

@@ -48,4 +48,13 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class RDFStatement: RDF.Statement {}
+
+    /// rdf:CompoundLiteral rdfs:subClassOf RDFS.Resource.
+    @Test func rdfCompoundLiteral() {
+        let member: AnyObject = RDFCompoundLiteral()
+        #expect(member is RDF.CompoundLiteral)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class RDFCompoundLiteral: RDF.CompoundLiteral {}
 }
