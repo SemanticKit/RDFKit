@@ -11,3 +11,4 @@ http://xmlns.com/foaf/0.1/OnlineAccount
 http://xmlns.com/foaf/0.1/knows
 http://xmlns.com/foaf/0.1/name
 http://xmlns.com/foaf/0.1/Image
+http://xmlns.com/foaf/0.1/PersonalProfileDocument
