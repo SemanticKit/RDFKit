@@ -13,4 +13,18 @@ struct XSDFloatTests {
         #expect((Float(0.5) as Any) is RDFS.Literal)
         #expect(ObjectIdentifier(XSD.float.self) == ObjectIdentifier(Float.self))
     }
+
+    /// xsd:float's lexical mapping, ·floatLexicalMap· (§3.3.4.2), after
+    /// whiteSpace collapse, rounding to the nearest float.
+    @Test func mapsALexicalForm() throws {
+        #expect(try Float(lexicalForm: " 0.1 ") == Float(0.1))
+        #expect(try Float(lexicalForm: "-1E2") == -100)
+        #expect(try Float(lexicalForm: "INF") == .infinity)
+        #expect(try Float(lexicalForm: "NaN").isNaN)
+        #expect(try Float(lexicalForm: "1e39") == .infinity)
+        #expect(try Float(lexicalForm: "-0.0").sign == .minus)
+        for form in ["INFINITY", "1.0f", "", "--1"] {
+            #expect(throws: DatatypeError.illTyped) { try Float(lexicalForm: form) }
+        }
+    }
 }

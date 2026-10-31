@@ -46,7 +46,10 @@ struct DatatypeEmitter {
 
     func emit(_ names: [String]) throws -> String {
         let declarations = try names.map { try datatype(named: $0) }
-        let literals = names.filter(Self.swiftTypes.contains).compactMap { Self.valueSpaces[$0] }
+        let lexical = LexicalEmitter(definitions: definitions)
+        let literals = try names.filter(Self.swiftTypes.contains).compactMap { name in
+            try Self.valueSpaces[name].map { ($0, try lexical.initializer(for: name, isSwiftType: true)) }
+        }
         let file = SourceFileSyntax {
             ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("Foundation"))])
             ImportDeclSyntax(path: [ImportPathComponentSyntax(name: .identifier("RDFKit"))])
@@ -56,14 +59,14 @@ struct DatatypeEmitter {
                     for declaration in declarations { declaration }
                 }
             )
-            for type in literals {
+            for (type, lexicalForm) in literals {
                 ExtensionDeclSyntax(
                     leadingTrivia: doc(["A \(type) is a literal: the value space of an XML Schema datatype (RDF 1.2 Concepts §5.1)."]),
                     extendedType: TypeSyntax(stringLiteral: type),
                     inheritanceClause: InheritanceClauseSyntax {
                         InheritedTypeSyntax(type: TypeSyntax("RDFS.Literal"))
                     },
-                    memberBlock: MemberBlockSyntax {}
+                    memberBlock: MemberBlockSyntax { lexicalForm }
                 )
             }
             for binary in BinaryEmitter(definitions: definitions).extensions(for: names) { binary }
@@ -105,6 +108,11 @@ struct DatatypeEmitter {
         let checks = TemporalEmitter.valueSpaces[primitive.name] == nil
             ? try FacetEmitter(definitions: definitions).checks(for: definition, valueSpace: primitive, valueType: value)
             : FacetEmitter.Checks()
+        // The lexical mapping, where LexicalEmitter has the primitive's; the
+        // other primitives' emitters give their own.
+        let lexicalForm = LexicalEmitter.lexicalMaps[definitions.chain(to: definition)[0].name] == nil
+            ? nil
+            : try LexicalEmitter(definitions: definitions).initializer(for: name, isSwiftType: false, valueThrows: !checks.statements.isEmpty)
         return StructDeclSyntax(
             leadingTrivia: doc(["xsd:\(name)" + (definition.source.map { " (\($0))" } ?? "")]),
             modifiers: [DeclModifierSyntax(name: .keyword(.public))],
@@ -149,6 +157,7 @@ struct DatatypeEmitter {
                     }
                 )
                 for member in TemporalEmitter(definitions: definitions).members(of: definition, primitive: primitive) { member }
+                if let lexicalForm { lexicalForm }
             }
         )
     }
