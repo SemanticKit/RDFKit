@@ -25,5 +25,12 @@ public struct RDFS: Ontology {
             Label("Literal")
             Comment("The class of literal values, eg. textual strings and integers.")
         }
+
+        Class("Datatype") {
+            Type(RDFS.Class)
+            SubClassOf(RDFS.Class)
+            Label("Datatype")
+            Comment("The class of RDF datatypes.")
+        }
     }
 }

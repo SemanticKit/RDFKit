@@ -66,4 +66,14 @@ private final class OWLClass: OWL.Class {}
     }
 
     private final class RDFSLiteral: RDFS.Literal {}
+
+    /// rdfs:Datatype rdfs:subClassOf RDFS.Class.
+    @Test func rdfsDatatype() {
+        let member: AnyObject = RDFSDatatype()
+        #expect(member is RDFS.Datatype)
+        #expect(member is RDFS.Class)
+        #expect(member is RDFS.Resource)
+    }
+
+    private final class RDFSDatatype: RDFS.Datatype {}
 }
